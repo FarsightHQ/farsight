@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:latest
+    container_name: farsight_postgres
+    environment:
+      POSTGRES_DB: farsight
+      POSTGRES_USER: farsight_user
+      POSTGRES_PASSWORD: farsight_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - farsight_network
+    restart: unless-stopped
+
+  # Python Backend Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: farsight_backend
+    environment:
+      DATABASE_URL: postgresql://farsight_user:farsight_password@postgres:5432/farsight
+      PYTHONPATH: /app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # pgAdmin - Database Viewer
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: farsight_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@farsight.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - farsight_network
+    restart: unless-stopped
+
+  # Alternative: Adminer (lightweight DB viewer)
+  adminer:
+    image: adminer:latest
+    container_name: farsight_adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - farsight_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+networks:
+  farsight_network:
+    driver: bridge
