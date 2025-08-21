@@ -1,9 +1,7 @@
 """
-Utility functions for file operations and validation
-DEPRECATED: Use app.utils instead
+Utility functions
 """
-# Import from new location for backward compatibility
-from app.utils import (
+from .file_utils import (
     safe_filename,
     get_upload_path,
     save_upload_file,
