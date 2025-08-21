@@ -5,7 +5,7 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 ## Tech Stack
 
 - **Database**: PostgreSQL (latest)
-- **Backend**: Python 3.11 + FastAPI
+- **Backend**: Python 3.11 + FastAPI + Alembic migrations
 - **Database Viewer**: pgAdmin 4 (web-based PostgreSQL admin)
 
 ## Quick Start
@@ -48,6 +48,20 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 ### Backend Development
 The backend code is mounted as a volume, so changes are reflected immediately with hot reload.
 
+### Database Migrations
+```bash
+# Create a new migration after modifying models
+docker-compose exec backend alembic revision --autogenerate -m "Description"
+
+# Apply pending migrations
+docker-compose exec backend alembic upgrade head
+
+# Check migration status
+docker-compose exec backend alembic current
+```
+
+**Note:** Migrations run automatically when the backend starts.
+
 ### Adding Dependencies
 Add new packages to `backend/requirements.txt` and rebuild:
 ```bash
@@ -82,6 +96,10 @@ docker-compose exec postgres psql -U farsight_user -d farsight
 
 # View backend logs
 docker-compose logs -f backend
+
+# Database migrations
+docker-compose exec backend alembic current
+docker-compose exec backend alembic history
 ```
 
 ## Project Structure
@@ -93,6 +111,13 @@ farsight/
 ├── backend/
 │   ├── Dockerfile         # Backend container config
 │   ├── requirements.txt   # Python dependencies
-│   └── main.py           # FastAPI application
+│   ├── main.py           # FastAPI application
+│   ├── database.py       # Database configuration
+│   ├── models.py         # SQLAlchemy models
+│   ├── migrate.py        # Migration helper script
+│   ├── alembic.ini       # Alembic configuration
+│   └── alembic/          # Migration files
+├── API_TESTING_GUIDE.md  # API testing documentation
+├── MIGRATION_GUIDE.md    # Database migration guide
 └── README.md             # This file
 ```
