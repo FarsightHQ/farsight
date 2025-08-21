@@ -6,9 +6,7 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 
 - **Database**: PostgreSQL (latest)
 - **Backend**: Python 3.11 + FastAPI
-- **Database Viewers**: 
-  - pgAdmin 4 (web-based PostgreSQL admin)
-  - Adminer (lightweight alternative)
+- **Database Viewer**: pgAdmin 4 (web-based PostgreSQL admin)
 
 ## Quick Start
 
@@ -36,12 +34,6 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 - **pgAdmin**: http://localhost:5050
   - Email: admin@farsight.com
   - Password: admin123
-
-- **Adminer**: http://localhost:8080
-  - Server: postgres
-  - Username: farsight_user
-  - Password: farsight_password
-  - Database: farsight
 
 ## Database Connection
 

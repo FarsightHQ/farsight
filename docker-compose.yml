@@ -63,18 +63,6 @@ services:
       - farsight_network
     restart: unless-stopped
 
-  # Alternative: Adminer (lightweight DB viewer)
-  adminer:
-    image: adminer:latest
-    container_name: farsight_adminer
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-    networks:
-      - farsight_network
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   pgadmin_data:
