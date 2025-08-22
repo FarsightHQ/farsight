@@ -48,12 +48,60 @@ class CsvIngestionService:
             # Parse CSV content
             csv_reader = csv.DictReader(io.StringIO(file_content))
             
-            # Validate required columns
-            required_columns = ['source', 'destination', 'service', 'action']
+            # Validate required columns with flexible naming
             fieldnames = csv_reader.fieldnames or []
-            if not all(col in fieldnames for col in required_columns):
-                missing = [col for col in required_columns if col not in fieldnames]
-                raise ValueError(f"Missing required columns: {missing}")
+            
+            # Clean up column names (remove BOM and whitespace)
+            clean_fieldnames = [col.strip().lstrip('\ufeff') for col in fieldnames]
+            
+            # Support both singular and plural column names
+            source_col = None
+            dest_col = None  
+            service_col = None
+            action_col = None
+            direction_col = None
+            
+            # Find source column
+            for i, col in enumerate(clean_fieldnames):
+                if col.lower() in ['source', 'sources']:
+                    source_col = fieldnames[i]  # Use original column name for data access
+                    break
+            
+            # Find destination column  
+            for i, col in enumerate(clean_fieldnames):
+                if col.lower() in ['destination', 'destinations']:
+                    dest_col = fieldnames[i]  # Use original column name for data access
+                    break
+                    
+            # Find service column
+            for i, col in enumerate(clean_fieldnames):
+                if col.lower() in ['service', 'services']:
+                    service_col = fieldnames[i]  # Use original column name for data access
+                    break
+                    
+            # Find optional action column
+            for i, col in enumerate(clean_fieldnames):
+                if col.lower() == 'action':
+                    action_col = fieldnames[i]  # Use original column name for data access
+                    break
+                    
+            # Find optional direction column
+            for i, col in enumerate(clean_fieldnames):
+                if col.lower() == 'direction':
+                    direction_col = fieldnames[i]  # Use original column name for data access
+                    break
+            
+            # Check required columns
+            missing_cols = []
+            if not source_col:
+                missing_cols.append('source/sources')
+            if not dest_col:
+                missing_cols.append('destination/destinations') 
+            if not service_col:
+                missing_cols.append('service/services')
+                
+            if missing_cols:
+                raise ValueError(f"Missing required columns: {missing_cols}")
             
             statistics = {
                 'total_rows': 0,
@@ -67,6 +115,15 @@ class CsvIngestionService:
             
             processed_hashes = set()
             
+            # Store column mappings for use in row parsing
+            column_mapping = {
+                'source': source_col,
+                'destination': dest_col,
+                'service': service_col,
+                'action': action_col,
+                'direction': direction_col
+            }
+            
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 for header
                 statistics['total_rows'] += 1
                 
@@ -77,7 +134,7 @@ class CsvIngestionService:
                         continue
                     
                     # Parse and normalize the rule
-                    normalized_rule = self._parse_csv_row(row)
+                    normalized_rule = self._parse_csv_row(row, column_mapping)
                     canonical_hash = compute_canonical_hash(normalized_rule)
                     
                     # Check for duplicates within this batch
@@ -122,40 +179,58 @@ class CsvIngestionService:
             self.db.rollback()
             raise ValueError(f"CSV ingestion failed: {str(e)}")
     
-    def _parse_csv_row(self, row: Dict[str, str]) -> NormalizedRule:
+    def _parse_csv_row(self, row: Dict[str, str], column_mapping: Dict[str, Optional[str]]) -> NormalizedRule:
         """
         Parse a single CSV row into a normalized rule
         
         Args:
             row: Dictionary representing a CSV row
+            column_mapping: Mapping of logical names to actual column names
             
         Returns:
             NormalizedRule object
         """
-        # Extract and validate action
-        action = row.get('action', 'allow').strip().lower()
+        # Extract and validate action (default to 'allow' if not present)
+        action_col = column_mapping.get('action')
+        if action_col and action_col in row:
+            action = row[action_col].strip().lower()
+        else:
+            action = 'allow'  # Default action
+            
         if action not in ['allow', 'deny', 'drop', 'reject']:
             logger.warning(f"Unknown action '{action}', defaulting to 'allow'")
             action = 'allow'
         
         # Extract optional direction
-        direction = row.get('direction', '').strip().lower() or None
-        if direction and direction not in ['inbound', 'outbound', 'bidirectional']:
-            logger.warning(f"Unknown direction '{direction}', ignoring")
-            direction = None
+        direction_col = column_mapping.get('direction')
+        direction = None
+        if direction_col and direction_col in row:
+            direction = row[direction_col].strip().lower() or None
+            if direction and direction not in ['inbound', 'outbound', 'bidirectional']:
+                logger.warning(f"Unknown direction '{direction}', ignoring")
+                direction = None
         
         # Parse source endpoints
-        source_endpoints = self._parse_endpoints(row.get('source', '').strip())
+        source_col = column_mapping['source']
+        if not source_col:
+            raise ValueError("Source column not found")
+        source_endpoints = self._parse_endpoints(row.get(source_col, '').strip())
         if not source_endpoints:
             raise ValueError("No valid source endpoints found")
         
         # Parse destination endpoints
-        destination_endpoints = self._parse_endpoints(row.get('destination', '').strip())
+        dest_col = column_mapping['destination']
+        if not dest_col:
+            raise ValueError("Destination column not found")
+        destination_endpoints = self._parse_endpoints(row.get(dest_col, '').strip())
         if not destination_endpoints:
             raise ValueError("No valid destination endpoints found")
         
         # Parse services
-        services = self._parse_services(row.get('service', '').strip())
+        service_col = column_mapping['service']
+        if not service_col:
+            raise ValueError("Service column not found")
+        services = self._parse_services(row.get(service_col, '').strip())
         if not services:
             raise ValueError("No valid services found")
         
