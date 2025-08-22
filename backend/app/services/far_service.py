@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
 
 from app.models import FarRequest
-from app.schemas import FarRequestCreate, FarRequestResponse, FileInfo, RequestMetadata
+from app.schemas import FarRequestCreate, FarRequestResponse
 from app.utils import (
     validate_csv_file, 
     get_upload_path, 
@@ -97,22 +97,8 @@ class FarIngestionService:
                 f"File={file.filename}, SHA256={sha256_hash}"
             )
             
-            # Build response
-            return FarRequestResponse(
-                request_id=far_request.id,
-                status=far_request.status,
-                file=FileInfo(
-                    filename=far_request.source_filename,
-                    sha256=far_request.source_sha256,
-                    size_bytes=far_request.source_size_bytes,
-                    storage_path=far_request.storage_path
-                ),
-                metadata=RequestMetadata(
-                    title=far_request.title,
-                    external_id=far_request.external_id,
-                    created_by=far_request.created_by
-                )
-            )
+            # Build response directly from the database object
+            return FarRequestResponse.from_orm(far_request)
             
         except HTTPException:
             # Re-raise HTTP exceptions as-is
