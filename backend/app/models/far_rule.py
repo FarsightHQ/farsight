@@ -2,6 +2,7 @@
 Database models for FAR processing - Phase 2.1/2.2
 """
 from sqlalchemy import Column, Integer, String, DateTime, Text, BigInteger, ForeignKey, LargeBinary
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -18,12 +19,14 @@ class FarRule(Base):
     canonical_hash = Column(LargeBinary, nullable=False)  # SHA256 hash for deduplication
     action = Column(Text, nullable=False, default='allow')
     direction = Column(Text, nullable=True)  # Optional direction
+    facts = Column(JSONB, nullable=True)  # Rule-level facts in hybrid approach
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationships
     request = relationship("FarRequest", back_populates="rules")
     endpoints = relationship("FarRuleEndpoint", back_populates="rule", cascade="all, delete-orphan")
     services = relationship("FarRuleService", back_populates="rule", cascade="all, delete-orphan")
+    tuple_facts = relationship("FarTupleFacts", back_populates="rule", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<FarRule(id={self.id}, request_id={self.request_id}, action='{self.action}')>"
