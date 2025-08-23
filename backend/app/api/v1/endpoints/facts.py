@@ -16,7 +16,6 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Compute Rule Facts",
     description="Compute detailed facts for all firewall rules in a request",
-    tags=["Facts Computation"],
     responses={
         200: {
             "description": "Facts computed successfully",
