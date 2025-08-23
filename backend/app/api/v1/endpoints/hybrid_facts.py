@@ -18,8 +18,63 @@ async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
     - Tuple-level facts only for problematic/interesting tuples
     """
     try:
+        # Get the FAR request
+        from app.models.far_request import FarRequest
+        from app.models.far_rule import FarRule, FarRuleEndpoint
+        
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail="FAR request not found")
+        
+        # Get rules for this request to extract CIDRs, ports, protocols
+        rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
+        if not rules:
+            raise HTTPException(status_code=404, detail="No rules found for this request")
+        
+        # Extract unique CIDRs, ports, protocols from rules and their endpoints
+        source_cidrs = set()
+        destination_cidrs = set()
+        port_ranges = set()
+        protocols = set()
+        
+        for rule in rules:
+            # Get endpoints for this rule
+            endpoints = db.query(FarRuleEndpoint).filter(FarRuleEndpoint.rule_id == rule.id).all()
+            
+            for endpoint in endpoints:
+                if endpoint.endpoint_type == 'source':
+                    source_cidrs.add(endpoint.network_cidr)
+                elif endpoint.endpoint_type == 'destination':
+                    destination_cidrs.add(endpoint.network_cidr)
+            
+            # Note: Services/ports are in separate table, for now using placeholder
+            if hasattr(rule, 'services') and rule.services:
+                for service in rule.services:
+                    if hasattr(service, 'port_range'):
+                        port_ranges.add(service.port_range)
+                    if hasattr(service, 'protocol'):
+                        protocols.add(service.protocol)
+            else:
+                # Fallback to common defaults for demonstration
+                port_ranges.add("80")
+                port_ranges.add("443")
+                protocols.add("tcp")
+        
+        # Prepare request data for the service
+        request_data = {
+            'source_cidrs': list(source_cidrs),
+            'destination_cidrs': list(destination_cidrs),
+            'port_ranges': list(port_ranges),
+            'protocols': list(protocols)
+        }
+        
         service = HybridFactsService(db)
-        result = await service.compute_hybrid_facts_for_request(request_id)
+        result = await service.compute_hybrid_facts_for_request(request_data, db)
+        
+        # Add request context to result
+        result['request_id'] = request_id
+        result['request_title'] = far_request.title
+        
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
