@@ -43,6 +43,20 @@ services:
     restart: unless-stopped
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
+  # Frontend Web Interface
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: farsight_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - farsight_network
+    restart: unless-stopped
+
   # pgAdmin - Database Viewer
   pgadmin:
     image: dpage/pgadmin4:latest

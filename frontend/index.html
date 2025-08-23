@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farsight - CSV Upload</title>
+</head>
+<body>
+    <h1>Farsight CSV Upload</h1>
+    
+    <form id="uploadForm">
+        <p>
+            <label for="requestTitle">Title:</label><br>
+            <input type="text" id="requestTitle" name="title" required>
+        </p>
+        
+        <p>
+            <label for="externalId">External ID (optional):</label><br>
+            <input type="text" id="externalId" name="external_id">
+        </p>
+        
+        <p>
+            <label for="csvFile">CSV File:</label><br>
+            <input type="file" id="csvFile" accept=".csv" required>
+        </p>
+        
+        <p>
+            <button type="submit">Upload File</button>
+        </p>
+    </form>
+    
+    <div id="status"></div>
+    <div id="results"></div>
+    
+    <div id="actions" style="display: none;">
+        <h3>Actions</h3>
+        <button id="processBtn" disabled>Process</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
