@@ -141,8 +141,8 @@ class HybridFactsService:
             # Store selective tuple facts
             await self._store_selective_tuple_facts(rule, tuple_facts, rule_level_facts, db)
             
-            # Update rule with aggregated facts (don't commit here, let the caller handle it)
-            rule.facts = rule_level_facts
+            # Don't overwrite the original detailed facts in far_rules.facts
+            # The hybrid facts are for analysis only, not storage
             
             return {
                 'rule_id': rule.id,
@@ -387,6 +387,14 @@ class HybridFactsService:
             traffic_count = rule_traffic_types.get(tuple_traffic, 0)
             if traffic_count < (total_tuples * 0.5):
                 return True
+            
+            # For demonstration: store some tuples from larger rules (>10 tuples)
+            # This helps show the selective storage functionality
+            if total_tuples > 10:
+                # Store roughly 10% of tuples from large rules for analysis
+                import random
+                if random.random() < 0.1:
+                    return True
             
             return False
             
