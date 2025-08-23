@@ -64,18 +64,23 @@ class HybridFactsService:
                 )
                 result['rule_facts'].append(rule_facts)
             
+            # Commit all changes at once
+            db.commit()
+            
             return result
             
         except Exception as e:
             logger.error(f"Error computing hybrid facts: {e}")
+            db.rollback()
             raise
     
     def _find_matching_rules(self, source_cidrs: List[str], destination_cidrs: List[str], 
                            port_ranges: List[str], protocols: List[str], db: Session) -> List[FarRule]:
         """Find rules that match the given criteria"""
         try:
-            # Get all rules and check their endpoints for overlap
-            rules = db.query(FarRule).all()
+            # Get all rules with their endpoints eagerly loaded
+            from sqlalchemy.orm import joinedload
+            rules = db.query(FarRule).options(joinedload(FarRule.endpoints)).all()
             matching_rules = []
             
             for rule in rules:
@@ -136,9 +141,8 @@ class HybridFactsService:
             # Store selective tuple facts
             await self._store_selective_tuple_facts(rule, tuple_facts, rule_level_facts, db)
             
-            # Update rule with aggregated facts
+            # Update rule with aggregated facts (don't commit here, let the caller handle it)
             rule.facts = rule_level_facts
-            db.commit()
             
             return {
                 'rule_id': rule.id,
@@ -155,8 +159,20 @@ class HybridFactsService:
                             destination_cidrs: List[str]) -> List[tuple]:
         """Generate all tuples (source, destination) for the rule"""
         try:
-            rule_sources = rule.source_cidrs if isinstance(rule.source_cidrs, list) else []
-            rule_destinations = rule.destination_cidrs if isinstance(rule.destination_cidrs, list) else []
+            # Get rule's source and destination CIDRs from endpoints
+            rule_sources = []
+            rule_destinations = []
+            
+            # Add safety check and logging
+            logger.info(f"Processing rule {rule.id}, has {len(rule.endpoints)} endpoints")
+            
+            for endpoint in rule.endpoints:
+                if endpoint.endpoint_type == 'source':
+                    rule_sources.append(endpoint.network_cidr)
+                elif endpoint.endpoint_type == 'destination':
+                    rule_destinations.append(endpoint.network_cidr)
+            
+            logger.info(f"Rule {rule.id}: {len(rule_sources)} sources, {len(rule_destinations)} destinations")
             
             # Find overlapping CIDRs
             overlapping_sources = []
@@ -180,10 +196,11 @@ class HybridFactsService:
                 for dst in overlapping_destinations:
                     tuples.append((src, dst))
             
+            logger.info(f"Rule {rule.id}: Generated {len(tuples)} tuples")
             return tuples
             
         except Exception as e:
-            logger.error(f"Error generating rule tuples: {e}")
+            logger.error(f"Error generating rule tuples for rule {rule.id}: {e}")
             return []
     
     async def _compute_individual_tuple_facts(self, source_cidr: str, destination_cidr: str, 
@@ -318,8 +335,11 @@ class HybridFactsService:
                                          rule_level_facts: Dict[str, Any], db: Session):
         """Store only tuple facts that differ from rule-level patterns"""
         try:
-            # Clear existing selective tuple facts for this rule
-            db.query(FarTupleFacts).filter_by(rule_id=rule.id).delete()
+            # Only try to delete if there might be existing data
+            # Check if there are any existing tuple facts for this rule first
+            existing_count = db.query(FarTupleFacts).filter_by(rule_id=rule.id).count()
+            if existing_count > 0:
+                db.query(FarTupleFacts).filter_by(rule_id=rule.id).delete()
             
             for tuple_data in tuple_facts:
                 source_cidr = tuple_data['source_cidr']
@@ -336,11 +356,10 @@ class HybridFactsService:
                     )
                     db.add(tuple_fact_record)
             
-            db.commit()
+            # Don't commit here, let the caller handle it
             
         except Exception as e:
             logger.error(f"Error storing selective tuple facts: {e}")
-            db.rollback()
             raise
     
     def _should_store_selective_facts(self, tuple_facts: Dict[str, Any], 
