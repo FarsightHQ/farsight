@@ -1,0 +1,137 @@
+"""
+Database model for Asset Registry System
+"""
+from sqlalchemy import Column, Integer, String, DateTime, Text, BigInteger, Boolean, Float, JSON
+from sqlalchemy.dialects.postgresql import INET, JSONB
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.core.database import Base
+
+
+class AssetRegistry(Base):
+    """
+    Main Asset Registry model - stores all asset information
+    """
+    __tablename__ = "asset_registry"
+    
+    # Primary Key
+    id = Column(BigInteger, primary_key=True, index=True)
+    
+    # Core Asset Identification (UNIQUE CONSTRAINT)
+    ip_address = Column(INET, nullable=False, unique=True, index=True, comment="Primary asset identifier - must be unique")
+    
+    # Network Information
+    segment = Column(String(100), nullable=True, index=True)
+    subnet = Column(String(50), nullable=True)
+    gateway = Column(INET, nullable=True)
+    vlan = Column(String(20), nullable=True, index=True)
+    
+    # System Information
+    os = Column(String(100), nullable=True, index=True)
+    os_version = Column(String(100), nullable=True)
+    app_version = Column(String(100), nullable=True)
+    db_version = Column(String(100), nullable=True)
+    
+    # Hardware Resources
+    vcpu = Column(Integer, nullable=True)
+    memory_gb = Column(Float, nullable=True)
+    
+    # Asset Metadata
+    hostname = Column(String(255), nullable=True, index=True)
+    environment = Column(String(50), nullable=True, index=True)  # dev/stage/prod
+    business_unit = Column(String(100), nullable=True, index=True)
+    asset_owner = Column(String(100), nullable=True)
+    asset_criticality = Column(String(20), nullable=True, index=True)  # low/medium/high/critical
+    
+    # Compliance & Security
+    patch_level = Column(String(50), nullable=True)
+    security_zone = Column(String(50), nullable=True, index=True)
+    compliance_tags = Column(JSONB, nullable=True)  # Array of compliance requirements
+    
+    # Extended Properties (Flexible Schema)
+    extended_properties = Column(JSONB, nullable=True, comment="Flexible JSON storage for additional asset properties")
+    
+    # Data Management
+    data_source = Column(String(100), nullable=False, default='csv_upload')
+    version = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by = Column(String(100), nullable=False, default='system')
+    updated_by = Column(String(100), nullable=False, default='system')
+
+    def __repr__(self):
+        return f"<AssetRegistry(id={self.id}, ip='{self.ip_address}', hostname='{self.hostname}', version={self.version})>"
+
+
+class AssetRegistryHistory(Base):
+    """
+    Asset Registry History - Version control for all asset changes
+    """
+    __tablename__ = "asset_registry_history"
+    
+    # Primary Key
+    id = Column(BigInteger, primary_key=True, index=True)
+    
+    # Reference to current asset
+    asset_id = Column(BigInteger, nullable=False, index=True)
+    ip_address = Column(INET, nullable=False, index=True)
+    
+    # Change Information
+    version = Column(Integer, nullable=False)
+    change_type = Column(String(20), nullable=False, index=True)  # 'create', 'update', 'delete', 'reactivate'
+    change_description = Column(Text, nullable=True)
+    
+    # Snapshot of asset data at this version
+    asset_data_snapshot = Column(JSONB, nullable=False, comment="Complete asset data at this version")
+    
+    # Change tracking
+    changed_fields = Column(JSONB, nullable=True, comment="List of fields that changed")
+    previous_values = Column(JSONB, nullable=True, comment="Previous values of changed fields")
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_by = Column(String(100), nullable=False)
+    upload_batch_id = Column(String(100), nullable=True, index=True)  # Track CSV upload batches
+
+    def __repr__(self):
+        return f"<AssetRegistryHistory(asset_id={self.asset_id}, version={self.version}, change='{self.change_type}')>"
+
+
+class AssetUploadBatch(Base):
+    """
+    Track CSV upload batches for auditing and rollback capabilities
+    """
+    __tablename__ = "asset_upload_batches"
+    
+    # Primary Key
+    id = Column(BigInteger, primary_key=True, index=True)
+    
+    # Batch Information
+    batch_id = Column(String(100), nullable=False, unique=True, index=True)
+    upload_filename = Column(String(500), nullable=False)
+    upload_sha256 = Column(String(64), nullable=False)
+    upload_size_bytes = Column(BigInteger, nullable=False)
+    
+    # Processing Results
+    total_rows = Column(Integer, nullable=False)
+    processed_rows = Column(Integer, nullable=False)
+    created_assets = Column(Integer, nullable=False, default=0)
+    updated_assets = Column(Integer, nullable=False, default=0)
+    skipped_rows = Column(Integer, nullable=False, default=0)
+    error_rows = Column(Integer, nullable=False, default=0)
+    
+    # Status and Metadata
+    status = Column(String(20), nullable=False, default='processing')  # processing/completed/failed
+    error_details = Column(JSONB, nullable=True)
+    processing_duration_ms = Column(Integer, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    created_by = Column(String(100), nullable=False, default='system')
+
+    def __repr__(self):
+        return f"<AssetUploadBatch(batch_id='{self.batch_id}', status='{self.status}', assets={self.created_assets + self.updated_assets})>"
