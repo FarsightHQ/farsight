@@ -11,7 +11,35 @@ from app.services.facts_computation_service import FactsComputationService
 router = APIRouter()
 
 
-@router.post("/requests/{request_id}/facts/compute", status_code=status.HTTP_200_OK)
+@router.post(
+    "/requests/{request_id}/facts/compute", 
+    status_code=status.HTTP_200_OK,
+    summary="Compute Rule Facts",
+    description="Compute detailed facts for all firewall rules in a request",
+    tags=["Facts Computation"],
+    responses={
+        200: {
+            "description": "Facts computed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "request_id": 31,
+                        "rules_total": 59,
+                        "rules_updated": 59,
+                        "self_flow_count": 8,
+                        "src_any": 0,
+                        "dst_any": 0,
+                        "public_src": 0,
+                        "public_dst": 0,
+                        "duration_ms": 68
+                    }
+                }
+            }
+        },
+        404: {"description": "Request not found"},
+        409: {"description": "Request has no rules - run ingestion first"}
+    }
+)
 async def compute_facts_for_request(
     request_id: int,
     db: Session = Depends(get_db)

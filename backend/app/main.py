@@ -15,11 +15,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
+# Create FastAPI app with enhanced documentation
 app = FastAPI(
-    title="Farsight API", 
+    title="Farsight API",
     version="1.0.0",
-    description="A FastAPI application with PostgreSQL, Alembic migrations, and FAR CSV upload"
+    description="""
+    **Farsight API** - Firewall Access Rule Analysis System
+    
+    ## Features
+    
+    * **CSV Upload & Ingestion** - Upload firewall rule CSV files
+    * **Facts Computation** - Calculate 17+ detailed facts per rule
+    * **Hybrid Facts Analysis** - Advanced security and risk analysis
+    * **Request Analysis** - Comprehensive rule analysis for UI display
+    
+    ## Workflow
+    
+    1. **Upload CSV** → `/api/v1/ingest` 
+    2. **Compute Facts** → `/api/v1/requests/{id}/facts/compute`
+    3. **Hybrid Analysis** → `/api/v1/requests/{id}/facts/compute-hybrid`
+    4. **Get Analysis** → `/api/v1/requests/{id}/analysis`
+    
+    ## Documentation
+    
+    * **Interactive API Docs** (Swagger UI): `/docs`
+    * **Alternative API Docs** (ReDoc): `/redoc`
+    * **OpenAPI Schema**: `/openapi.json`
+    """,
+    contact={
+        "name": "Farsight Team",
+        "email": "team@farsight.com",
+    },
+    license_info={
+        "name": "MIT License",
+    },
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # Add CORS middleware

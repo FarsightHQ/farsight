@@ -78,6 +78,22 @@ services:
       - farsight_network
     restart: unless-stopped
 
+  # Swagger UI - API Documentation
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: farsight_swagger
+    environment:
+      SWAGGER_JSON_URL: http://localhost:8000/openapi.json
+      API_URL: http://localhost:8000/openapi.json
+      BASE_URL: /swagger
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - farsight_network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   pgadmin_data:
