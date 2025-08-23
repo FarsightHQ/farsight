@@ -74,14 +74,13 @@ class HybridFactsService:
                            port_ranges: List[str], protocols: List[str], db: Session) -> List[FarRule]:
         """Find rules that match the given criteria"""
         try:
-            # Simple matching for demonstration
-            # In production, this would use proper CIDR overlap logic
+            # Get all rules and check their endpoints for overlap
             rules = db.query(FarRule).all()
             matching_rules = []
             
             for rule in rules:
-                # Check if rule overlaps with request parameters
-                if self._rule_overlaps_with_request(rule, source_cidrs, destination_cidrs):
+                # Check if rule overlaps with request parameters by examining endpoints
+                if self._rule_overlaps_with_request(rule, source_cidrs, destination_cidrs, db):
                     matching_rules.append(rule)
             
             return matching_rules
@@ -91,15 +90,22 @@ class HybridFactsService:
             return []
     
     def _rule_overlaps_with_request(self, rule: FarRule, source_cidrs: List[str], 
-                                  destination_cidrs: List[str]) -> bool:
+                                  destination_cidrs: List[str], db: Session) -> bool:
         """Check if a rule overlaps with request parameters"""
         try:
-            # Simple overlap check for demonstration
-            # In production, use proper CIDR overlap logic
-            rule_sources = rule.source_cidrs if isinstance(rule.source_cidrs, list) else []
-            rule_destinations = rule.destination_cidrs if isinstance(rule.destination_cidrs, list) else []
+            # Get actual endpoints from the database
+            from app.models.far_rule import FarRuleEndpoint
+            endpoints = db.query(FarRuleEndpoint).filter(FarRuleEndpoint.rule_id == rule.id).all()
             
-            return bool(rule_sources and rule_destinations)
+            rule_sources = [ep.network_cidr for ep in endpoints if ep.endpoint_type == 'source']
+            rule_destinations = [ep.network_cidr for ep in endpoints if ep.endpoint_type == 'destination']
+            
+            # Simple overlap check - if any requested CIDR matches any rule CIDR
+            # In production, this would use proper CIDR overlap logic
+            source_overlap = any(req_src in rule_sources for req_src in source_cidrs)
+            dest_overlap = any(req_dst in rule_destinations for req_dst in destination_cidrs)
+            
+            return source_overlap and dest_overlap
             
         except Exception as e:
             logger.error(f"Error checking rule overlap: {e}")
