@@ -4,7 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAR Network Visualization</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="d3.v7.min.js"></script>
+    <script>
+        // Check if D3 loaded successfully
+        if (typeof d3 === 'undefined') {
+            console.error('D3.js failed to load!');
+            alert('D3.js library failed to load. Please refresh the page.');
+        } else {
+            console.log('D3.js loaded successfully, version:', d3.version);
+        }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
