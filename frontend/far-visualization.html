@@ -166,12 +166,14 @@
         </div>
         
         <div class="controls">
-            <div class="input-group">
-                <label for="ipInput">IP Address:</label>
-                <input type="text" id="ipInput" placeholder="Enter IP address (e.g., 10.177.55.101)" value="">
-                <button id="visualizeBtn" onclick="loadVisualization()">Visualize</button>
-                <button id="clearBtn" onclick="clearVisualization()">Clear</button>
-            </div>
+            <form id="ipForm">
+                <div class="input-group">
+                    <label for="ipInput">IP Address:</label>
+                    <input type="text" id="ipInput" placeholder="Enter IP address (e.g., 10.177.55.101)" value="">
+                    <button type="submit" id="loadBtn">Load Network</button>
+                    <button type="button" id="clearBtn">Clear</button>
+                </div>
+            </form>
         </div>
         
         <div class="visualization">
@@ -179,33 +181,113 @@
                 Loading network data...
             </div>
             <div id="error" class="error" style="display: none;"></div>
-            <svg id="networkSvg" width="1360" height="700"></svg>
+            <div id="visualization"></div>
             
-            <div class="legend">
+            <div id="legend" class="legend">
+                <h4>Connection Types</h4>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #ff6b6b;"></div>
-                    <span>Source IP (Input)</span>
+                    <div class="legend-color" style="background: #2E86AB;"></div>
+                    <span>Source IP (with asset)</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #4ecdc4;"></div>
-                    <span>Destination IP</span>
+                    <div class="legend-color" style="background: #F18F01;"></div>
+                    <span>Incoming connections</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #45b7d1;"></div>
-                    <span>Related IP</span>
+                    <div class="legend-color" style="background: #C73E1D;"></div>
+                    <span>Outgoing connections</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #96ceb4;"></div>
-                    <span>Asset Registry IP</span>
+                    <div class="legend-color" style="background: #6A994E;"></div>
+                    <span>Related connections</span>
                 </div>
             </div>
             
-            <div id="infoPanel" class="info-panel">
-                <div id="nodeInfo"></div>
+            <div id="infoPanel" class="info-panel" style="display: none;">
+                <div id="selectedNodeInfo">
+                    <p>Click on a node to see details</p>
+                </div>
+            </div>
+            
+            <div id="stats" class="stats">
+                <h4>Network Statistics</h4>
+                <p>No data loaded</p>
             </div>
         </div>
     </div>
 
-    <script src="far-visualization.js?v=20250824-2"></script>
+        <!-- Load D3.js library -->
+    <script src="js/d3.min.js"></script>
+    
+    <!-- Load modular visualization scripts -->
+    <!-- Core modules -->
+    <script src="js/far-visualization/core/NetworkLoader.js"></script>
+    <script src="js/far-visualization/core/DataProcessor.js"></script>
+    <script src="js/far-visualization/core/AssetManager.js"></script>
+    
+    <!-- Rendering modules -->
+    <script src="js/far-visualization/rendering/NodeRenderer.js"></script>
+    <script src="js/far-visualization/rendering/LinkRenderer.js"></script>
+    
+    <!-- Layout modules -->
+    <script src="js/far-visualization/layout/SegmentLayout.js"></script>
+    <script src="js/far-visualization/layout/ForceSimulation.js"></script>
+    
+    <!-- Utility modules -->
+    <script src="js/far-visualization/utils/EventHandler.js"></script>
+    
+    <!-- Main orchestrator -->
+    <script src="js/far-visualization/FARNetworkViz.js"></script>
+    
+    <script>
+        // Initialize the FAR Network Visualization
+        let farViz;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                farViz = new FARNetworkViz('visualization', {
+                    width: 1200,
+                    height: 800,
+                    apiBaseUrl: '/api/v1'
+                });
+                console.log('FAR Network Visualization initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize FAR Network Visualization:', error);
+                const errorElement = document.getElementById('error');
+                if (errorElement) {
+                    errorElement.textContent = 'Failed to initialize visualization: ' + error.message;
+                    errorElement.style.display = 'block';
+                }
+            }
+        });
+
+        // Legacy functions for backward compatibility with existing HTML buttons
+        function loadVisualization() {
+            const ipInput = document.getElementById('ipInput');
+            if (ipInput && farViz) {
+                const ip = ipInput.value.trim();
+                if (ip) {
+                    farViz.loadNetworkData(ip);
+                }
+            }
+        }
+
+        function clearVisualization() {
+            if (farViz) {
+                farViz.clear();
+            }
+        }
+
+        // Window resize handler
+        window.addEventListener('resize', function() {
+            if (farViz) {
+                const container = document.getElementById('visualization');
+                if (container) {
+                    const rect = container.getBoundingClientRect();
+                    farViz.resize(rect.width, Math.max(600, rect.height));
+                }
+            }
+        });
+    </script>
 </body>
 </html>
