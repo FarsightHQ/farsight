@@ -14,6 +14,11 @@ class SegmentLayout {
      * Calculate segment positions based on nodes
      */
     calculateSegmentPositions(nodes) {
+        if (!Array.isArray(nodes)) {
+            console.warn('calculateSegmentPositions: nodes is not an array:', nodes);
+            return this.segmentPositions;
+        }
+        
         // Get unique segments
         const segments = [...new Set(nodes.map(d => d.segment))];
         console.log('Unique segments found:', segments);
@@ -25,7 +30,7 @@ class SegmentLayout {
         // Calculate positions for segments in a circular layout
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const radius = Math.min(this.width, this.height) / 3;
+        const radius = Math.min(this.width, this.height) / 4; // Increased radius for better spread
 
         segments.forEach((segment, index) => {
             const angle = (index * 2 * Math.PI) / segments.length;
@@ -44,6 +49,11 @@ class SegmentLayout {
      * Apply segment-based initial positioning to nodes
      */
     applySegmentPositioning(nodes) {
+        if (!Array.isArray(nodes)) {
+            console.warn('applySegmentPositioning: nodes is not an array:', nodes);
+            return nodes;
+        }
+        
         const sourceNode = nodes.find(n => n.type === 'source');
         const centerX = this.width / 2;
         const centerY = this.height / 2;
@@ -57,17 +67,20 @@ class SegmentLayout {
                 // Place other nodes based on segment
                 const segmentPos = this.segmentPositions.get(node.segment);
                 if (segmentPos) {
-                    // Add some randomness within segment area
-                    const offsetRadius = 50;
-                    const randomAngle = Math.random() * 2 * Math.PI;
-                    const randomRadius = Math.random() * offsetRadius;
+                    // Add some spread within segment area with less randomness
+                    const offsetRadius = 40;
+                    const nodeIndex = nodes.filter(n => n.segment === node.segment && n !== node).length;
+                    const angle = segmentPos.angle + (nodeIndex * 0.3); // More predictable positioning
+                    const radius = 20 + (nodeIndex * 15); // Radial spread
                     
-                    node.x = segmentPos.x + randomRadius * Math.cos(randomAngle);
-                    node.y = segmentPos.y + randomRadius * Math.sin(randomAngle);
+                    node.x = segmentPos.x + radius * Math.cos(angle);
+                    node.y = segmentPos.y + radius * Math.sin(angle);
                 } else {
-                    // Fallback to random position
-                    node.x = Math.random() * this.width;
-                    node.y = Math.random() * this.height;
+                    // Fallback to position around center
+                    const angle = Math.random() * 2 * Math.PI;
+                    const radius = 100;
+                    node.x = centerX + radius * Math.cos(angle);
+                    node.y = centerY + radius * Math.sin(angle);
                 }
             }
         });
@@ -79,10 +92,16 @@ class SegmentLayout {
      * Create custom force for segment clustering
      */
     createSegmentForce(alpha = 0.1) {
-        return (nodes) => {
-            nodes.forEach(node => {
+        let nodes;
+        const segmentPositions = this.segmentPositions;
+        
+        function force() {
+            if (!nodes) return;
+            
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
                 if (node.type !== 'source') {
-                    const segmentPos = this.segmentPositions.get(node.segment);
+                    const segmentPos = segmentPositions.get(node.segment);
                     if (segmentPos) {
                         const dx = segmentPos.x - node.x;
                         const dy = segmentPos.y - node.y;
@@ -90,8 +109,14 @@ class SegmentLayout {
                         node.vy += dy * alpha;
                     }
                 }
-            });
+            }
+        }
+        
+        force.initialize = function(_nodes) {
+            nodes = _nodes;
         };
+        
+        return force;
     }
 
     /**
@@ -121,6 +146,11 @@ class SegmentLayout {
     getSegmentStats(nodes) {
         const stats = new Map();
         
+        if (!Array.isArray(nodes)) {
+            console.warn('getSegmentStats: nodes is not an array:', nodes);
+            return {};
+        }
+        
         nodes.forEach(node => {
             const segment = node.segment;
             const current = stats.get(segment) || { total: 0, hasAsset: 0, types: new Set() };
@@ -137,6 +167,11 @@ class SegmentLayout {
      * Create segment legend data
      */
     createLegendData(nodes) {
+        if (!Array.isArray(nodes)) {
+            console.warn('createLegendData: nodes is not an array:', nodes);
+            return [];
+        }
+        
         const segmentStats = this.getSegmentStats(nodes);
         
         return this.getAllSegments().map(segment => ({
@@ -159,6 +194,10 @@ class SegmentLayout {
      * Get nodes in segment
      */
     getNodesInSegment(nodes, segment) {
+        if (!Array.isArray(nodes)) {
+            console.warn('getNodesInSegment: nodes is not an array:', nodes);
+            return [];
+        }
         return nodes.filter(node => node.segment === segment);
     }
 
@@ -166,6 +205,11 @@ class SegmentLayout {
      * Calculate segment boundaries for visualization
      */
     getSegmentBoundaries(nodes) {
+        if (!Array.isArray(nodes)) {
+            console.warn('getSegmentBoundaries: nodes is not an array:', nodes);
+            return new Map();
+        }
+        
         const boundaries = new Map();
         
         this.getAllSegments().forEach(segment => {

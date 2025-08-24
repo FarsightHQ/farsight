@@ -99,7 +99,7 @@ class FARNetworkViz {
      * Initialize rendering components
      */
     initializeRenderers() {
-        this.nodeRenderer = new NodeRenderer(this.svg, this.tooltip, this.assetManager);
+        this.nodeRenderer = new NodeRenderer(this.svg, this.tooltip, this.assetManager, this.config.width, this.config.height);
         this.linkRenderer = new LinkRenderer(this.svg);
         
         this.nodeRenderer.init();
@@ -206,15 +206,17 @@ class FARNetworkViz {
             this.currentData.links = this.dataProcessor.createLinks(ruleRelationships);
 
             console.log(`Rendering ${this.currentData.nodes.length} nodes and ${this.currentData.links.length} links`);
+            console.log('Nodes:', this.currentData.nodes.map(n => `${n.id} (${n.segment})`));
 
-            // Update simulation
+            // Update simulation with reduced initial energy
             this.forceSimulation.update(this.currentData.nodes, this.currentData.links);
 
             // Render nodes and links
             this.nodeRenderer.render(this.currentData.nodes);
             this.linkRenderer.render(this.currentData.links);
 
-            // Start simulation
+            // Start simulation with lower alpha
+            this.forceSimulation.setAlpha(0.3);
             this.forceSimulation.start();
 
             // Update UI components
@@ -306,6 +308,11 @@ class FARNetworkViz {
             .attr('width', width)
             .attr('height', height)
             .attr('viewBox', `0 0 ${width} ${height}`);
+
+        // Update renderers
+        if (this.nodeRenderer) {
+            this.nodeRenderer.updateDimensions(width, height);
+        }
 
         // Update layout and simulation
         this.segmentLayout.updateDimensions(width, height);

@@ -16,16 +16,16 @@ class ForceSimulation {
      */
     init() {
         this.simulation = d3.forceSimulation()
-            .force('link', d3.forceLink().id(d => d.id).distance(100).strength(0.3))
-            .force('charge', d3.forceManyBody().strength(-200))
-            .force('center', d3.forceCenter(this.width / 2, this.height / 2))
-            .force('collision', d3.forceCollide().radius(20))
-            .force('x', d3.forceX(this.width / 2).strength(0.05))
-            .force('y', d3.forceY(this.height / 2).strength(0.05));
+            .force('link', d3.forceLink().id(d => d.id).distance(120).strength(0.2))
+            .force('charge', d3.forceManyBody().strength(-100))
+            .force('center', d3.forceCenter(this.width / 2, this.height / 2).strength(0.03))
+            .force('collision', d3.forceCollide().radius(25))
+            .force('x', d3.forceX(this.width / 2).strength(0.02))
+            .force('y', d3.forceY(this.height / 2).strength(0.02));
 
         // Add segment clustering force if segment layout is available
         if (this.segmentLayout) {
-            this.simulation.force('segment', this.segmentLayout.createSegmentForce(0.1));
+            this.simulation.force('segment', this.segmentLayout.createSegmentForce(0.3));
         }
 
         return this.simulation;

@@ -2,10 +2,12 @@
  * NodeRenderer - Handles node rendering, styling, and interactions
  */
 class NodeRenderer {
-    constructor(svg, tooltip, assetManager) {
+    constructor(svg, tooltip, assetManager, width, height) {
         this.svg = svg;
         this.tooltip = tooltip;
         this.assetManager = assetManager;
+        this.width = width;
+        this.height = height;
         this.nodeGroup = null;
         this.nodes = [];
     }
@@ -208,7 +210,20 @@ class NodeRenderer {
      */
     updatePositions() {
         this.nodeGroup.selectAll('.node')
-            .attr('transform', d => `translate(${d.x},${d.y})`);
+            .attr('transform', d => {
+                // Add boundary checking to ensure nodes stay within viewport
+                const x = Math.max(20, Math.min(d.x || 0, this.width - 20));
+                const y = Math.max(20, Math.min(d.y || 0, this.height - 20));
+                return `translate(${x},${y})`;
+            });
+    }
+
+    /**
+     * Update dimensions
+     */
+    updateDimensions(width, height) {
+        this.width = width;
+        this.height = height;
     }
 
     /**
