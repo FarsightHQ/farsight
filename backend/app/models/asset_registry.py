@@ -23,25 +23,33 @@ class AssetRegistry(Base):
     # Network Information
     segment = Column(String(100), nullable=True, index=True)
     subnet = Column(String(50), nullable=True)
-    gateway = Column(INET, nullable=True)
+    gateway = Column(String(50), nullable=True)  # Changed from INET to String to handle various formats
+    subnet_mask = Column(String(20), nullable=True)
     vlan = Column(String(20), nullable=True, index=True)
     
     # System Information
-    os = Column(String(100), nullable=True, index=True)
+    os_name = Column(String(100), nullable=True, index=True)  # Renamed from 'os'
     os_version = Column(String(100), nullable=True)
     app_version = Column(String(100), nullable=True)
     db_version = Column(String(100), nullable=True)
     
     # Hardware Resources
     vcpu = Column(Integer, nullable=True)
-    memory_gb = Column(Float, nullable=True)
+    memory = Column(String(20), nullable=True)  # Changed to string to handle formats like "8GB"
+    cpu = Column(String(100), nullable=True)  # Added CPU field
+    storage = Column(String(50), nullable=True)  # Added storage field
     
     # Asset Metadata
     hostname = Column(String(255), nullable=True, index=True)
+    vm_display_name = Column(String(255), nullable=True)  # Added VM display name
     environment = Column(String(50), nullable=True, index=True)  # dev/stage/prod
     business_unit = Column(String(100), nullable=True, index=True)
-    asset_owner = Column(String(100), nullable=True)
+    owner = Column(String(100), nullable=True)  # Renamed from asset_owner
     asset_criticality = Column(String(20), nullable=True, index=True)  # low/medium/high/critical
+    location = Column(String(100), nullable=True)  # Added location field
+    status = Column(String(50), nullable=True)  # Added status field
+    availability = Column(String(50), nullable=True)  # Added availability field
+    itm_id = Column(String(50), nullable=True)  # Added ITM ID field
     
     # Compliance & Security
     patch_level = Column(String(50), nullable=True)

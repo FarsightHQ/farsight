@@ -48,19 +48,27 @@ class AssetRegistryService:
                 ip_address=str(asset_data.ip_address),
                 segment=asset_data.segment,
                 subnet=asset_data.subnet,
-                gateway=str(asset_data.gateway) if asset_data.gateway else None,
+                gateway=asset_data.gateway,
+                subnet_mask=asset_data.subnet_mask,
                 vlan=asset_data.vlan,
-                os=asset_data.os,
+                os_name=asset_data.os_name,
                 os_version=asset_data.os_version,
                 app_version=asset_data.app_version,
                 db_version=asset_data.db_version,
                 vcpu=asset_data.vcpu,
-                memory_gb=asset_data.memory_gb,
+                memory=asset_data.memory,
+                cpu=asset_data.cpu,
+                storage=asset_data.storage,
                 hostname=asset_data.hostname,
+                vm_display_name=asset_data.vm_display_name,
                 environment=asset_data.environment,
                 business_unit=asset_data.business_unit,
-                asset_owner=asset_data.asset_owner,
+                owner=asset_data.owner,
                 asset_criticality=asset_data.asset_criticality,
+                location=asset_data.location,
+                status=asset_data.status,
+                availability=asset_data.availability,
+                itm_id=asset_data.itm_id,
                 patch_level=asset_data.patch_level,
                 security_zone=asset_data.security_zone,
                 compliance_tags=asset_data.compliance_tags,
@@ -238,14 +246,14 @@ class AssetRegistryService:
             error_count = 0
             errors = []
             
-            for index, row in df.iterrows():
+            for row_idx, (index, row) in enumerate(df.iterrows()):
                 try:
                     # Map CSV columns to asset fields (customize based on your CSV structure)
                     asset_data = AssetRegistryService._map_csv_row_to_asset(row)
                     
                     if not asset_data.get('ip_address'):
                         error_count += 1
-                        errors.append(f"Row {len(errors) + 2}: Missing IP address")  # +2 for header and 1-based indexing
+                        errors.append(f"Row {row_idx + 2}: Missing IP address")  # +2 for header and 1-based indexing
                         continue
                     
                     # Check if asset exists
@@ -278,7 +286,7 @@ class AssetRegistryService:
                     # Truncate long error messages to prevent database issues
                     if len(error_msg) > 200:
                         error_msg = error_msg[:200] + "..."
-                    errors.append(f"Row {index + 2}: {error_msg}")  # +2 because pandas index starts at 0 and we have headers
+                    errors.append(f"Row {row_idx + 2}: {error_msg}")  # +2 because pandas index starts at 0 and we have headers
                     continue
             
             # Update batch with results
@@ -307,140 +315,161 @@ class AssetRegistryService:
 
     @staticmethod
     def _map_csv_row_to_asset(row: pd.Series) -> Dict[str, Any]:
-        """Map CSV row to asset data structure"""
+        """Map CSV row to asset data structure with comprehensive field mapping"""
         asset_data = {}
         
         try:
             # Try to use column names first (if headers are present)
             if hasattr(row, 'index') and isinstance(row.index, pd.Index):
                 # Create case-insensitive column lookup
-                columns_lower = {col.lower(): col for col in row.index}
+                columns_lower = {col.lower().strip(): col for col in row.index}
                 
-                # Check if we have header-based access
-                ip_col = columns_lower.get('ip address') or columns_lower.get('ip_address')
+                # Helper function to safely get string values
+                def safe_string_val(val):
+                    if pd.notna(val) and str(val).upper() not in ['NA', 'N/A', 'NULL', '']:
+                        return str(val).strip()
+                    return None
+                
+                # Helper function to find column by multiple possible names
+                def find_column(*possible_names):
+                    for name in possible_names:
+                        if name.lower() in columns_lower:
+                            return columns_lower[name.lower()]
+                    return None
+                
+                # Core IP Address (required)
+                ip_col = find_column('ip address', 'ip_address', 'ipaddress', 'ip')
                 if ip_col:
-                    asset_data['ip_address'] = str(row.get(ip_col)) if pd.notna(row.get(ip_col)) else None
-                    
-                    # Helper function to safely get string values
-                    def safe_string_val(val):
-                        if pd.notna(val) and str(val).upper() not in ['NA', 'N/A', '']:
-                            return str(val)
-                        return None
-                    
-                    asset_data['segment'] = safe_string_val(row.get(columns_lower.get('segment', 'Segment')))
-                    asset_data['subnet'] = safe_string_val(row.get(columns_lower.get('subnet', 'Subnet')))
-                    
-                    # Ensure gateway is always a string, not an IP object
-                    gateway_val = row.get(columns_lower.get('gateway', 'Gateway'))
-                    asset_data['gateway'] = safe_string_val(gateway_val)
-                    
-                    asset_data['vlan'] = safe_string_val(row.get(columns_lower.get('vlan', 'VLAN')))
-                    asset_data['os'] = safe_string_val(row.get(columns_lower.get('os', 'OS')))
-                    asset_data['os_version'] = safe_string_val(row.get(columns_lower.get('os version', 'OS Version')))
-                    asset_data['app_version'] = safe_string_val(row.get(columns_lower.get('app version', 'App Version')))
-                    asset_data['db_version'] = safe_string_val(row.get(columns_lower.get('db version', 'DB Version')))
-                    
-                    # Handle numeric fields safely
-                    try:
-                        vcpu_val = row.get(columns_lower.get('vcpu', 'vCPU'))
-                        if pd.notna(vcpu_val) and str(vcpu_val).upper() not in ['NA', 'N/A', '']:
+                    asset_data['ip_address'] = safe_string_val(row.get(ip_col))
+                
+                # Network Information
+                asset_data['segment'] = safe_string_val(row.get(find_column('segment', 'network segment')))
+                asset_data['subnet'] = safe_string_val(row.get(find_column('subnet', 'subnet mask', 'network')))
+                asset_data['gateway'] = safe_string_val(row.get(find_column('gateway', 'default gateway', 'gw')))
+                asset_data['subnet_mask'] = safe_string_val(row.get(find_column('subnet mask', 'mask', 'netmask')))
+                asset_data['vlan'] = safe_string_val(row.get(find_column('vlan', 'vlan id')))
+                
+                # System Information  
+                asset_data['os_name'] = safe_string_val(row.get(find_column('os name', 'os', 'operating system', 'os_name')))
+                asset_data['os_version'] = safe_string_val(row.get(find_column('os version', 'version', 'os_version')))
+                asset_data['app_version'] = safe_string_val(row.get(find_column('app version', 'application version', 'app_version')))
+                asset_data['db_version'] = safe_string_val(row.get(find_column('db version', 'database version', 'db_version')))
+                
+                # Hardware Resources
+                vcpu_col = find_column('vcpu', 'cpu count', 'cpus', 'cpu cores')
+                if vcpu_col:
+                    vcpu_val = row.get(vcpu_col)
+                    if pd.notna(vcpu_val) and vcpu_val is not None and str(vcpu_val).upper() not in ['NA', 'N/A', '']:
+                        try:
                             asset_data['vcpu'] = int(float(vcpu_val))
-                        else:
+                        except (ValueError, TypeError):
                             asset_data['vcpu'] = None
-                    except (ValueError, TypeError):
+                    else:
                         asset_data['vcpu'] = None
-                        
-                    try:
-                        memory_val = row.get(columns_lower.get('memory gb', 'Memory GB')) or row.get(columns_lower.get('memory', 'Memory'))
-                        if pd.notna(memory_val) and str(memory_val).upper() not in ['NA', 'N/A', '']:
-                            # Handle both "Memory GB" and "Memory" columns
-                            memory_str = str(memory_val)
-                            # Extract numeric value from memory string
-                            import re
-                            memory_match = re.search(r'(\d+(?:\.\d+)?)', memory_str)
-                            asset_data['memory_gb'] = float(memory_match.group(1)) if memory_match else None
-                        else:
-                            asset_data['memory_gb'] = None
-                    except (ValueError, TypeError):
-                        asset_data['memory_gb'] = None
-                    
-                    # Extract hostname, environment, business unit, asset owner, criticality, patch level, security zone
-                    asset_data['hostname'] = safe_string_val(row.get(columns_lower.get('hostname', 'Hostname')))
-                    
-                    env_val = row.get(columns_lower.get('environment', 'Environment')) or row.get(columns_lower.get('env', 'Env'))
-                    if pd.notna(env_val) and str(env_val).upper() not in ['NA', 'N/A', '']:
-                        env_mapping = {
-                            'PREPROD-1': 'stage',
-                            'PREPROD': 'stage', 
-                            'PROD': 'prod',
-                            'DEV': 'dev',
-                            'TEST': 'test',
-                            'DR': 'dr'
-                        }
-                        mapped_env = env_mapping.get(str(env_val).upper(), str(env_val).lower())
-                        if mapped_env in ['dev', 'test', 'stage', 'prod', 'dr']:
-                            asset_data['environment'] = mapped_env
-                    
-                    asset_data['business_unit'] = safe_string_val(row.get(columns_lower.get('business unit', 'Business Unit')))
-                    asset_data['asset_owner'] = safe_string_val(row.get(columns_lower.get('asset owner', 'Asset Owner')))
-                    
-                    criticality_val = row.get(columns_lower.get('asset criticality', 'Asset Criticality'))
-                    if pd.notna(criticality_val) and str(criticality_val).upper() not in ['NA', 'N/A', ''] and str(criticality_val).lower() in ['low', 'medium', 'high', 'critical']:
-                        asset_data['asset_criticality'] = str(criticality_val).lower()
-                    
-                    asset_data['patch_level'] = safe_string_val(row.get(columns_lower.get('patch level', 'Patch Level')))
-                    asset_data['security_zone'] = safe_string_val(row.get(columns_lower.get('security zone', 'Security Zone')))
-                
                 else:
-                    # Fall back to positional access if no recognizable headers
-                    asset_data['ip_address'] = row.iloc[1] if len(row) > 1 and pd.notna(row.iloc[1]) else None
-                    asset_data['segment'] = row.iloc[0] if len(row) > 0 and pd.notna(row.iloc[0]) else None
-                    asset_data['subnet'] = row.iloc[2] if len(row) > 2 and pd.notna(row.iloc[2]) else None
-                    asset_data['gateway'] = row.iloc[3] if len(row) > 3 and pd.notna(row.iloc[3]) else None
-                    asset_data['vlan'] = str(row.iloc[4]) if len(row) > 4 and pd.notna(row.iloc[4]) else None
-                    asset_data['os'] = row.iloc[5] if len(row) > 5 and pd.notna(row.iloc[5]) else None
-                    asset_data['os_version'] = row.iloc[6] if len(row) > 6 and pd.notna(row.iloc[6]) else None
-                    asset_data['app_version'] = row.iloc[7] if len(row) > 7 and pd.notna(row.iloc[7]) else None
-                    asset_data['db_version'] = row.iloc[8] if len(row) > 8 and pd.notna(row.iloc[8]) else None
-                    
-                    # Handle numeric fields safely
-                    try:
-                        asset_data['vcpu'] = int(float(row.iloc[9])) if len(row) > 9 and pd.notna(row.iloc[9]) else None
-                    except (ValueError, TypeError):
-                        asset_data['vcpu'] = None
-                        
-                    try:
-                        memory_str = str(row.iloc[10]) if len(row) > 10 and pd.notna(row.iloc[10]) else None
-                        if memory_str:
-                            import re
-                            memory_match = re.search(r'(\d+(?:\.\d+)?)', memory_str)
-                            asset_data['memory_gb'] = float(memory_match.group(1)) if memory_match else None
-                        else:
-                            asset_data['memory_gb'] = None
-                    except (ValueError, TypeError):
-                        asset_data['memory_gb'] = None
-                    
-                    # Map additional columns as extended properties for positional access
-                    extended_props = {}
-                    if len(row) > 11:
-                        column_names = [
-                            'tool_update', 'display_name', 'hostname', 'env', 'dmz_mz',
-                            'confidentiality', 'integrity', 'availability', 'itam_id', 'location'
-                        ]
-                        
-                        for i, col_name in enumerate(column_names, start=11):
-                            if i < len(row) and pd.notna(row.iloc[i]):
-                                extended_props[col_name] = row.iloc[i]
-                    
-                    if extended_props:
-                        asset_data['extended_properties'] = extended_props
-                        
-                    # Extract hostname if available in extended properties
-                    if 'hostname' in extended_props:
-                        asset_data['hostname'] = extended_props['hostname']
+                    asset_data['vcpu'] = None
                 
+                # Memory - keep as string to handle various formats
+                asset_data['memory'] = safe_string_val(row.get(find_column('memory', 'ram', 'memory gb', 'memory_gb')))
+                asset_data['cpu'] = safe_string_val(row.get(find_column('cpu', 'processor', 'cpu type')))
+                asset_data['storage'] = safe_string_val(row.get(find_column('storage', 'disk', 'disk space', 'storage gb')))
+                
+                # Asset Metadata
+                asset_data['hostname'] = safe_string_val(row.get(find_column('hostname', 'host name', 'host')))
+                asset_data['vm_display_name'] = safe_string_val(row.get(find_column('vm display name', 'display name', 'vm name')))
+                asset_data['environment'] = safe_string_val(row.get(find_column('environment', 'env', 'stage')))
+                asset_data['business_unit'] = safe_string_val(row.get(find_column('business unit', 'bu', 'department', 'organization')))
+                asset_data['owner'] = safe_string_val(row.get(find_column('owner', 'asset owner', 'responsible person', 'contact')))
+                asset_data['asset_criticality'] = safe_string_val(row.get(find_column('criticality', 'asset criticality', 'priority', 'importance')))
+                asset_data['location'] = safe_string_val(row.get(find_column('location', 'site', 'datacenter', 'dc')))
+                asset_data['status'] = safe_string_val(row.get(find_column('status', 'state', 'asset status')))
+                asset_data['availability'] = safe_string_val(row.get(find_column('availability', 'uptime', 'operational status')))
+                asset_data['itm_id'] = safe_string_val(row.get(find_column('itm id', 'itm_id', 'monitoring id', 'itmid')))
+                
+                # Compliance & Security
+                asset_data['patch_level'] = safe_string_val(row.get(find_column('patch level', 'patches', 'update level')))
+                asset_data['security_zone'] = safe_string_val(row.get(find_column('security zone', 'zone', 'security tier')))
+                
+                # Handle compliance tags if present
+                compliance_col = find_column('compliance', 'compliance tags', 'tags')
+                if compliance_col:
+                    compliance_val = safe_string_val(row.get(compliance_col))
+                    if compliance_val:
+                        # Split by common delimiters
+                        asset_data['compliance_tags'] = [tag.strip() for tag in compliance_val.replace(';', ',').split(',') if tag.strip()]
+                    else:
+                        asset_data['compliance_tags'] = None
+                else:
+                    asset_data['compliance_tags'] = None
+                
+                # Store any additional fields in extended_properties
+                asset_data['extended_properties'] = {}
+                for col in row.index:
+                    # Skip fields we already mapped
+                    known_fields = ['ip address', 'ip_address', 'segment', 'subnet', 'gateway', 'subnet mask', 
+                                  'vlan', 'os name', 'os', 'os version', 'vcpu', 'memory', 'cpu', 'storage',
+                                  'hostname', 'vm display name', 'environment', 'business unit', 'owner',
+                                  'criticality', 'location', 'status', 'availability', 'itm id', 'patch level',
+                                  'security zone', 'compliance']
+                    if col.lower() not in [f.lower() for f in known_fields]:
+                        value = safe_string_val(row.get(col))
+                        if value:
+                            asset_data['extended_properties'][col] = value
+                
+                if not asset_data['extended_properties']:
+                    asset_data['extended_properties'] = None
+                    
+            else:
+                # Fall back to positional access if no recognizable headers
+                asset_data['ip_address'] = row.iloc[1] if len(row) > 1 and pd.notna(row.iloc[1]) else None
+                asset_data['segment'] = row.iloc[0] if len(row) > 0 and pd.notna(row.iloc[0]) else None
+                asset_data['subnet'] = row.iloc[2] if len(row) > 2 and pd.notna(row.iloc[2]) else None
+                asset_data['gateway'] = str(row.iloc[3]) if len(row) > 3 and pd.notna(row.iloc[3]) else None
+                asset_data['vlan'] = str(row.iloc[4]) if len(row) > 4 and pd.notna(row.iloc[4]) else None
+                asset_data['os_name'] = row.iloc[5] if len(row) > 5 and pd.notna(row.iloc[5]) else None
+                asset_data['os_version'] = row.iloc[6] if len(row) > 6 and pd.notna(row.iloc[6]) else None
+                asset_data['hostname'] = row.iloc[7] if len(row) > 7 and pd.notna(row.iloc[7]) else None
+                
+                # Set other fields to None for positional access
+                for field in ['subnet_mask', 'app_version', 'db_version', 'vcpu', 'memory', 'cpu', 'storage',
+                             'vm_display_name', 'environment', 'business_unit', 'owner', 'asset_criticality',
+                             'location', 'status', 'availability', 'itm_id', 'patch_level', 'security_zone',
+                             'compliance_tags', 'extended_properties']:
+                    asset_data[field] = None
+                    
         except Exception as e:
-            raise ValueError(f"Error mapping CSV row: {str(e)}")
+            print(f"Error mapping CSV row: {e}")
+            # Return minimal data structure
+            asset_data = {
+                'ip_address': None,
+                'segment': None,
+                'subnet': None,
+                'gateway': None,
+                'subnet_mask': None,
+                'vlan': None,
+                'os_name': None,
+                'os_version': None,
+                'app_version': None,
+                'db_version': None,
+                'vcpu': None,
+                'memory': None,
+                'cpu': None,
+                'storage': None,
+                'hostname': None,
+                'vm_display_name': None,
+                'environment': None,
+                'business_unit': None,
+                'owner': None,
+                'asset_criticality': None,
+                'location': None,
+                'status': None,
+                'availability': None,
+                'itm_id': None,
+                'patch_level': None,
+                'security_zone': None,
+                'compliance_tags': None,
+                'extended_properties': None
+            }
         
         return asset_data
 
@@ -539,8 +568,8 @@ class AssetRegistryService:
 
     @staticmethod
     def _create_history_record(db: Session, asset: AssetRegistry, change_type: str, 
-                              description: str, changed_by: str, changed_fields: List[str] = None,
-                              previous_values: Dict[str, Any] = None, batch_id: str = None):
+                              description: str, changed_by: str, changed_fields: Optional[List[str]] = None,
+                              previous_values: Optional[Dict[str, Any]] = None, batch_id: Optional[str] = None):
         """Create a history record for asset changes"""
         
         # Create complete snapshot of current asset data

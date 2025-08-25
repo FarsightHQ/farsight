@@ -16,25 +16,33 @@ class AssetRegistryBase(BaseModel):
     # Network Information
     segment: Optional[str] = Field(None, max_length=100, description="Network segment identifier")
     subnet: Optional[str] = Field(None, max_length=50, description="Subnet CIDR or identifier") 
-    gateway: Optional[IPvAnyAddress] = Field(None, description="Default gateway IP")
+    gateway: Optional[str] = Field(None, max_length=50, description="Default gateway IP")
+    subnet_mask: Optional[str] = Field(None, max_length=20, description="Subnet mask")
     vlan: Optional[str] = Field(None, max_length=20, description="VLAN identifier")
     
     # System Information
-    os: Optional[str] = Field(None, max_length=100, description="Operating system")
+    os_name: Optional[str] = Field(None, max_length=100, description="Operating system name")
     os_version: Optional[str] = Field(None, max_length=100, description="OS version")
     app_version: Optional[str] = Field(None, max_length=100, description="Application version")
     db_version: Optional[str] = Field(None, max_length=100, description="Database version")
     
     # Hardware Resources
     vcpu: Optional[int] = Field(None, ge=0, le=1000, description="Virtual CPU count")
-    memory_gb: Optional[float] = Field(None, ge=0, le=10000, description="Memory in GB")
+    memory: Optional[str] = Field(None, max_length=20, description="Memory amount (e.g., '8GB')")
+    cpu: Optional[str] = Field(None, max_length=100, description="CPU specification")
+    storage: Optional[str] = Field(None, max_length=50, description="Storage amount")
     
     # Asset Metadata
     hostname: Optional[str] = Field(None, max_length=255, description="Asset hostname")
+    vm_display_name: Optional[str] = Field(None, max_length=255, description="VM display name")
     environment: Optional[str] = Field(None, pattern="^(dev|test|stage|prod|dr)$", description="Environment type")
     business_unit: Optional[str] = Field(None, max_length=100, description="Business unit owning the asset")
-    asset_owner: Optional[str] = Field(None, max_length=100, description="Asset owner/responsible person")
+    owner: Optional[str] = Field(None, max_length=100, description="Asset owner/responsible person")
     asset_criticality: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$", description="Asset criticality level")
+    location: Optional[str] = Field(None, max_length=100, description="Physical or logical location")
+    status: Optional[str] = Field(None, max_length=50, description="Asset status")
+    availability: Optional[str] = Field(None, max_length=50, description="Availability status")
+    itm_id: Optional[str] = Field(None, max_length=50, description="ITM ID")
     
     # Compliance & Security
     patch_level: Optional[str] = Field(None, max_length=50, description="Current patch level")
