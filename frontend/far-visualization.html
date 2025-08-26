@@ -117,8 +117,6 @@
         }
         
         .node {
-            stroke: #fff;
-            stroke-width: 2px;
             cursor: pointer;
         }
         
@@ -133,6 +131,22 @@
             text-anchor: middle;
             pointer-events: none;
             fill: #333;
+        }
+        
+        .ip-label {
+            font-size: 9px;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #000000;
+            font-weight: normal;
+        }
+        
+        .vm-label {
+            font-size: 10px;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #000000;
+            font-weight: bold;
         }
         
         .link-label {
@@ -186,19 +200,19 @@
             <div id="legend" class="legend">
                 <h4>Connection Types</h4>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #2E86AB;"></div>
-                    <span>Source IP (with asset)</span>
+                    <div class="legend-color" style="background: #E74C3C;"></div>
+                    <span>Source IP</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #F18F01;"></div>
+                    <div class="legend-color" style="background: #E74C3C;"></div>
                     <span>Incoming connections</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #C73E1D;"></div>
+                    <div class="legend-color" style="background: #27AE60;"></div>
                     <span>Outgoing connections</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #6A994E;"></div>
+                    <div class="legend-color" style="background: #95A5A6;"></div>
                     <span>Related connections</span>
                 </div>
             </div>

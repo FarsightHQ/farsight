@@ -19,7 +19,7 @@ class ForceSimulation {
             .force('link', d3.forceLink().id(d => d.id).distance(150).strength(0.3))
             .force('charge', d3.forceManyBody().strength(-300))
             .force('center', d3.forceCenter(this.width / 2, this.height / 2).strength(0.1))
-            .force('collision', d3.forceCollide().radius(35))
+            .force('collision', d3.forceCollide().radius(50)) // Increased for label space
             .force('x', d3.forceX(this.width / 2).strength(0.05))
             .force('y', d3.forceY(this.height / 2).strength(0.05))
             .alphaDecay(0.01)
@@ -132,7 +132,7 @@ class ForceSimulation {
             linkDistance = 150,
             linkStrength = 0.4,
             chargeStrength = -400,
-            collisionRadius = 35,
+            collisionRadius = 50, // Increased for label space
             centerStrength = 0.08,
             segmentStrength = 0.05
         } = options;

@@ -44,22 +44,52 @@ class NodeRenderer {
             .attr('stroke', d => this.getNodeStroke(d))
             .attr('stroke-width', d => this.getNodeStrokeWidth(d));
 
-        // Add labels
-        nodeEnter.append('text')
-            .attr('dx', 0)
-            .attr('dy', d => this.getNodeRadius(d) + 15)
-            .attr('text-anchor', 'middle')
-            .attr('font-size', '10px')
-            .attr('fill', '#333')
-            .text(d => d.label);
-
         // Merge enter and update selections
         const nodeUpdate = nodeEnter.merge(nodeSelection);
 
         // Add event handlers
         this.addEventHandlers(nodeUpdate);
 
+        // Add labels separately after nodes are created
+        this.addLabels(nodeUpdate);
+
         return nodeUpdate;
+    }
+
+    /**
+     * Add labels to nodes
+     */
+    addLabels(nodeSelection) {
+        // Remove existing labels
+        nodeSelection.selectAll('text').remove();
+        
+        // Add IP address labels
+        nodeSelection.append('text')
+            .attr('class', 'ip-label')
+            .attr('x', 0)
+            .attr('y', d => this.getNodeRadius(d) + 18)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '10px')
+            .attr('font-weight', 'normal')
+            .attr('fill', '#000000')
+            .style('pointer-events', 'none')
+            .text(d => d.label || d.id);
+
+        // Add VM display name labels
+        nodeSelection.append('text')
+            .attr('class', 'vm-label')
+            .attr('x', 0)
+            .attr('y', d => this.getNodeRadius(d) + 32)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '12px')
+            .attr('font-weight', 'bold')
+            .attr('fill', '#000000')
+            .style('pointer-events', 'none')
+            .text(d => {
+                const vmName = d.vm_display_name || 'Unknown Asset';
+                console.log(`Adding label for ${d.id}: ${vmName}`);
+                return this.truncateText(vmName, 20);
+            });
     }
 
     /**
@@ -78,31 +108,43 @@ class NodeRenderer {
      * Get node color based on type and asset status
      */
     getNodeColor(d) {
-        if (d.type === 'source') {
-            return '#E74C3C'; // Always red for source node
+        switch (d.type) {
+            case 'source':
+                return '#E74C3C'; // Red for source/main IP
+            case 'incoming':
+                return '#E74C3C'; // Red for incoming IPs
+            case 'outgoing':
+                return '#27AE60'; // Green for outgoing IPs
+            case 'related':
+                return '#95A5A6'; // Gray for related IPs
+            default:
+                return '#95A5A6'; // Default gray
         }
-        
-        const baseColors = {
-            'incoming': d.hasAsset ? '#F18F01' : '#FFBA08',
-            'outgoing': d.hasAsset ? '#C73E1D' : '#FF6B35',
-            'related': d.hasAsset ? '#6A994E' : '#A7C957'
-        };
-
-        return baseColors[d.type] || '#95A5A6';
     }
 
     /**
      * Get node stroke color
      */
     getNodeStroke(d) {
-        return d.hasAsset ? '#2C3E50' : '#7F8C8D';
+        return '#000000'; // Always black border
     }
 
     /**
      * Get node stroke width
      */
     getNodeStrokeWidth(d) {
-        return d.type === 'source' ? 3 : 2;
+        return 1; // Always 1px border
+    }
+
+    /**
+     * Truncate text to specified length
+     */
+    truncateText(text, maxLength) {
+        if (!text || text === 'Unknown Asset' || text === null || text === undefined) {
+            return text || 'Unknown Asset';
+        }
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength - 2) + '..';
     }
 
     /**

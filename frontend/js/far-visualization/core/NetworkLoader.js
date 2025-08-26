@@ -2,7 +2,7 @@
  * NetworkLoader - Handles API calls and data fetching
  */
 class NetworkLoader {
-    constructor(apiBase = 'http://localhost:8000/api/v1') {
+    constructor(apiBase = '/api/v1') {
         this.apiBase = apiBase;
     }
 
@@ -29,14 +29,26 @@ class NetworkLoader {
      */
     async fetchAssetData(ipAddress) {
         try {
-            const response = await fetch(`${this.apiBase}/assets/${ipAddress}`);
+            const response = await fetch(`${this.apiBase}/assets?ip_address=${ipAddress}`);
             if (response.ok) {
-                const asset = await response.json();
-                return { ip: ipAddress, asset, hasAsset: true };
+                const assets = await response.json();
+                console.log(`Asset response for ${ipAddress}:`, assets);
+                if (assets && assets.length > 0) {
+                    const asset = assets[0];
+                    console.log(`Asset details for ${ipAddress}:`, {
+                        vm_display_name: asset.vm_display_name,
+                        tool_update: asset.tool_update,
+                        hostname: asset.hostname
+                    });
+                    return { ip: ipAddress, asset: asset, hasAsset: true };
+                }
+            } else {
+                console.log(`API response not OK for ${ipAddress}:`, response.status, response.statusText);
             }
         } catch (error) {
-            console.log(`No asset data for ${ipAddress}`);
+            console.log(`Error fetching asset data for ${ipAddress}:`, error);
         }
+        console.log(`No asset data found for ${ipAddress}`);
         return { ip: ipAddress, asset: null, hasAsset: false };
     }
 

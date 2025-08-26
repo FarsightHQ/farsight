@@ -113,26 +113,70 @@ class DataProcessor {
 
         // Add source IP node - always assign it to "source" segment
         const sourceAssetData = assetMap.get(sourceIpAddress);
-        nodes.push({
+        console.log('Source asset data:', sourceAssetData);
+        
+        let sourceVmName = 'Unknown Asset';
+        if (sourceAssetData && sourceAssetData.asset) {
+            const asset = sourceAssetData.asset;
+            console.log('Source asset fields:', {
+                vm_display_name: asset.vm_display_name,
+                tool_update: asset.tool_update,
+                hostname: asset.hostname
+            });
+            
+            if (asset.vm_display_name && asset.vm_display_name !== null && asset.vm_display_name !== '') {
+                sourceVmName = asset.vm_display_name;
+            } else if (asset.tool_update && asset.tool_update !== null && asset.tool_update !== '') {
+                sourceVmName = asset.tool_update;
+            }
+        }
+        
+        console.log(`Source VM name resolved: "${sourceVmName}"`);
+        
+        const sourceNode = {
             id: sourceIpAddress,
             label: sourceIpAddress,
             type: 'source',
             asset: sourceAssetData?.asset,
             hasAsset: sourceAssetData?.hasAsset || false,
-            segment: 'source' // Always use 'source' segment for the main IP
-        });
+            segment: 'source', // Always use 'source' segment for the main IP
+            vm_display_name: sourceVmName,
+            hostname: sourceAssetData?.asset?.hostname || 'Unknown',
+            environment: sourceAssetData?.asset?.environment || 'Unknown'
+        };
+        console.log('Source node created:', sourceNode);
+        nodes.push(sourceNode);
 
         // Add other IP nodes
         ipTypes.forEach((type, ip) => {
             const assetData = assetMap.get(ip);
-            nodes.push({
+            console.log(`Asset data for ${ip}:`, assetData);
+            
+            let vmName = 'Unknown Asset';
+            if (assetData && assetData.asset) {
+                const asset = assetData.asset;
+                if (asset.vm_display_name && asset.vm_display_name !== null && asset.vm_display_name !== '') {
+                    vmName = asset.vm_display_name;
+                } else if (asset.tool_update && asset.tool_update !== null && asset.tool_update !== '') {
+                    vmName = asset.tool_update;
+                }
+            }
+            
+            console.log(`VM name for ${ip}: "${vmName}"`);
+            
+            const node = {
                 id: ip,
                 label: ip,
                 type: type,
                 asset: assetData?.asset,
                 hasAsset: assetData?.hasAsset || false,
-                segment: assetData?.asset?.segment || type // Use type as fallback segment
-            });
+                segment: assetData?.asset?.segment || type, // Use type as fallback segment
+                vm_display_name: vmName,
+                hostname: assetData?.asset?.hostname || 'Unknown',
+                environment: assetData?.asset?.environment || 'Unknown'
+            };
+            console.log(`Node created for ${ip}:`, node);
+            nodes.push(node);
         });
 
         return nodes;

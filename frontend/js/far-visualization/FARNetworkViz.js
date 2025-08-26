@@ -184,12 +184,15 @@ class FARNetworkViz {
 
             // Load asset data for all IPs
             console.log(`Fetching asset data for ${uniqueIPs.size} IPs...`);
+            console.log('IPs to lookup:', Array.from(uniqueIPs));
             this.currentData.assetData = await this.networkLoader.fetchMultipleAssets(Array.from(uniqueIPs));
+            console.log('Asset data received:', this.currentData.assetData);
             
-            // Process asset data
-            this.assetManager.processAssetData(this.currentData.assetData);
+            // Create asset map directly from the NetworkLoader results
+            this.assetManager.assetMap = this.networkLoader.createAssetMap(this.currentData.assetData);
+            console.log('Asset map after processing:', Object.fromEntries(this.assetManager.assetMap));
             
-            // Render the network
+            // Render the network with enriched data
             this.render();
             
         } catch (error) {
