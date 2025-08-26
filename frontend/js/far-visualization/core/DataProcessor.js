@@ -111,7 +111,7 @@ class DataProcessor {
     createNodes(sourceIpAddress, ipTypes, assetMap) {
         const nodes = [];
 
-        // Add source IP node
+        // Add source IP node - always assign it to "source" segment
         const sourceAssetData = assetMap.get(sourceIpAddress);
         nodes.push({
             id: sourceIpAddress,
@@ -119,7 +119,7 @@ class DataProcessor {
             type: 'source',
             asset: sourceAssetData?.asset,
             hasAsset: sourceAssetData?.hasAsset || false,
-            segment: sourceAssetData?.asset?.segment || 'Unknown'
+            segment: 'source' // Always use 'source' segment for the main IP
         });
 
         // Add other IP nodes
@@ -131,7 +131,7 @@ class DataProcessor {
                 type: type,
                 asset: assetData?.asset,
                 hasAsset: assetData?.hasAsset || false,
-                segment: assetData?.asset?.segment || 'Unknown'
+                segment: assetData?.asset?.segment || type // Use type as fallback segment
             });
         });
 

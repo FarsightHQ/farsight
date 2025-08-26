@@ -19,18 +19,23 @@ class SegmentLayout {
             return this.segmentPositions;
         }
         
-        // Get unique segments
-        const segments = [...new Set(nodes.map(d => d.segment))];
-        console.log('Unique segments found:', segments);
+        // Get unique segments excluding the source segment
+        const allSegments = [...new Set(nodes.map(d => d.segment))];
+        const segments = allSegments.filter(s => s !== 'source');
+        console.log('Unique segments found (excluding source):', segments);
 
         // Clear previous positions
         this.segmentPositions.clear();
         this.segmentColors.clear();
 
-        // Calculate positions for segments in a circular layout
+        // Add source position at center
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const radius = Math.min(this.width, this.height) / 4; // Increased radius for better spread
+        this.segmentPositions.set('source', { x: centerX, y: centerY, angle: 0, index: -1 });
+        this.segmentColors.set('source', '#E74C3C'); // Red color for source
+
+        // Calculate positions for other segments in a circular layout
+        const radius = Math.min(this.width, this.height) / 3; // Radius for segment centers
 
         segments.forEach((segment, index) => {
             const angle = (index * 2 * Math.PI) / segments.length;
@@ -54,33 +59,54 @@ class SegmentLayout {
             return nodes;
         }
         
-        const sourceNode = nodes.find(n => n.type === 'source');
         const centerX = this.width / 2;
         const centerY = this.height / 2;
 
         nodes.forEach(node => {
-            if (node.type === 'source') {
-                // Place source node in center
+            if (node.type === 'source' || node.segment === 'source') {
+                // Place source node exactly in center
                 node.x = centerX;
                 node.y = centerY;
+                // Pin the source node to prevent it from moving
+                node.fx = centerX;
+                node.fy = centerY;
+                console.log(`Source node ${node.id} positioned at center: (${centerX}, ${centerY})`);
             } else {
                 // Place other nodes based on segment
                 const segmentPos = this.segmentPositions.get(node.segment);
                 if (segmentPos) {
-                    // Add some spread within segment area with less randomness
-                    const offsetRadius = 40;
-                    const nodeIndex = nodes.filter(n => n.segment === node.segment && n !== node).length;
-                    const angle = segmentPos.angle + (nodeIndex * 0.3); // More predictable positioning
-                    const radius = 20 + (nodeIndex * 15); // Radial spread
+                    // Add some spread within segment area
+                    const nodesInSegment = nodes.filter(n => n.segment === node.segment && n.type !== 'source');
+                    const nodeIndex = nodesInSegment.findIndex(n => n.id === node.id);
+                    const totalInSegment = nodesInSegment.length;
                     
-                    node.x = segmentPos.x + radius * Math.cos(angle);
-                    node.y = segmentPos.y + radius * Math.sin(angle);
+                    if (totalInSegment === 1) {
+                        // Single node - place at segment center
+                        node.x = segmentPos.x;
+                        node.y = segmentPos.y;
+                    } else {
+                        // Multiple nodes - create a fan pattern
+                        const fanAngle = Math.PI / 4; // 45 degrees fan
+                        const startAngle = segmentPos.angle - fanAngle / 2;
+                        const angleStep = totalInSegment > 1 ? fanAngle / (totalInSegment - 1) : 0;
+                        const nodeAngle = startAngle + (nodeIndex * angleStep);
+                        
+                        // Variable distance based on node index
+                        const baseRadius = 80;
+                        const radiusVariation = 40;
+                        const radius = baseRadius + ((nodeIndex % 3) * radiusVariation / 2);
+                        
+                        node.x = segmentPos.x + radius * Math.cos(nodeAngle);
+                        node.y = segmentPos.y + radius * Math.sin(nodeAngle);
+                    }
+                    console.log(`Node ${node.id} positioned in segment ${node.segment}: (${node.x.toFixed(1)}, ${node.y.toFixed(1)})`);
                 } else {
                     // Fallback to position around center
                     const angle = Math.random() * 2 * Math.PI;
-                    const radius = 100;
+                    const radius = 200;
                     node.x = centerX + radius * Math.cos(angle);
                     node.y = centerY + radius * Math.sin(angle);
+                    console.log(`Node ${node.id} fallback positioned: (${node.x.toFixed(1)}, ${node.y.toFixed(1)})`);
                 }
             }
         });
@@ -91,7 +117,7 @@ class SegmentLayout {
     /**
      * Create custom force for segment clustering
      */
-    createSegmentForce(alpha = 0.1) {
+    createSegmentForce(alpha = 0.05) {
         let nodes;
         const segmentPositions = this.segmentPositions;
         
@@ -100,13 +126,18 @@ class SegmentLayout {
             
             for (let i = 0; i < nodes.length; i++) {
                 const node = nodes[i];
-                if (node.type !== 'source') {
+                // Never apply segment force to source nodes - they should stay pinned
+                if (node.type !== 'source' && node.segment !== 'source' && !node.fx && !node.fy) {
                     const segmentPos = segmentPositions.get(node.segment);
                     if (segmentPos) {
                         const dx = segmentPos.x - node.x;
                         const dy = segmentPos.y - node.y;
-                        node.vx += dx * alpha;
-                        node.vy += dy * alpha;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Apply weaker force when closer to segment center
+                        const strength = Math.min(alpha, alpha * (distance / 200));
+                        node.vx += dx * strength;
+                        node.vy += dy * strength;
                     }
                 }
             }

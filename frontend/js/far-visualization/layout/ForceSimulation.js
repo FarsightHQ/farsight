@@ -16,17 +16,22 @@ class ForceSimulation {
      */
     init() {
         this.simulation = d3.forceSimulation()
-            .force('link', d3.forceLink().id(d => d.id).distance(120).strength(0.2))
-            .force('charge', d3.forceManyBody().strength(-100))
-            .force('center', d3.forceCenter(this.width / 2, this.height / 2).strength(0.03))
-            .force('collision', d3.forceCollide().radius(25))
-            .force('x', d3.forceX(this.width / 2).strength(0.02))
-            .force('y', d3.forceY(this.height / 2).strength(0.02));
+            .force('link', d3.forceLink().id(d => d.id).distance(150).strength(0.3))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(this.width / 2, this.height / 2).strength(0.1))
+            .force('collision', d3.forceCollide().radius(35))
+            .force('x', d3.forceX(this.width / 2).strength(0.05))
+            .force('y', d3.forceY(this.height / 2).strength(0.05))
+            .alphaDecay(0.01)
+            .alphaMin(0.01);
 
         // Add segment clustering force if segment layout is available
         if (this.segmentLayout) {
-            this.simulation.force('segment', this.segmentLayout.createSegmentForce(0.3));
+            this.simulation.force('segment', this.segmentLayout.createSegmentForce(0.1));
         }
+
+        // Add source centering force
+        this.simulation.force('sourceCenter', this.createSourceCenteringForce());
 
         return this.simulation;
     }
@@ -124,12 +129,12 @@ class ForceSimulation {
         if (!this.simulation) return;
 
         const {
-            linkDistance = 100,
-            linkStrength = 0.3,
-            chargeStrength = -200,
-            collisionRadius = 20,
-            centerStrength = 0.05,
-            segmentStrength = 0.1
+            linkDistance = 150,
+            linkStrength = 0.4,
+            chargeStrength = -400,
+            collisionRadius = 35,
+            centerStrength = 0.08,
+            segmentStrength = 0.05
         } = options;
 
         this.simulation
@@ -230,7 +235,8 @@ class ForceSimulation {
             this.simulation
                 .force('center', d3.forceCenter(width / 2, height / 2))
                 .force('x', d3.forceX(width / 2))
-                .force('y', d3.forceY(height / 2));
+                .force('y', d3.forceY(height / 2))
+                .force('sourceCenter', this.createSourceCenteringForce());
         }
     }
 
@@ -244,6 +250,40 @@ class ForceSimulation {
         }
         this.nodes = [];
         this.links = [];
+    }
+
+    /**
+     * Create source centering force to keep source node in center
+     */
+    createSourceCenteringForce() {
+        let nodes;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        
+        function force() {
+            if (!nodes) return;
+            
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                if (node.type === 'source' || node.segment === 'source') {
+                    // Strongly pull source node to center
+                    const dx = centerX - node.x;
+                    const dy = centerY - node.y;
+                    node.vx += dx * 0.3;
+                    node.vy += dy * 0.3;
+                    
+                    // Also pin it if it's not already pinned
+                    if (!node.fx) node.fx = centerX;
+                    if (!node.fy) node.fy = centerY;
+                }
+            }
+        }
+        
+        force.initialize = function(_nodes) {
+            nodes = _nodes;
+        };
+        
+        return force;
     }
 }
 

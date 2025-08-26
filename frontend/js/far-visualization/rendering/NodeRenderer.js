@@ -79,7 +79,7 @@ class NodeRenderer {
      */
     getNodeColor(d) {
         if (d.type === 'source') {
-            return d.hasAsset ? '#2E86AB' : '#A23B72';
+            return '#E74C3C'; // Always red for source node
         }
         
         const baseColors = {
