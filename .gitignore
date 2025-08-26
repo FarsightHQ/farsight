@@ -59,6 +59,15 @@ logs/
 # CSV files
 *.csv
 
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+
+# Upload directories
+uploads/
+
 # Environment variables
 .env.local
 .env.production
