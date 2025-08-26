@@ -8,17 +8,16 @@ import ipaddress
 
 
 class AssetRegistryBase(BaseModel):
-    """Base schema for Asset Registry with validation"""
+    """Base schema for Asset Registry with validation - CSV compatible fields only"""
     
     # Core Asset Identification
-    ip_address: IPvAnyAddress = Field(..., description="Primary asset identifier - must be unique")
+    ip_address: str = Field(..., description="Primary asset identifier - must be unique")
     
     # Network Information
     segment: Optional[str] = Field(None, max_length=100, description="Network segment identifier")
     subnet: Optional[str] = Field(None, max_length=50, description="Subnet CIDR or identifier") 
     gateway: Optional[str] = Field(None, max_length=50, description="Default gateway IP")
-    subnet_mask: Optional[str] = Field(None, max_length=20, description="Subnet mask")
-    vlan: Optional[str] = Field(None, max_length=20, description="VLAN identifier")
+    vlan: Optional[str] = Field(None, max_length=50, description="VLAN identifier")
     
     # System Information
     os_name: Optional[str] = Field(None, max_length=100, description="Operating system name")
@@ -29,36 +28,31 @@ class AssetRegistryBase(BaseModel):
     # Hardware Resources
     vcpu: Optional[int] = Field(None, ge=0, le=1000, description="Virtual CPU count")
     memory: Optional[str] = Field(None, max_length=20, description="Memory amount (e.g., '8GB')")
-    cpu: Optional[str] = Field(None, max_length=100, description="CPU specification")
-    storage: Optional[str] = Field(None, max_length=50, description="Storage amount")
     
     # Asset Metadata
     hostname: Optional[str] = Field(None, max_length=255, description="Asset hostname")
     vm_display_name: Optional[str] = Field(None, max_length=255, description="VM display name")
-    environment: Optional[str] = Field(None, pattern="^(dev|test|stage|prod|dr)$", description="Environment type")
-    business_unit: Optional[str] = Field(None, max_length=100, description="Business unit owning the asset")
-    owner: Optional[str] = Field(None, max_length=100, description="Asset owner/responsible person")
-    asset_criticality: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$", description="Asset criticality level")
-    location: Optional[str] = Field(None, max_length=100, description="Physical or logical location")
-    status: Optional[str] = Field(None, max_length=50, description="Asset status")
+    environment: Optional[str] = Field(None, max_length=50, description="Environment type")
+    location: Optional[str] = Field(None, max_length=100, description="Physical location")
     availability: Optional[str] = Field(None, max_length=50, description="Availability status")
-    itm_id: Optional[str] = Field(None, max_length=50, description="ITM ID")
+    itm_id: Optional[str] = Field(None, max_length=50, description="ITM monitoring ID")
     
-    # Compliance & Security
-    patch_level: Optional[str] = Field(None, max_length=50, description="Current patch level")
-    security_zone: Optional[str] = Field(None, max_length=50, description="Security zone classification")
-    compliance_tags: Optional[List[str]] = Field(None, description="Compliance requirements list")
+    # Compliance & Security (Direct CSV columns)
+    tool_update: Optional[str] = Field(None, max_length=200, description="Tool Update from CSV")
+    dmz_mz: Optional[str] = Field(None, max_length=50, description="DMZ/MZ zone from CSV")
+    confidentiality: Optional[str] = Field(None, max_length=50, description="Confidentiality level from CSV")
+    integrity: Optional[str] = Field(None, max_length=50, description="Integrity level from CSV")
+    compliance_tags: Optional[List[str]] = Field(None, description="Additional compliance tags")
     
     # Extended Properties (Flexible Schema)
     extended_properties: Optional[Dict[str, Any]] = Field(None, description="Additional asset properties")
 
     @validator('ip_address')
     def validate_ip_address(cls, v):
-        """Ensure IP address is valid"""
-        try:
-            return str(ipaddress.ip_address(v))
-        except ValueError:
-            raise ValueError('Invalid IP address format')
+        """Ensure IP address is valid string format"""
+        if v:
+            return str(v).strip()
+        return v
 
     @validator('subnet')
     def validate_subnet(cls, v):
@@ -82,29 +76,32 @@ class AssetRegistryUpdate(BaseModel):
     # Network Information
     segment: Optional[str] = Field(None, max_length=100)
     subnet: Optional[str] = Field(None, max_length=50)
-    gateway: Optional[str] = Field(None)  # Changed from IPvAnyAddress to str to avoid DB conversion issues
-    vlan: Optional[str] = Field(None, max_length=20)
+    gateway: Optional[str] = Field(None, max_length=50)
+    vlan: Optional[str] = Field(None, max_length=50)
     
     # System Information  
-    os: Optional[str] = Field(None, max_length=100)
+    os_name: Optional[str] = Field(None, max_length=100)
     os_version: Optional[str] = Field(None, max_length=100)
     app_version: Optional[str] = Field(None, max_length=100)
     db_version: Optional[str] = Field(None, max_length=100)
     
     # Hardware Resources
     vcpu: Optional[int] = Field(None, ge=0, le=1000)
-    memory_gb: Optional[float] = Field(None, ge=0, le=10000)
+    memory: Optional[str] = Field(None, max_length=20)
     
     # Asset Metadata
     hostname: Optional[str] = Field(None, max_length=255)
-    environment: Optional[str] = Field(None, pattern="^(dev|test|stage|prod|dr)$")
-    business_unit: Optional[str] = Field(None, max_length=100)
-    asset_owner: Optional[str] = Field(None, max_length=100)
-    asset_criticality: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
+    vm_display_name: Optional[str] = Field(None, max_length=255)
+    environment: Optional[str] = Field(None, max_length=50)
+    location: Optional[str] = Field(None, max_length=100)
+    availability: Optional[str] = Field(None, max_length=50)
+    itm_id: Optional[str] = Field(None, max_length=50)
     
-    # Compliance & Security
-    patch_level: Optional[str] = Field(None, max_length=50)
-    security_zone: Optional[str] = Field(None, max_length=50)
+    # Compliance & Security (Direct CSV columns)
+    tool_update: Optional[str] = Field(None, max_length=200)
+    dmz_mz: Optional[str] = Field(None, max_length=50)
+    confidentiality: Optional[str] = Field(None, max_length=50)
+    integrity: Optional[str] = Field(None, max_length=50)
     compliance_tags: Optional[List[str]] = Field(None)
     
     # Extended Properties
@@ -188,9 +185,6 @@ class AssetSearchFilters(BaseModel):
     vlan: Optional[str] = Field(None, description="VLAN identifier")
     os: Optional[str] = Field(None, description="Operating system (partial match)")
     environment: Optional[str] = Field(None, description="Environment type")
-    business_unit: Optional[str] = Field(None, description="Business unit")
-    asset_criticality: Optional[str] = Field(None, description="Criticality level")
-    security_zone: Optional[str] = Field(None, description="Security zone")
     is_active: Optional[bool] = Field(True, description="Include only active assets")
     hostname: Optional[str] = Field(None, description="Hostname (partial match)")
     
@@ -206,11 +200,11 @@ class AssetAnalyticsResponse(BaseModel):
     inactive_assets: int
     environments: Dict[str, int]
     operating_systems: Dict[str, int] 
-    criticality_levels: Dict[str, int]
-    security_zones: Dict[str, int]
-    business_units: Dict[str, int]
+    criticality_levels: Dict[str, int]  # Empty for now
+    security_zones: Dict[str, int]  # Empty for now
+    business_units: Dict[str, int]  # Empty for now
     average_vcpu: Optional[float]
-    average_memory_gb: Optional[float]
+    average_memory_gb: Optional[float]  # Always None (memory is string)
     total_vcpu: Optional[int]
-    total_memory_gb: Optional[float]
+    total_memory_gb: Optional[float]  # Always None (memory is string)
     last_updated: datetime

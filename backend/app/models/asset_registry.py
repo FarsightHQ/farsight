@@ -18,14 +18,13 @@ class AssetRegistry(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     
     # Core Asset Identification (UNIQUE CONSTRAINT)
-    ip_address = Column(INET, nullable=False, unique=True, index=True, comment="Primary asset identifier - must be unique")
+    ip_address = Column(String(50), nullable=False, unique=True, index=True, comment="Primary asset identifier - must be unique")
     
     # Network Information
     segment = Column(String(100), nullable=True, index=True)
     subnet = Column(String(50), nullable=True)
     gateway = Column(String(50), nullable=True)  # Changed from INET to String to handle various formats
-    subnet_mask = Column(String(20), nullable=True)
-    vlan = Column(String(20), nullable=True, index=True)
+    vlan = Column(String(50), nullable=True, index=True)
     
     # System Information
     os_name = Column(String(100), nullable=True, index=True)  # Renamed from 'os'
@@ -36,25 +35,21 @@ class AssetRegistry(Base):
     # Hardware Resources
     vcpu = Column(Integer, nullable=True)
     memory = Column(String(20), nullable=True)  # Changed to string to handle formats like "8GB"
-    cpu = Column(String(100), nullable=True)  # Added CPU field
-    storage = Column(String(50), nullable=True)  # Added storage field
     
     # Asset Metadata
     hostname = Column(String(255), nullable=True, index=True)
     vm_display_name = Column(String(255), nullable=True)  # Added VM display name
     environment = Column(String(50), nullable=True, index=True)  # dev/stage/prod
-    business_unit = Column(String(100), nullable=True, index=True)
-    owner = Column(String(100), nullable=True)  # Renamed from asset_owner
-    asset_criticality = Column(String(20), nullable=True, index=True)  # low/medium/high/critical
     location = Column(String(100), nullable=True)  # Added location field
-    status = Column(String(50), nullable=True)  # Added status field
     availability = Column(String(50), nullable=True)  # Added availability field
     itm_id = Column(String(50), nullable=True)  # Added ITM ID field
     
     # Compliance & Security
-    patch_level = Column(String(50), nullable=True)
-    security_zone = Column(String(50), nullable=True, index=True)
-    compliance_tags = Column(JSONB, nullable=True)  # Array of compliance requirements
+    tool_update = Column(String(200), nullable=True, index=True)  # Direct from CSV "Tool_Update" column
+    dmz_mz = Column(String(50), nullable=True, index=True)  # Direct from CSV "DMZ/MZ" column
+    confidentiality = Column(String(50), nullable=True, index=True)  # Direct from CSV "Confidentially" column
+    integrity = Column(String(50), nullable=True, index=True)  # Direct from CSV "Integrity" column
+    compliance_tags = Column(JSONB, nullable=True)  # For any additional compliance data
     
     # Extended Properties (Flexible Schema)
     extended_properties = Column(JSONB, nullable=True, comment="Flexible JSON storage for additional asset properties")
@@ -132,7 +127,7 @@ class AssetUploadBatch(Base):
     error_rows = Column(Integer, nullable=False, default=0)
     
     # Status and Metadata
-    status = Column(String(20), nullable=False, default='processing')  # processing/completed/failed
+    status = Column(String(50), nullable=False, default='processing')  # processing/completed/failed/completed_with_errors
     error_details = Column(JSONB, nullable=True)
     processing_duration_ms = Column(Integer, nullable=True)
     
