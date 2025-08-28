@@ -4,7 +4,7 @@ Handles CRUD operations for FAR requests and file ingestion
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import aiofiles
 import os
 from app.core.database import get_db
@@ -12,11 +12,12 @@ from app.models.far_request import FarRequest
 from app.schemas.far_request import FarRequestCreate, FarRequestResponse
 from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
+from app.utils.error_handlers import success_response, paginated_response
 
 router = APIRouter(prefix="/requests", tags=["FAR Requests"])
 
 
-@router.post("", response_model=FarRequestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_far_request(
     title: str,
     file: UploadFile = File(...),
@@ -34,25 +35,34 @@ async def create_far_request(
             file=file,
             external_id=external_id
         )
-        return result
+        
+        return success_response(
+            data=result.dict() if hasattr(result, 'dict') else result,
+            message=f"FAR request '{title}' created successfully",
+            metadata={
+                "filename": file.filename,
+                "external_id": external_id,
+                "file_size": file.size if hasattr(file, 'size') else None
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("", response_model=List[FarRequestResponse])
+@router.get("")
 def list_far_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
     """
-    List all FAR requests
+    List all FAR requests with pagination
     """
     requests = db.query(FarRequest).offset(skip).limit(limit).all()
     return requests
 
 
-@router.get("/{request_id}", response_model=FarRequestResponse)
+@router.get("/{request_id}")
 def get_far_request(
     request_id: int,
     db: Session = Depends(get_db)

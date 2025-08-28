@@ -11,6 +11,7 @@ from app.models.far_request import FarRequest
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.utils.error_handlers import success_response
 
 router = APIRouter(prefix="/rules", tags=["FAR Rules"])
 
@@ -21,7 +22,7 @@ def get_far_rule_details(
     format: Optional[str] = None,
     include: Optional[str] = None,
     db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+):
     """
     Get detailed information for a specific FAR rule by ID
     
@@ -133,12 +134,12 @@ def get_far_rule_details(
     return response
 
 
-@router.get("/{rule_id}/endpoints")
+@router.get("/{rule_id}/endpoints", response_model=Dict[str, Any])
 def get_rule_endpoints(
     rule_id: int,
     endpoint_type: Optional[str] = None,
     db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+):
     """
     Get endpoints for a specific rule, optionally filtered by type
     
@@ -154,7 +155,7 @@ def get_rule_endpoints(
     if endpoint_type:
         endpoints = [ep for ep in endpoints if ep.endpoint_type == endpoint_type]
     
-    return {
+    data = {
         "rule_id": rule_id,
         "endpoints": [
             {
@@ -166,13 +167,23 @@ def get_rule_endpoints(
         ],
         "count": len(endpoints)
     }
+    
+    message = f"Retrieved {len(endpoints)} endpoints for rule {rule_id}"
+    if endpoint_type:
+        message += f" (filtered by type: {endpoint_type})"
+    
+    return success_response(
+        data=data,
+        message=message,
+        metadata={"filter": endpoint_type} if endpoint_type else None
+    )
 
 
-@router.get("/{rule_id}/services")
+@router.get("/{rule_id}/services", response_model=Dict[str, Any])
 def get_rule_services(
     rule_id: int,
     db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+):
     """
     Get services (protocols and ports) for a specific rule
     """
@@ -192,11 +203,16 @@ def get_rule_services(
             )
         })
     
-    return {
+    data = {
         "rule_id": rule_id,
         "services": services,
         "count": len(services)
     }
+    
+    return success_response(
+        data=data,
+        message=f"Retrieved {len(services)} services for rule {rule_id}"
+    )
 
 
 # Helper functions
