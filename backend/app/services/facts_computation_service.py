@@ -145,15 +145,11 @@ class FactsComputationService:
         """Process a batch of rules and compute their facts"""
         
         for rule_id in rule_ids:
-            # Process each rule in its own transaction to isolate failures
+            # Process each rule with proper transaction handling
             try:
-                # Begin a fresh transaction for this rule
-                self.db.begin()
-                
                 # Get rule data
                 rule_data = self._get_rule_data(rule_id)
                 if not rule_data:
-                    self.db.rollback()
                     continue
                 
                 # Compute facts
@@ -168,10 +164,7 @@ class FactsComputationService:
                 # Update rule with facts
                 self._update_rule_facts(rule_id, facts)
                 
-                # Commit this individual rule update
-                self.db.commit()
-                
-                # Update statistics only after successful commit
+                # Update statistics only after successful processing
                 stats['rules_updated'] += 1
                 if facts.get('src_has_public', False):
                     stats['public_src'] += 1
@@ -180,12 +173,20 @@ class FactsComputationService:
                     
             except Exception as e:
                 logger.error(f"Error processing rule {rule_id}: {e}")
-                # Rollback the failed transaction
+                # Rollback any failed changes
                 try:
                     self.db.rollback()
                 except Exception as rollback_error:
-                    logger.error(f"Error during rollback for rule {rule_id}: {rollback_error}")
+                    logger.warning(f"Error during rollback for rule {rule_id}: {rollback_error}")
                 continue
+        
+        # Commit all successful updates at the end
+        try:
+            self.db.commit()
+        except Exception as e:
+            logger.error(f"Error committing batch: {e}")
+            self.db.rollback()
+            raise
     
     def _get_rule_data(self, rule_id: int) -> Optional[Dict[str, Any]]:
         """Get rule endpoints and services"""
