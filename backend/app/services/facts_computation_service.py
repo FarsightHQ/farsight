@@ -4,7 +4,7 @@ Phase 2.3 Facts Computation Service
 import json
 import time
 import logging
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -71,13 +71,18 @@ class FactsComputationService:
         batch_size = facts_config.FACTS_BATCH_SIZE
         for i in range(0, len(rule_ids), batch_size):
             batch_rule_ids = rule_ids[i:i + batch_size]
-            await self._process_rule_batch(
-                batch_rule_ids, 
-                self_flow_rule_ids, 
-                src_any_rule_ids, 
-                dst_any_rule_ids, 
-                stats
-            )
+            try:
+                await self._process_rule_batch(
+                    batch_rule_ids, 
+                    self_flow_rule_ids, 
+                    src_any_rule_ids, 
+                    dst_any_rule_ids, 
+                    stats
+                )
+            except Exception as e:
+                logger.error(f"Error processing batch {i//batch_size + 1}: {e}")
+                # Continue with next batch
+                continue
         
         # Update statistics
         stats['duration_ms'] = int((time.time() - start_time) * 1000)
@@ -140,10 +145,15 @@ class FactsComputationService:
         """Process a batch of rules and compute their facts"""
         
         for rule_id in rule_ids:
+            # Process each rule in its own transaction to isolate failures
             try:
+                # Begin a fresh transaction for this rule
+                self.db.begin()
+                
                 # Get rule data
                 rule_data = self._get_rule_data(rule_id)
                 if not rule_data:
+                    self.db.rollback()
                     continue
                 
                 # Compute facts
@@ -157,9 +167,12 @@ class FactsComputationService:
                 
                 # Update rule with facts
                 self._update_rule_facts(rule_id, facts)
-                stats['rules_updated'] += 1
                 
-                # Update public IP statistics
+                # Commit this individual rule update
+                self.db.commit()
+                
+                # Update statistics only after successful commit
+                stats['rules_updated'] += 1
                 if facts.get('src_has_public', False):
                     stats['public_src'] += 1
                 if facts.get('dst_has_public', False):
@@ -167,12 +180,14 @@ class FactsComputationService:
                     
             except Exception as e:
                 logger.error(f"Error processing rule {rule_id}: {e}")
+                # Rollback the failed transaction
+                try:
+                    self.db.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"Error during rollback for rule {rule_id}: {rollback_error}")
                 continue
-        
-        # Commit batch
-        self.db.commit()
     
-    def _get_rule_data(self, rule_id: int) -> Dict[str, Any] or None:
+    def _get_rule_data(self, rule_id: int) -> Optional[Dict[str, Any]]:
         """Get rule endpoints and services"""
         
         # Get endpoints
@@ -191,31 +206,24 @@ class FactsComputationService:
             elif row[0] == 'destination':
                 destinations.append(row[1])
         
-        # Get services and existing rule data
-        rule_query = text("""
-            SELECT r.service_count, r.max_port_span, r.tuple_estimate,
-                   COUNT(s.id) as actual_service_count
-            FROM far_rules r
-            LEFT JOIN far_rule_services s ON s.rule_id = r.id
-            WHERE r.id = :rule_id
-            GROUP BY r.id, r.service_count, r.max_port_span, r.tuple_estimate
+        # Get services count
+        services_query = text("""
+            SELECT COUNT(s.id) as service_count
+            FROM far_rule_services s
+            WHERE s.rule_id = :rule_id
         """)
-        rule_result = self.db.execute(rule_query, {"rule_id": rule_id}).fetchone()
+        services_result = self.db.execute(services_query, {"rule_id": rule_id}).fetchone()
+        service_count = services_result[0] if services_result else 0
         
-        if not rule_result:
-            return None
-        
-        # Calculate tuple estimate if not stored
-        tuple_estimate = rule_result[2]
-        if tuple_estimate is None:
-            tuple_estimate = len(sources) * len(destinations) * (rule_result[3] or 1)
+        # Calculate tuple estimate
+        tuple_estimate = len(sources) * len(destinations) * max(service_count, 1)
         
         return {
             'sources': sources,
             'destinations': destinations,
-            'service_count': rule_result[0] or rule_result[3] or 0,
-            'max_port_span': rule_result[1] or 1,  # Default to 1 if not calculated
-            'tuple_estimate': tuple_estimate or 0
+            'service_count': service_count,
+            'max_port_span': 1,  # Default value, can be enhanced later
+            'tuple_estimate': tuple_estimate
         }
     
     async def _compute_rule_facts(
