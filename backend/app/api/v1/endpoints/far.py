@@ -179,3 +179,76 @@ def get_far_rules(
             "returned": len(formatted_rules)
         }
     }
+
+
+@router.get("/rules/{rule_id}")
+def get_far_rule_details(
+    rule_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get detailed information for a specific FAR rule by ID
+    
+    Returns comprehensive rule details including:
+    - Basic rule information (action, direction, etc.)
+    - All source and destination endpoints
+    - All services (protocols and port ranges)
+    - Computed facts (if available)
+    - Related request information
+    """
+    from app.models.far_rule import FarRule
+    
+    # Get the rule with its relationships
+    rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
+    
+    # Get request information
+    request_info = {
+        "id": rule.request.id,
+        "title": rule.request.title,
+        "external_id": rule.request.external_id,
+        "status": rule.request.status
+    }
+    
+    # Organize endpoints by type
+    sources = []
+    destinations = []
+    for endpoint in rule.endpoints:
+        endpoint_data = {"network_cidr": endpoint.network_cidr}
+        if endpoint.endpoint_type == 'source':
+            sources.append(endpoint_data)
+        elif endpoint.endpoint_type == 'destination':
+            destinations.append(endpoint_data)
+    
+    # Format services
+    services = []
+    for service in rule.services:
+        services.append({
+            "protocol": service.protocol,
+            "port_ranges": str(service.port_ranges)  # PostgreSQL multirange format
+        })
+    
+    # Parse facts if available
+    facts = rule.facts if rule.facts is not None else None
+    
+    return {
+        "rule_id": rule_id,
+        "request": request_info,
+        "rule_details": {
+            "action": rule.action,
+            "direction": rule.direction,
+            "created_at": rule.created_at.isoformat(),
+            "canonical_hash": rule.canonical_hash.hex() if rule.canonical_hash is not None else None
+        },
+        "endpoints": {
+            "sources": sources,
+            "destinations": destinations,
+            "source_count": len(sources),
+            "destination_count": len(destinations)
+        },
+        "services": services,
+        "service_count": len(services),
+        "facts": facts,
+        "tuple_estimate": len(sources) * len(destinations) * max(len(services), 1) if sources and destinations else 0
+    }
