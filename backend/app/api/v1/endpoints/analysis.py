@@ -11,6 +11,7 @@ from app.models.far_request import FarRequest
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.utils.error_handlers import success_response
 
 router = APIRouter(prefix="/requests", tags=["FAR Analysis"])
 
@@ -85,18 +86,22 @@ def get_request_summary(
     rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
     
     if not rules:
-        return {
+        no_rules_data = {
             "request_id": request_id,
             "request_info": {
-                "title": far_request.title,
-                "status": far_request.status,
-                "external_id": far_request.external_id
+                "title": str(far_request.title or ""),
+                "status": str(far_request.status or ""),
+                "external_id": str(far_request.external_id or "")
             },
             "summary": {
                 "total_rules": 0,
                 "message": "No rules found for this request"
             }
         }
+        return success_response(
+            data=no_rules_data,
+            message=f"No rules found for request {request_id}"
+        )
     
     # Calculate statistics
     total_rules = len(rules)
@@ -142,13 +147,13 @@ def get_request_summary(
     # Facts analysis
     rules_with_facts = sum(1 for rule in rules if rule.facts is not None)
     
-    return {
+    summary_data = {
         "request_id": request_id,
         "request_info": {
-            "title": far_request.title,
-            "status": far_request.status,
-            "external_id": far_request.external_id,
-            "created_at": far_request.created_at.isoformat()
+            "title": str(far_request.title or ""),
+            "status": str(far_request.status or ""),
+            "external_id": str(far_request.external_id or ""),
+            "created_at": str(far_request.created_at)
         },
         "summary": {
             "total_rules": total_rules,
@@ -173,6 +178,11 @@ def get_request_summary(
             "avg_tuples_per_rule": f"{total_tuples/total_rules:.2f}" if total_rules > 0 else "0"
         }
     }
+    
+    return success_response(
+        data=summary_data,
+        message=f"Retrieved comprehensive summary for request {request_id}"
+    )
 
 
 @router.get("/{request_id}/network-topology")
@@ -192,10 +202,14 @@ def get_request_network_topology(
     rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
     
     if not rules:
-        return {
+        no_rules_data = {
             "request_id": request_id,
             "error": "No rules found for this request"
         }
+        return success_response(
+            data=no_rules_data,
+            message=f"No rules found for request {request_id}"
+        )
     
     # Prepare rule data for graph service
     rule_data = []
@@ -231,9 +245,9 @@ def get_request_network_topology(
     # Generate network topology
     topology = graph_service.create_network_topology_graph(rule_data)
     
-    return {
+    topology_data = {
         "request_id": request_id,
-        "request_title": far_request.title,
+        "request_title": str(far_request.title or ""),
         "topology": topology,
         "summary": {
             "total_rules": len(rules),
@@ -241,6 +255,11 @@ def get_request_network_topology(
             "connections": topology["metadata"]["connection_count"]
         }
     }
+    
+    return success_response(
+        data=topology_data,
+        message=f"Generated network topology for request {request_id}"
+    )
 
 
 @router.get("/{request_id}/security-analysis")
@@ -260,10 +279,14 @@ def get_request_security_analysis(
     rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
     
     if not rules:
-        return {
+        no_rules_data = {
             "request_id": request_id,
             "error": "No rules found for this request"
         }
+        return success_response(
+            data=no_rules_data,
+            message=f"No rules found for request {request_id} security analysis"
+        )
     
     # Analyze each rule
     rule_analyses = []
@@ -315,9 +338,9 @@ def get_request_security_analysis(
                 issue_types[issue_type] = {"count": 0, "severity": issue["severity"]}
             issue_types[issue_type]["count"] += 1
     
-    return {
+    security_analysis_data = {
         "request_id": request_id,
-        "request_title": far_request.title,
+        "request_title": str(far_request.title or ""),
         "overall_analysis": {
             "total_rules": len(rules),
             "average_security_score": f"{avg_security_score:.1f}/100",
@@ -333,6 +356,11 @@ def get_request_security_analysis(
         "rule_details": rule_analyses,
         "recommendations": _generate_request_recommendations(issue_types, rule_analyses)
     }
+    
+    return success_response(
+        data=security_analysis_data,
+        message=f"Generated security analysis for request {request_id}"
+    )
 
 
 def _analyze_rule_security(rule: Any, facts: Dict, sources: List[Dict], destinations: List[Dict], services: List[Dict]) -> Dict[str, Any]:

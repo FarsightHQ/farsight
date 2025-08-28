@@ -14,6 +14,7 @@ from app.schemas.asset_registry import (
     AssetSearchFilters, AssetAnalyticsResponse
 )
 from app.services.asset_registry_service import AssetRegistryService
+from app.utils.error_handlers import success_response, paginated_response
 
 router = APIRouter()
 
@@ -98,7 +99,6 @@ async def deactivate_asset(
 
 
 @router.get("/assets",
-            response_model=List[AssetRegistryResponse],
             summary="Search Assets",
             description="Search and filter assets with pagination")
 async def search_assets(
@@ -106,7 +106,7 @@ async def search_assets(
     ip_range: Optional[str] = Query(None, description="IP range in CIDR format"),
     segment: Optional[str] = Query(None, description="Network segment filter"),
     vlan: Optional[str] = Query(None, description="VLAN filter"),
-    os: Optional[str] = Query(None, description="Operating system filter"),
+    os_name: Optional[str] = Query(None, description="Operating system filter"),
     environment: Optional[str] = Query(None, description="Environment filter"),
     hostname: Optional[str] = Query(None, description="Hostname filter"),
     is_active: Optional[bool] = Query(True, description="Include only active assets"),
@@ -121,7 +121,7 @@ async def search_assets(
             ip_range=ip_range,
             segment=segment,
             vlan=vlan,
-            os=os,
+            os=os_name,
             environment=environment,
             hostname=hostname,
             is_active=is_active,
@@ -131,14 +131,30 @@ async def search_assets(
         
         assets, total_count = AssetRegistryService.search_assets(db, filters)
         
-        # Add total count to response headers
-        from fastapi import Response
-        response = Response()
-        response.headers["X-Total-Count"] = str(total_count)
-        response.headers["X-Limit"] = str(limit)
-        response.headers["X-Offset"] = str(offset)
+        # Convert to response objects  
+        assets_data = []
+        for asset in assets:
+            asset_dict = {
+                "id": str(asset.id),
+                "ip_address": str(asset.ip_address),
+                "segment": str(asset.segment or ""),
+                "vlan": str(asset.vlan or ""),
+                "os_name": str(asset.os_name or ""),
+                "environment": str(asset.environment or ""),
+                "hostname": str(asset.hostname or ""),
+                "is_active": bool(asset.is_active),
+                "created_at": str(asset.created_at),
+                "updated_at": str(asset.updated_at)
+            }
+            assets_data.append(asset_dict)
         
-        return [AssetRegistryResponse.from_orm(asset) for asset in assets]
+        return paginated_response(
+            data=assets_data,
+            total=total_count,
+            limit=limit,
+            skip=offset,
+            message=f"Retrieved {len(assets_data)} of {total_count} assets"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to search assets: {str(e)}")

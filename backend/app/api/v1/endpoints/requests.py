@@ -58,8 +58,23 @@ def list_far_requests(
     """
     List all FAR requests with pagination
     """
+    total = db.query(FarRequest).count()
     requests = db.query(FarRequest).offset(skip).limit(limit).all()
-    return requests
+    
+    return success_response(
+        data=requests,  # Return objects directly for now
+        message=f"Retrieved {len(requests)} of {total} FAR requests",
+        metadata={
+            "pagination": {
+                "skip": skip,
+                "limit": limit, 
+                "total": total,
+                "returned": len(requests),
+                "has_next": skip + len(requests) < total,
+                "has_previous": skip > 0
+            }
+        }
+    )
 
 
 @router.get("/{request_id}")
@@ -74,7 +89,24 @@ def get_far_request(
     if not far_request:
         raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
     
-    return far_request
+    # Convert to dict for standardized response
+    request_data = {
+        "id": str(far_request.id),
+        "source_sha256": str(far_request.source_sha256 or ""),
+        "source_size_bytes": far_request.source_size_bytes,
+        "status": str(far_request.status or ""),
+        "created_at": str(far_request.created_at),
+        "source_filename": str(far_request.source_filename or ""),
+        "title": str(far_request.title or ""),
+        "external_id": str(far_request.external_id or ""),
+        "storage_path": str(far_request.storage_path or ""),
+        "created_by": str(far_request.created_by or "")
+    }
+    
+    return success_response(
+        data=request_data,
+        message=f"Retrieved FAR request {request_id}"
+    )
 
 
 @router.post("/{request_id}/ingest", status_code=status.HTTP_200_OK)
