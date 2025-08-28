@@ -12,6 +12,8 @@ from app.core.facts_config import facts_config
 from app.models.far_request import FarRequest
 from app.models.far_rule import FarRule
 from app.utils.ip_classification import analyze_cidrs, cidrs_overlap
+from app.services.asset_service import AssetService
+from app.services.tuple_generation_service import TupleGenerationService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,8 @@ class FactsComputationService:
     
     def __init__(self, db: Session):
         self.db = db
+        self.asset_service = AssetService(db)
+        self.tuple_service = TupleGenerationService()
     
     async def compute_facts_for_request(self, request_id: int) -> Dict[str, Any]:
         """
