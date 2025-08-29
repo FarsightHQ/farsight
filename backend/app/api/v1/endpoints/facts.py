@@ -9,11 +9,11 @@ from app.core.database import get_db
 from app.services.facts_computation_service import FactsComputationService
 from app.utils.error_handlers import success_response
 
-router = APIRouter()
+router = APIRouter(prefix="/far")
 
 
 @router.post(
-    "/requests/{request_id}/facts/compute", 
+    "/{request_id}/facts/compute", 
     status_code=status.HTTP_200_OK,
     summary="Compute Rule Facts",
     description="Compute detailed facts for all firewall rules in a request",
@@ -110,7 +110,7 @@ async def compute_facts_for_request(
         )
 
 
-@router.get("/requests/{request_id}/analysis", status_code=status.HTTP_200_OK)
+@router.get("/{request_id}/analysis", status_code=status.HTTP_200_OK)
 async def get_request_analysis(
     request_id: int,
     db: Session = Depends(get_db)

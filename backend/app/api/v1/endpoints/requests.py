@@ -14,7 +14,7 @@ from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
 from app.utils.error_handlers import success_response, paginated_response
 
-router = APIRouter(prefix="/requests", tags=["FAR Requests"])
+router = APIRouter(prefix="/far", tags=["FAR Requests"])
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

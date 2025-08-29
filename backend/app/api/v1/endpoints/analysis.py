@@ -13,7 +13,7 @@ from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
 from app.utils.error_handlers import success_response, paginated_response
 
-router = APIRouter(prefix="/requests", tags=["FAR Analysis"])
+router = APIRouter(prefix="/far", tags=["FAR Analysis"])
 
 
 @router.get("/{request_id}/rules")

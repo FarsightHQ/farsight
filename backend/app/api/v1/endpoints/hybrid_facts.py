@@ -8,9 +8,9 @@ from app.core.database import get_db, SessionLocal
 from app.services.hybrid_facts_service import HybridFactsService
 from app.utils.error_handlers import success_response
 
-router = APIRouter()
+router = APIRouter(prefix="/far")
 
-@router.post("/requests/{request_id}/facts/compute-hybrid")
+@router.post("/{request_id}/facts/compute-hybrid")
 async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
     """
     Compute hybrid facts for a FAR request
@@ -86,7 +86,7 @@ async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Facts computation failed: {str(e)}")
 
-@router.get("/requests/{request_id}/facts/hybrid-summary")
+@router.get("/{request_id}/facts/hybrid-summary")
 async def get_hybrid_facts_summary(request_id: int, db: Session = Depends(get_db)):
     """
     Get hybrid facts summary for a request
@@ -152,7 +152,7 @@ async def get_hybrid_facts_summary(request_id: int, db: Session = Depends(get_db
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get hybrid summary: {str(e)}")
 
-@router.get("/requests/{request_id}/tuples/problematic")
+@router.get("/{request_id}/tuples/problematic")
 async def get_problematic_tuples(request_id: int, db: Session = Depends(get_db)):
     """
     Get only the problematic tuples for detailed analysis
