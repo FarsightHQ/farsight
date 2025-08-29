@@ -21,18 +21,22 @@ router = APIRouter()
 
 @router.post("/assets", 
              status_code=status.HTTP_201_CREATED,
-             response_model=AssetRegistryResponse,
              summary="Create Asset",
              description="Create a new asset in the registry")
 async def create_asset(
     asset: AssetRegistryCreate,
     created_by: str = Query(default="system", description="User creating the asset"),
     db: Session = Depends(get_db)
-) -> AssetRegistryResponse:
+):
     """Create a new asset in the registry"""
     try:
         new_asset = AssetRegistryService.create_asset(db, asset, created_by)
-        return AssetRegistryResponse.from_orm(new_asset)
+        asset_data = AssetRegistryResponse.from_orm(new_asset).dict()
+        
+        return success_response(
+            data=asset_data,
+            message=f"Successfully created asset for IP {new_asset.ip_address}"
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -40,13 +44,12 @@ async def create_asset(
 
 
 @router.get("/assets/{ip_address}",
-            response_model=AssetRegistryResponse,
             summary="Get Asset by IP",
             description="Retrieve asset details by IP address")
 async def get_asset_by_ip(
     ip_address: str,
     db: Session = Depends(get_db)
-) -> AssetRegistryResponse:
+):
     """Get asset by IP address"""
     asset = db.query(AssetRegistry).filter(
         AssetRegistry.ip_address == ip_address,
@@ -56,11 +59,14 @@ async def get_asset_by_ip(
     if not asset:
         raise HTTPException(status_code=404, detail=f"Asset with IP {ip_address} not found")
     
-    return AssetRegistryResponse.from_orm(asset)
+    asset_data = AssetRegistryResponse.from_orm(asset).dict()
+    return success_response(
+        data=asset_data,
+        message=f"Successfully retrieved asset for IP {ip_address}"
+    )
 
 
 @router.put("/assets/{ip_address}",
-            response_model=AssetRegistryResponse,
             summary="Update Asset",
             description="Update an existing asset by IP address")
 async def update_asset(
@@ -68,11 +74,16 @@ async def update_asset(
     asset_update: AssetRegistryUpdate,
     updated_by: str = Query(default="system", description="User updating the asset"),
     db: Session = Depends(get_db)
-) -> AssetRegistryResponse:
+):
     """Update an existing asset"""
     try:
         updated_asset = AssetRegistryService.update_asset(db, ip_address, asset_update, updated_by)
-        return AssetRegistryResponse.from_orm(updated_asset)
+        asset_data = AssetRegistryResponse.from_orm(updated_asset).dict()
+        
+        return success_response(
+            data=asset_data,
+            message=f"Successfully updated asset for IP {ip_address}"
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -80,18 +91,22 @@ async def update_asset(
 
 
 @router.delete("/assets/{ip_address}",
-               response_model=AssetRegistryResponse,
                summary="Deactivate Asset",
                description="Soft delete (deactivate) an asset by IP address")
 async def deactivate_asset(
     ip_address: str,
     deactivated_by: str = Query(default="system", description="User deactivating the asset"),
     db: Session = Depends(get_db)
-) -> AssetRegistryResponse:
+):
     """Soft delete (deactivate) an asset"""
     try:
         deactivated_asset = AssetRegistryService.deactivate_asset(db, ip_address, deactivated_by)
-        return AssetRegistryResponse.from_orm(deactivated_asset)
+        asset_data = AssetRegistryResponse.from_orm(deactivated_asset).dict()
+        
+        return success_response(
+            data=asset_data,
+            message=f"Successfully deactivated asset for IP {ip_address}"
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -161,18 +176,17 @@ async def search_assets(
 
 
 @router.post("/assets/upload-csv",
-             response_model=CSVUploadResponse,
              summary="Upload CSV",
              description="Upload and process a CSV file to create/update assets")
 async def upload_csv(
     file: UploadFile = File(..., description="CSV file containing asset data"),
     uploaded_by: str = Query(default="system", description="User uploading the file"),
     db: Session = Depends(get_db)
-) -> CSVUploadResponse:
+):
     """Upload and process CSV file for asset creation/updates"""
     
     # Validate file type
-    if not file.filename.lower().endswith('.csv'):
+    if not file.filename or not file.filename.lower().endswith('.csv'):
         raise HTTPException(status_code=400, detail="File must be a CSV file")
     
     try:
@@ -184,25 +198,28 @@ async def upload_csv(
             db, file_content, file.filename, uploaded_by
         )
         
-        # Prepare response
-        summary = {
-            "total_rows": batch.total_rows,
-            "processed_rows": batch.processed_rows,
-            "created_assets": batch.created_assets,
-            "updated_assets": batch.updated_assets,
-            "error_rows": batch.error_rows,
-            "processing_time_ms": batch.processing_duration_ms
+        # Prepare response data
+        upload_data = {
+            "batch_id": str(batch.batch_id),
+            "filename": batch.upload_filename,
+            "summary": {
+                "total_rows": batch.total_rows,
+                "processed_rows": batch.processed_rows,
+                "created_assets": batch.created_assets,
+                "updated_assets": batch.updated_assets,
+                "error_rows": batch.error_rows,
+                "processing_time_ms": batch.processing_duration_ms
+            },
+            "upload_details": AssetUploadBatchResponse.from_orm(batch).dict()
         }
         
         message = f"CSV processing completed. Created: {batch.created_assets}, Updated: {batch.updated_assets}"
         if batch.error_rows > 0:
             message += f", Errors: {batch.error_rows}"
         
-        return CSVUploadResponse(
-            batch_id=batch.batch_id,
-            message=message,
-            summary=summary,
-            upload_details=AssetUploadBatchResponse.from_orm(batch)
+        return success_response(
+            data=upload_data,
+            message=message
         )
         
     except Exception as e:
@@ -210,14 +227,13 @@ async def upload_csv(
 
 
 @router.get("/assets/{ip_address}/history",
-            response_model=List[AssetRegistryHistoryResponse],
             summary="Get Asset History",
             description="Get change history for a specific asset")
 async def get_asset_history(
     ip_address: str,
     limit: int = Query(50, ge=1, le=500, description="Number of history records to return"),
     db: Session = Depends(get_db)
-) -> List[AssetRegistryHistoryResponse]:
+):
     """Get change history for an asset"""
     
     # First verify asset exists
@@ -233,35 +249,54 @@ async def get_asset_history(
         AssetRegistryHistory.ip_address == ip_address
     ).order_by(AssetRegistryHistory.created_at.desc()).limit(limit).all()
     
-    return [AssetRegistryHistoryResponse.from_orm(record) for record in history_records]
+    history_data = [AssetRegistryHistoryResponse.from_orm(record).dict() for record in history_records]
+    
+    return success_response(
+        data={
+            "ip_address": ip_address,
+            "total_records": len(history_data),
+            "limit": limit,
+            "history": history_data
+        },
+        message=f"Retrieved {len(history_data)} history records for asset {ip_address}"
+    )
 
 
 @router.get("/upload-batches",
-            response_model=List[AssetUploadBatchResponse],
             summary="Get Upload Batches",
             description="Get list of CSV upload batches")
 async def get_upload_batches(
     limit: int = Query(50, ge=1, le=500, description="Number of batches to return"),
     offset: int = Query(0, ge=0, description="Number of batches to skip"),
     db: Session = Depends(get_db)
-) -> List[AssetUploadBatchResponse]:
+):
     """Get list of upload batches"""
+    
+    # Get total count for pagination
+    total_count = db.query(AssetUploadBatch).count()
     
     batches = db.query(AssetUploadBatch).order_by(
         AssetUploadBatch.created_at.desc()
     ).offset(offset).limit(limit).all()
     
-    return [AssetUploadBatchResponse.from_orm(batch) for batch in batches]
+    batches_data = [AssetUploadBatchResponse.from_orm(batch).dict() for batch in batches]
+    
+    return paginated_response(
+        data=batches_data,
+        total=total_count,
+        limit=limit,
+        skip=offset,
+        message=f"Retrieved {len(batches_data)} of {total_count} upload batches"
+    )
 
 
 @router.get("/upload-batches/{batch_id}",
-            response_model=AssetUploadBatchResponse,
             summary="Get Upload Batch Details",
             description="Get details of a specific upload batch")
 async def get_upload_batch(
     batch_id: str,
     db: Session = Depends(get_db)
-) -> AssetUploadBatchResponse:
+):
     """Get details of a specific upload batch"""
     
     batch = db.query(AssetUploadBatch).filter(
@@ -271,19 +306,29 @@ async def get_upload_batch(
     if not batch:
         raise HTTPException(status_code=404, detail=f"Upload batch {batch_id} not found")
     
-    return AssetUploadBatchResponse.from_orm(batch)
+    batch_data = AssetUploadBatchResponse.from_orm(batch).dict()
+    
+    return success_response(
+        data=batch_data,
+        message=f"Successfully retrieved upload batch {batch_id}"
+    )
 
 
 @router.get("/analytics",
-            response_model=AssetAnalyticsResponse,
             summary="Get Asset Analytics",
             description="Get comprehensive analytics and insights about the asset registry")
 async def get_analytics(
     db: Session = Depends(get_db)
-) -> AssetAnalyticsResponse:
+):
     """Get asset registry analytics and insights"""
     try:
-        return AssetRegistryService.get_analytics(db)
+        analytics_result = AssetRegistryService.get_analytics(db)
+        analytics_data = analytics_result.dict() if hasattr(analytics_result, 'dict') else analytics_result
+        
+        return success_response(
+            data=analytics_data,
+            message="Successfully retrieved asset registry analytics"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
 
@@ -295,12 +340,23 @@ async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint"""
     try:
         # Simple query to verify database connectivity
-        db.execute("SELECT 1")
-        return {
-            "status": "healthy",
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        
+        # Get basic asset count for health metrics
+        asset_count = db.query(AssetRegistry).filter(AssetRegistry.is_active == True).count()
+        
+        health_data = {
             "service": "asset_registry",
-            "timestamp": "2025-08-24T00:00:00Z"
+            "database": "connected",
+            "active_assets": asset_count,
+            "timestamp": "2025-08-29T00:00:00Z"
         }
+        
+        return success_response(
+            data=health_data,
+            message="Asset registry service is healthy"
+        )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
@@ -321,7 +377,16 @@ async def get_asset_versions(
     ).order_by(AssetRegistryHistory.version.desc()).all()
     
     if not history_records:
-        raise HTTPException(status_code=404, detail=f"No history found for asset {ip_address}")
+        version_data = {
+            "ip_address": ip_address,
+            "total_versions": 0,
+            "versions": []
+        }
+        
+        return success_response(
+            data=version_data,
+            message=f"No version history found for asset {ip_address}"
+        )
     
     versions = []
     for record in history_records:
@@ -334,8 +399,13 @@ async def get_asset_versions(
             "asset_data": record.asset_data_snapshot
         })
     
-    return {
+    version_data = {
         "ip_address": ip_address,
         "total_versions": len(versions),
         "versions": versions
     }
+    
+    return success_response(
+        data=version_data,
+        message=f"Retrieved {len(versions)} versions for asset {ip_address}"
+    )
