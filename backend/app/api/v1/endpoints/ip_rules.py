@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Dict, Any
 from app.core.database import get_db
+from app.utils.error_handlers import success_response
 
 router = APIRouter()
 
@@ -86,11 +87,15 @@ async def get_rules_for_ip(
         rows = result.fetchall()
         
         if not rows:
-            return {
+            no_rules_data = {
                 "ip_address": ip_address,
                 "total_rules": 0,
                 "relationships": []
             }
+            return success_response(
+                data=no_rules_data,
+                message=f"No rules found for IP {ip_address}"
+            )
         
         relationships = []
         for row in rows:
@@ -132,13 +137,18 @@ async def get_rules_for_ip(
         sources = [r for r in relationships if r["ip_role"] == "SOURCE"]
         destinations = [r for r in relationships if r["ip_role"] == "DESTINATION"]
         
-        return {
+        ip_rules_data = {
             "ip_address": ip_address,
             "total_rules": len(relationships),
             "source_rules": len(sources),
             "destination_rules": len(destinations),
             "relationships": relationships
         }
+        
+        return success_response(
+            data=ip_rules_data,
+            message=f"Retrieved {len(relationships)} rules for IP {ip_address}"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -153,10 +163,22 @@ async def get_ip_rule_summary(
     """
     
     # Get all relationships
-    result = await get_rules_for_ip(ip_address, db)
+    result_response = await get_rules_for_ip(ip_address, db)
+    result = result_response["data"]  # Extract data from standardized response
     
     if result["total_rules"] == 0:
-        raise HTTPException(status_code=404, detail=f"No rules found for IP {ip_address}")
+        return success_response(
+            data={
+                "ip_address": ip_address,
+                "total_rules": 0,
+                "unique_destinations": 0,
+                "unique_sources": 0,
+                "services": [],
+                "most_common_destination": None,
+                "most_common_source": None
+            },
+            message=f"No rules found for IP {ip_address}"
+        )
     
     # Create summary
     unique_destinations = set()
@@ -170,10 +192,15 @@ async def get_ip_rule_summary(
             unique_sources.add(rel["source_ip"])
         services.add(rel["service"])
     
-    return {
+    summary_data = {
         "ip_address": ip_address,
         "can_reach": list(unique_destinations),
         "can_be_reached_by": list(unique_sources),
         "services": sorted(list(services)),
         "total_rules": result["total_rules"]
     }
+    
+    return success_response(
+        data=summary_data,
+        message=f"Retrieved summary for IP {ip_address} with {result['total_rules']} rules"
+    )

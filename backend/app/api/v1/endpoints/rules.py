@@ -131,7 +131,10 @@ def get_far_rule_details(
     if format == 'table':
         return _format_rule_as_table(response)
     
-    return response
+    return success_response(
+        data=response,
+        message=f"Retrieved detailed information for rule {rule_id}"
+    )
 
 
 @router.get("/{rule_id}/endpoints", response_model=Dict[str, Any])

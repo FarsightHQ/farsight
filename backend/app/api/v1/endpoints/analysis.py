@@ -11,7 +11,7 @@ from app.models.far_request import FarRequest
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
-from app.utils.error_handlers import success_response
+from app.utils.error_handlers import success_response, paginated_response
 
 router = APIRouter(prefix="/requests", tags=["FAR Analysis"])
 
@@ -41,13 +41,14 @@ def list_request_rules(
     formatted_rules = []
     for rule in rules:
         rule_data = {
-            "id": rule.id,
-            "action": rule.action,
-            "direction": rule.direction,
-            "created_at": rule.created_at.isoformat(),
+            "id": str(rule.id),
+            "action": str(rule.action or ""),
+            "direction": str(rule.direction or ""),
+            "created_at": str(rule.created_at),
             "canonical_hash": rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
             "endpoint_count": len(rule.endpoints),
-            "service_count": len(rule.services)
+            "service_count": len(rule.services),
+            "request_id": request_id
         }
         
         if include_facts and rule.facts is not None:
@@ -55,18 +56,13 @@ def list_request_rules(
         
         formatted_rules.append(rule_data)
     
-    return {
-        "request_id": request_id,
-        "request_title": far_request.title,
-        "request_status": far_request.status,
-        "total_rules": total_rules,
-        "rules": formatted_rules,
-        "pagination": {
-            "skip": skip,
-            "limit": limit,
-            "returned": len(formatted_rules)
-        }
-    }
+    return paginated_response(
+        data=formatted_rules,
+        skip=skip,
+        limit=limit,
+        total=total_rules,
+        message=f"Retrieved {len(formatted_rules)} of {total_rules} rules for request {request_id}"
+    )
 
 
 @router.get("/{request_id}/summary")

@@ -7,6 +7,7 @@ from typing import Dict, Any
 
 from app.core.database import get_db
 from app.services.facts_computation_service import FactsComputationService
+from app.utils.error_handlers import success_response
 
 router = APIRouter()
 
@@ -78,7 +79,11 @@ async def compute_facts_for_request(
     try:
         service = FactsComputationService(db)
         result = await service.compute_facts_for_request(request_id)
-        return result
+        
+        return success_response(
+            data=result,
+            message=f"Successfully computed facts for request {request_id}"
+        )
         
     except ValueError as e:
         error_msg = str(e)
@@ -235,7 +240,10 @@ async def get_request_analysis(
             ]
         }
         
-        return analysis
+        return success_response(
+            data=analysis,
+            message=f"Retrieved comprehensive analysis for request {request_id}"
+        )
         
     except HTTPException:
         raise

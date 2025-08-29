@@ -152,11 +152,16 @@ async def ingest_far_request(
         far_request.status = 'ingested'
         db.commit()
         
-        return {
-            "message": f"Successfully ingested request {request_id}",
+        ingest_data = {
+            "request_id": request_id,
             "rules_created": result.get("rules_created", 0),
-            "details": result
+            "ingestion_details": result
         }
+        
+        return success_response(
+            data=ingest_data,
+            message=f"Successfully ingested request {request_id} with {result.get('rules_created', 0)} rules created"
+        )
         
     except Exception as e:
         # Rollback on error
