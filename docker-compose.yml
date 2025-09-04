@@ -4,15 +4,13 @@ services:
     image: postgres:latest
     container_name: farsight_postgres
     environment:
+      # Single database configuration
       POSTGRES_DB: farsight
       POSTGRES_USER: farsight_user
       POSTGRES_PASSWORD: farsight_password
       PGDATA: /var/lib/postgresql/data/pgdata
-      # Create additional databases for ToolJet (requires 2 databases)
-      POSTGRES_MULTIPLE_DATABASES: farsight,tooljet_internal,tooljet_app
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/create-multiple-databases.sh:/docker-entrypoint-initdb.d/create-multiple-databases.sh
     ports:
       - "5432:5432"
     networks:
@@ -99,60 +97,9 @@ services:
       - farsight_network
     restart: unless-stopped
 
-  # ToolJet CE - Auto-Generated UI Platform
-  tooljet:
-    image: tooljet/tooljet-ce:latest
-    platform: linux/amd64  # Force AMD64 platform for compatibility
-    container_name: farsight_tooljet
-    environment:
-      # Required: ToolJet Host Configuration
-      TOOLJET_HOST: http://localhost:8082
-      
-      # Required: Application Database Configuration (for user app data)
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: farsight_user
-      PG_PASS: farsight_password
-      PG_DB: tooljet_app
-      
-      # Required: ToolJet Internal Database Configuration (for platform metadata)
-      TOOLJET_DB: tooljet_internal
-      TOOLJET_DB_HOST: postgres
-      TOOLJET_DB_USER: farsight_user
-      TOOLJET_DB_PASS: farsight_password
-      TOOLJET_DB_PORT: 5432
-      
-      # Required: Security Keys (generated with openssl)
-      SECRET_KEY_BASE: 0202bea1859d7e2743e1e1890c0f30b2d00129ba4c4a006f53e97f3cab39e6fbc599be6251a3f5cfceb9ea346c4c837f4464c1955ecb111c0827b9f78f927717
-      LOCKBOX_MASTER_KEY: d25785b66736ee0f01f3b165a5a61dcd49dd1c28d56c6ae2b7bab231ce5fdbab
-      
-      # Required: PostgREST Configuration (for API access)
-      PGRST_JWT_SECRET: bdf4617a90ba9ecf15c05637c567fdca732d2217891568097017ed973270d53d
-      PGRST_DB_URI: postgres://farsight_user:farsight_password@postgres:5432/tooljet_internal
-      PGRST_LOG_LEVEL: info
-      PGRST_DB_PRE_CONFIG: postgrest.pre_config
-      
-      # Optional: Development Settings
-      NODE_ENV: development
-      DISABLE_TOOLJET_TELEMETRY: true
-      
-      # Optional: Enable automatic database creation
-      PG_DB_OWNER: true
-    ports:
-      - "8082:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - farsight_network
-    restart: unless-stopped
-    volumes:
-      - tooljet_data:/var/lib/tooljet
-
 volumes:
   postgres_data:
   pgadmin_data:
-  tooljet_data:
 
 networks:
   farsight_network:
