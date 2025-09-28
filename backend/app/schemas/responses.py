@@ -222,3 +222,29 @@ ERROR_TYPES = {
     500: "INTERNAL_ERROR",
     503: "SERVICE_UNAVAILABLE"
 }
+
+
+# FAR-specific response models
+class IpDetailsModel(BaseModel):
+    """IP address details with asset and rule information"""
+    ip_address: str = Field(..., description="IP address")
+    ip_type: str = Field(..., description="Type: 'source', 'destination', or 'both'")
+    rule_count: int = Field(..., description="Number of rules involving this IP")
+    asset_info: Optional[Dict[str, Any]] = Field(None, description="Asset registry information if available")
+    networks: List[str] = Field(default_factory=list, description="Network CIDRs this IP belongs to")
+
+
+class FarIpSummaryModel(BaseModel):
+    """Summary of all IPs in a FAR request"""
+    request_id: int = Field(..., description="FAR request ID")
+    total_ips: int = Field(..., description="Total unique IP addresses")
+    source_ips: int = Field(..., description="Number of source IPs")
+    destination_ips: int = Field(..., description="Number of destination IPs") 
+    overlapping_ips: int = Field(..., description="IPs that appear as both source and destination")
+
+
+class FarIpsResponse(BaseModel):
+    """Complete response for FAR request IP analysis"""
+    summary: FarIpSummaryModel = Field(..., description="High-level statistics")
+    ips: List[IpDetailsModel] = Field(..., description="Detailed IP information")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional analysis metadata")

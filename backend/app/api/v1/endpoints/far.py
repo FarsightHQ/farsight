@@ -6,9 +6,12 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 import aiofiles
 import os
+import ipaddress
+from datetime import datetime
 from app.core.database import get_db
 from app.models.far_request import FarRequest
 from app.schemas.far_request import FarRequestCreate, FarRequestResponse
+from app.schemas.responses import FarIpsResponse, FarIpSummaryModel, IpDetailsModel, StandardResponse, StatusEnum
 from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
 from app.services.asset_service import AssetService
@@ -182,6 +185,142 @@ def get_far_rules(
             "returned": len(formatted_rules)
         }
     }
+
+
+@router.get("/requests/{request_id}/ips", response_model=StandardResponse[FarIpsResponse])
+def get_far_request_ips(
+    request_id: int,
+    include_assets: bool = False,
+    db: Session = Depends(get_db)
+) -> StandardResponse[FarIpsResponse]:
+    """
+    Get all IP addresses involved in a specific FAR request
+    
+    Returns comprehensive IP analysis including:
+    - All source and destination IPs
+    - Asset registry information (if available)
+    - Network associations
+    - Rule counts per IP
+    
+    Query Parameters:
+    - include_assets: Include asset registry information for each IP
+    """
+    # Verify the request exists
+    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+    if not far_request:
+        raise HTTPException(status_code=404, detail="FAR request not found")
+    
+    # Import models here to avoid circular imports
+    from app.models.far_rule import FarRule, FarRuleEndpoint
+    from app.models.asset_registry import AssetRegistry
+    
+    # Get all endpoints for this request through the rules
+    query = db.query(FarRuleEndpoint, FarRule).join(
+        FarRule, FarRuleEndpoint.rule_id == FarRule.id
+    ).filter(FarRule.request_id == request_id)
+    
+    endpoints = query.all()
+    
+    # Collect and analyze IPs
+    ip_data = {}
+    source_ips = set()
+    destination_ips = set()
+    
+    for endpoint, rule in endpoints:
+        # Extract IPs from CIDR notation
+        network_cidr = endpoint.network_cidr
+        ips_in_network = _extract_ips_from_cidr(network_cidr)
+        
+        for ip in ips_in_network:
+            if ip not in ip_data:
+                ip_data[ip] = {
+                    "ip_address": ip,
+                    "networks": set(),
+                    "rule_count": 0,
+                    "is_source": False,
+                    "is_destination": False,
+                    "asset_info": None
+                }
+            
+            # Track networks this IP belongs to
+            ip_data[ip]["networks"].add(network_cidr)
+            ip_data[ip]["rule_count"] += 1
+            
+            # Track IP type based on endpoint type
+            if endpoint.endpoint_type == 'source':
+                ip_data[ip]["is_source"] = True
+                source_ips.add(ip)
+            elif endpoint.endpoint_type == 'destination':
+                ip_data[ip]["is_destination"] = True
+                destination_ips.add(ip)
+    
+    # Get asset information if requested
+    if include_assets:
+        for ip in ip_data.keys():
+            asset = db.query(AssetRegistry).filter(AssetRegistry.ip_address == ip).first()
+            if asset:
+                ip_data[ip]["asset_info"] = {
+                    "hostname": asset.hostname,
+                    "asset_type": asset.asset_type,
+                    "criticality": asset.criticality,
+                    "environment": asset.environment,
+                    "department": asset.department,
+                    "is_active": asset.is_active,
+                    "last_updated": asset.updated_at.isoformat() if asset.updated_at is not None else None
+                }
+    
+    # Convert sets to lists for JSON serialization
+    for ip in ip_data.values():
+        ip["networks"] = list(ip["networks"])
+    
+    # Determine IP type for each IP
+    ip_details = []
+    for ip_info in ip_data.values():
+        ip_type = "both" if (ip_info["is_source"] and ip_info["is_destination"]) else \
+                 "source" if ip_info["is_source"] else "destination"
+        
+        ip_details.append(IpDetailsModel(
+            ip_address=ip_info["ip_address"],
+            ip_type=ip_type,
+            rule_count=ip_info["rule_count"],
+            asset_info=ip_info["asset_info"],
+            networks=ip_info["networks"]
+        ))
+    
+    # Create summary
+    overlapping_ips = len(source_ips.intersection(destination_ips))
+    
+    summary = FarIpSummaryModel(
+        request_id=request_id,
+        total_ips=len(ip_data),
+        source_ips=len(source_ips),
+        destination_ips=len(destination_ips),
+        overlapping_ips=overlapping_ips
+    )
+    
+    # Create response data
+    response_data = FarIpsResponse(
+        summary=summary,
+        ips=ip_details,
+        metadata={
+            "request_title": far_request.title,
+            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "include_assets": include_assets,
+            "total_rules": len(set(rule.id for _, rule in endpoints))
+        }
+    )
+    
+    return StandardResponse(
+        status=StatusEnum.SUCCESS,
+        message=f"Retrieved {len(ip_data)} IP addresses for FAR request {request_id}",
+        data=response_data,
+        errors=None,
+        metadata={
+            "execution_time_ms": "calculated_at_response_time",
+            "api_version": "1.0"
+        },
+        request_id=None
+    )
 
 
 @router.get("/rules/{rule_id}")
@@ -554,6 +693,31 @@ def _generate_human_summary(response: Dict[str, Any]) -> str:
     summary += f". This creates approximately {tuple_est} network tuples."
     
     return summary
+
+
+def _extract_ips_from_cidr(network_cidr: str) -> List[str]:
+    """
+    Extract individual IP addresses from CIDR notation
+    For efficiency, limits extraction to small networks to avoid performance issues
+    """
+    try:
+        network = ipaddress.ip_network(network_cidr, strict=False)
+        
+        # For single IPs or small networks, return individual IPs
+        if network.num_addresses <= 256:  # /24 or smaller
+            return [str(ip) for ip in network.hosts()] if network.num_addresses > 2 else [str(network.network_address)]
+        else:
+            # For larger networks, return the network address as representative
+            return [str(network.network_address)]
+            
+    except (ipaddress.AddressValueError, ipaddress.NetmaskValueError):
+        # If it's not valid CIDR notation, try treating it as a single IP
+        try:
+            ipaddress.ip_address(network_cidr)
+            return [network_cidr]
+        except ipaddress.AddressValueError:
+            # If all else fails, return as-is (might be hostname or other format)
+            return [network_cidr]
 
 
 
