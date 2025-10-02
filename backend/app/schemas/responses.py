@@ -248,3 +248,52 @@ class FarIpsResponse(BaseModel):
     summary: FarIpSummaryModel = Field(..., description="High-level statistics")
     ips: List[IpDetailsModel] = Field(..., description="Detailed IP information")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional analysis metadata")
+
+
+# Enhanced Rule Models for human-readable rule display
+class RuleDetailModel(BaseModel):
+    """Enhanced model for displaying human-readable rule information"""
+    id: int = Field(..., description="Rule ID")
+    action: str = Field(..., description="Rule action (ALLOW/DENY)")
+    direction: Optional[str] = Field(None, description="Traffic direction")
+    
+    # Source information
+    source_networks: List[str] = Field(default_factory=list, description="Source network CIDRs")
+    source_count: int = Field(..., description="Number of source networks")
+    
+    # Destination information  
+    destination_networks: List[str] = Field(default_factory=list, description="Destination network CIDRs")
+    destination_count: int = Field(..., description="Number of destination networks")
+    
+    # Service information
+    protocols: List[str] = Field(default_factory=list, description="Protocols used")
+    port_ranges: List[str] = Field(default_factory=list, description="Port ranges")
+    service_count: int = Field(..., description="Number of services")
+    
+    # Metadata
+    created_at: str = Field(..., description="Rule creation timestamp")
+    rule_hash: Optional[str] = Field(None, description="Rule hash for uniqueness")
+    tuple_estimate: Optional[int] = Field(None, description="Estimated network tuples")
+    
+    # Human-readable summary
+    rule_summary: str = Field(..., description="Human-readable rule description")
+
+
+class FarRulesSummaryModel(BaseModel):
+    """Summary statistics for rules in a FAR request"""
+    total_rules: int = Field(..., description="Total number of rules")
+    allow_rules: int = Field(..., description="Number of ALLOW rules")
+    deny_rules: int = Field(..., description="Number of DENY rules")
+    unique_sources: int = Field(..., description="Unique source networks")
+    unique_destinations: int = Field(..., description="Unique destination networks")
+    protocols_used: List[str] = Field(default_factory=list, description="All protocols used")
+    estimated_tuples: int = Field(..., description="Total estimated network tuples")
+
+
+class FarRulesResponse(BaseModel):
+    """Enhanced response for FAR request rules with human-readable information"""
+    far_request_id: int = Field(..., description="FAR request ID")
+    summary: FarRulesSummaryModel = Field(..., description="Rules summary statistics")
+    rules: List[RuleDetailModel] = Field(..., description="Detailed rule information")
+    pagination: Optional[Dict[str, Any]] = Field(None, description="Pagination information")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
