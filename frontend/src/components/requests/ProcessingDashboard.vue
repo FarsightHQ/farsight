@@ -35,30 +35,8 @@
       <ProcessingStatus :current-step="currentStepData" />
 
       <!-- Processing Timeline -->
-      <div v-if="completedSteps.length > 0" class="border-t pt-4">
-        <h3 class="text-sm font-medium text-gray-900 mb-3">Completed Steps</h3>
-        <div class="space-y-2">
-          <div
-            v-for="step in completedSteps"
-            :key="step.key"
-            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-          >
-            <div class="flex items-center space-x-3">
-              <CheckIcon class="h-5 w-5 text-success-600" />
-              <div>
-                <p class="text-sm font-medium text-gray-900">{{ step.label }}</p>
-                <p v-if="step.duration" class="text-xs text-gray-500">
-                  Completed in {{ step.duration }}
-                </p>
-              </div>
-            </div>
-            <div v-if="step.results" class="text-xs text-gray-600">
-              <span v-for="(value, key) in step.results" :key="key" class="ml-2">
-                {{ key }}: {{ value }}
-              </span>
-            </div>
-          </div>
-        </div>
+      <div v-if="steps.length > 0" class="border-t pt-4">
+        <ProcessingTimeline :steps="steps" />
       </div>
     </div>
   </Card>
@@ -66,11 +44,11 @@
 
 <script setup>
 import { computed } from 'vue'
-import { CheckIcon } from '@heroicons/vue/24/solid'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import StepIndicator from './StepIndicator.vue'
 import ProcessingStatus from './ProcessingStatus.vue'
+import ProcessingTimeline from './ProcessingTimeline.vue'
 
 const props = defineProps({
   steps: {
@@ -83,7 +61,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['cancel'])
+const emit = defineEmits(['cancel', 'retry'])
 
 const overallProgress = computed(() => {
   const totalSteps = props.steps.length
@@ -106,5 +84,10 @@ const currentStepData = computed(() => {
 const completedSteps = computed(() => {
   return props.steps.filter((s) => s.status === 'completed')
 })
+
+// Expose retry functionality if needed
+const handleRetry = (stepKey) => {
+  emit('retry', stepKey)
+}
 </script>
 

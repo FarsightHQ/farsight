@@ -43,7 +43,17 @@
         :steps="pipelineSteps"
         :can-cancel="false"
         class="mb-6"
+        @retry="handleRetryStep"
       />
+      
+      <!-- Polling Status Indicator -->
+      <div v-if="isProcessingPipeline && isPolling" class="mb-4 text-xs text-gray-500 flex items-center space-x-2">
+        <div class="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></div>
+        <span>Live updates active</span>
+        <span v-if="lastUpdated" class="text-gray-400">
+          • Last updated: {{ formatTime(lastUpdated) }}
+        </span>
+      </div>
 
       <!-- Action Buttons (shown when not processing) -->
       <Card v-else class="mb-6">
@@ -212,7 +222,13 @@ const deleting = ref(false)
 
 // Use request status polling
 const requestId = computed(() => route.params.id)
-const { request: polledRequest, startPolling, stopPolling } = useRequestStatus(requestId)
+const {
+  request: polledRequest,
+  startPolling,
+  stopPolling,
+  lastUpdated,
+  isPolling,
+} = useRequestStatus(requestId)
 
 const tabs = [
   { key: 'overview', label: 'Overview' },
@@ -228,30 +244,43 @@ const stats = computed(() => ({
 }))
 
 const initializePipelineSteps = () => {
+  const now = new Date().toISOString()
   pipelineSteps.value = [
     {
       key: 'upload',
       label: 'Upload',
       status: 'completed',
       progress: 100,
+      startedAt: request.value?.created_at || now,
+      completedAt: request.value?.created_at || now,
+      duration: 0, // Upload is instant
     },
     {
       key: 'ingest',
       label: 'Process CSV',
       status: 'pending',
       progress: 0,
+      startedAt: null,
+      completedAt: null,
+      duration: null,
     },
     {
       key: 'facts',
       label: 'Compute Facts',
       status: 'pending',
       progress: 0,
+      startedAt: null,
+      completedAt: null,
+      duration: null,
     },
     {
       key: 'hybrid',
       label: 'Compute Hybrid',
       status: 'pending',
       progress: 0,
+      startedAt: null,
+      completedAt: null,
+      duration: null,
     },
   ]
 }
@@ -259,6 +288,21 @@ const initializePipelineSteps = () => {
 const updatePipelineStep = (stepKey, updates) => {
   const step = pipelineSteps.value.find((s) => s.key === stepKey)
   if (step) {
+    // Track start time if status changes to processing
+    if (updates.status === 'processing' && !step.startedAt) {
+      updates.startedAt = new Date().toISOString()
+    }
+    
+    // Calculate duration if step is completed
+    if (updates.status === 'completed' || updates.status === 'error') {
+      if (step.startedAt && !step.completedAt) {
+        updates.completedAt = new Date().toISOString()
+        const startTime = new Date(step.startedAt).getTime()
+        const endTime = new Date(updates.completedAt).getTime()
+        updates.duration = endTime - startTime
+      }
+    }
+    
     Object.assign(step, updates)
   }
 }
@@ -397,16 +441,20 @@ const handleComputeFacts = async (isPipeline = false) => {
   }
 
   try {
+    const startTime = Date.now()
     const response = await requestsService.computeFacts(route.params.id)
     const result = response.data || response
+    const duration = Date.now() - startTime
 
     if (isPipeline) {
       updatePipelineStep('facts', {
         status: 'completed',
         progress: 100,
         results: {
-          'Rules processed': result.rules_updated || result.rules_total || 0,
-          'Duration': `${result.duration_ms || 0}ms`,
+          rules_updated: result.rules_updated || result.rules_total || 0,
+          rules_total: result.rules_total || 0,
+          self_flow_count: result.self_flow_count || 0,
+          duration_ms: result.duration_ms || duration,
         },
       })
       // Auto-start hybrid facts
@@ -419,7 +467,7 @@ const handleComputeFacts = async (isPipeline = false) => {
         success('Processing pipeline completed successfully!')
       }
     } else {
-      success('Facts computation started successfully')
+      success('Facts computation completed successfully')
     }
 
     await fetchRequest()
@@ -441,6 +489,29 @@ const handleComputeFacts = async (isPipeline = false) => {
   }
 }
 
+const handleRetryStep = async (stepKey) => {
+  // Reset step status
+  const step = pipelineSteps.value.find((s) => s.key === stepKey)
+  if (step) {
+    step.status = 'pending'
+    step.progress = 0
+    step.error = null
+    step.startedAt = null
+    step.completedAt = null
+    step.duration = null
+    step.results = null
+  }
+
+  // Trigger the appropriate handler
+  if (stepKey === 'ingest') {
+    await handleIngest(isProcessingPipeline.value)
+  } else if (stepKey === 'facts') {
+    await handleComputeFacts(isProcessingPipeline.value)
+  } else if (stepKey === 'hybrid') {
+    await handleComputeHybrid(isProcessingPipeline.value)
+  }
+}
+
 const handleComputeHybrid = async (isPipeline = false) => {
   if (!isPipeline) {
     processing.value = true
@@ -453,16 +524,19 @@ const handleComputeHybrid = async (isPipeline = false) => {
   }
 
   try {
+    const startTime = Date.now()
     const response = await requestsService.computeHybridFacts(route.params.id)
     const result = response.data || response
+    const duration = Date.now() - startTime
 
     if (isPipeline) {
       updatePipelineStep('hybrid', {
         status: 'completed',
         progress: 100,
         results: {
-          'Tuples stored': result.tuples_stored || 0,
-          'Duration': `${result.duration_ms || 0}ms`,
+          rules_processed: result.rules_processed || 0,
+          tuples_created: result.tuples_created || result.tuples_stored || 0,
+          duration_ms: result.duration_ms || duration,
         },
       })
       // Pipeline complete
@@ -470,7 +544,7 @@ const handleComputeHybrid = async (isPipeline = false) => {
       stopPolling()
       success('Processing pipeline completed successfully!')
     } else {
-      success('Hybrid facts computation started successfully')
+      success('Hybrid facts computation completed successfully')
     }
 
     await fetchRequest()
@@ -534,6 +608,16 @@ const confirmDelete = async () => {
 
 const cancelDelete = () => {
   showDeleteModal.value = false
+}
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
 }
 
 onMounted(() => {
