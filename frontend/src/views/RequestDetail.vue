@@ -142,12 +142,17 @@
           </template>
 
           <template #rules>
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold">Rules</h3>
-              <p class="text-gray-600">
-                Rules list will be implemented in Phase 4.
-              </p>
-            </div>
+            <RuleDetail
+              v-if="showRuleDetail && selectedRule"
+              :rule="selectedRule"
+              :request-id="request.id"
+              @back="handleBackToRules"
+            />
+            <RulesList
+              v-else
+              :request-id="request.id"
+              @view-rule="handleViewRule"
+            />
           </template>
 
           <template #analysis>
@@ -206,6 +211,8 @@ import RequestStats from '@/components/requests/RequestStats.vue'
 import RequestTabs from '@/components/requests/RequestTabs.vue'
 import ProcessingDashboard from '@/components/requests/ProcessingDashboard.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
+import RulesList from '@/components/requests/RulesList.vue'
+import RuleDetail from '@/components/requests/RuleDetail.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,6 +226,8 @@ const isProcessingPipeline = ref(false)
 const pipelineSteps = ref([])
 const showDeleteModal = ref(false)
 const deleting = ref(false)
+const selectedRule = ref(null)
+const showRuleDetail = ref(false)
 
 // Use request status polling
 const requestId = computed(() => route.params.id)
@@ -618,6 +627,31 @@ const formatTime = (timestamp) => {
     minute: '2-digit',
     second: '2-digit',
   })
+}
+
+const handleViewRule = async (rule) => {
+  // If rule already has full details, show it
+  if (rule.endpoints && rule.services) {
+    selectedRule.value = rule
+    showRuleDetail.value = true
+    activeTab.value = 'rules'
+  } else {
+    // Fetch full rule details
+    try {
+      const { rulesService } = await import('@/services/rules')
+      const response = await rulesService.getRule(rule.id)
+      selectedRule.value = response.data || response
+      showRuleDetail.value = true
+      activeTab.value = 'rules'
+    } catch (err) {
+      error(err.message || 'Failed to load rule details')
+    }
+  }
+}
+
+const handleBackToRules = () => {
+  showRuleDetail.value = false
+  selectedRule.value = null
 }
 
 onMounted(() => {

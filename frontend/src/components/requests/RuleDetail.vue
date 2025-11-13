@@ -1,0 +1,215 @@
+<template>
+  <div v-if="rule" class="space-y-6">
+    <!-- Rule Header -->
+    <Card class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Rule #{{ rule.id }}</h2>
+          <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+            <StatusBadge
+              :status="rule.action === 'allow' ? 'success' : 'error'"
+              :label="rule.action"
+            />
+            <span v-if="rule.direction">Direction: {{ rule.direction }}</span>
+            <span>Created: {{ formatDate(rule.created_at) }}</span>
+          </div>
+        </div>
+        <Button v-if="requestId" variant="outline" @click="$emit('back')">
+          Back to Rules
+        </Button>
+      </div>
+    </Card>
+
+    <!-- Endpoints Section -->
+    <Card class="p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Endpoints</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Source Networks -->
+        <div>
+          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <ArrowRightIcon class="h-5 w-5 mr-2 text-info-600" />
+            Source Networks
+          </h4>
+          <div class="space-y-2">
+            <div
+              v-for="(endpoint, idx) in sourceEndpoints"
+              :key="idx"
+              class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+            >
+              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <button
+                @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
+                class="text-gray-400 hover:text-gray-600"
+                title="Copy to clipboard"
+              >
+                <DocumentDuplicateIcon class="h-4 w-4" />
+              </button>
+            </div>
+            <p v-if="sourceEndpoints.length === 0" class="text-sm text-gray-500">No source networks</p>
+          </div>
+        </div>
+
+        <!-- Destination Networks -->
+        <div>
+          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <ArrowLeftIcon class="h-5 w-5 mr-2 text-warning-600" />
+            Destination Networks
+          </h4>
+          <div class="space-y-2">
+            <div
+              v-for="(endpoint, idx) in destinationEndpoints"
+              :key="idx"
+              class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+            >
+              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <button
+                @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
+                class="text-gray-400 hover:text-gray-600"
+                title="Copy to clipboard"
+              >
+                <DocumentDuplicateIcon class="h-4 w-4" />
+              </button>
+            </div>
+            <p v-if="destinationEndpoints.length === 0" class="text-sm text-gray-500">
+              No destination networks
+            </p>
+          </div>
+        </div>
+      </div>
+    </Card>
+
+    <!-- Services Section -->
+    <Card class="p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Services</h3>
+      <div class="space-y-3">
+        <div
+          v-for="(service, idx) in rule.services"
+          :key="idx"
+          class="p-4 bg-gray-50 rounded-lg border border-gray-200"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-sm font-medium text-gray-700 uppercase">{{ service.protocol }}</span>
+              <span class="text-sm text-gray-600 ml-2">{{ service.port_ranges || service.ports }}</span>
+            </div>
+            <button
+              @click="copyToClipboard(`${service.protocol}:${service.port_ranges || service.ports}`)"
+              class="text-gray-400 hover:text-gray-600"
+              title="Copy to clipboard"
+            >
+              <DocumentDuplicateIcon class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <p v-if="!rule.services || rule.services.length === 0" class="text-sm text-gray-500">
+          No services defined
+        </p>
+      </div>
+    </Card>
+
+    <!-- Facts Section -->
+    <Card class="p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Facts</h3>
+      <RuleFacts :facts="rule.facts" />
+    </Card>
+
+    <!-- Related Information -->
+    <Card class="p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Related Information</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="font-medium text-gray-700">Request ID:</span>
+          <span class="text-gray-600">{{ rule.request_id || requestId || 'N/A' }}</span>
+        </div>
+        <div v-if="rule.canonical_hash" class="flex justify-between">
+          <span class="font-medium text-gray-700">Canonical Hash:</span>
+          <code class="text-xs font-mono text-gray-600">{{ rule.canonical_hash }}</code>
+        </div>
+      </div>
+    </Card>
+  </div>
+
+  <!-- Loading State -->
+  <div v-else-if="loading" class="space-y-6">
+    <div class="h-8 bg-gray-200 rounded animate-pulse w-1/3"></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div v-for="i in 4" :key="i" class="h-24 bg-gray-200 rounded animate-pulse"></div>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <Card v-else class="p-6">
+    <div class="text-center py-12">
+      <p class="text-gray-600">Rule not found</p>
+    </div>
+  </Card>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import {
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  DocumentDuplicateIcon,
+} from '@heroicons/vue/24/outline'
+import Card from '@/components/ui/Card.vue'
+import Button from '@/components/ui/Button.vue'
+import StatusBadge from './StatusBadge.vue'
+import RuleFacts from './RuleFacts.vue'
+import { useToast } from '@/composables/useToast'
+
+const props = defineProps({
+  rule: {
+    type: Object,
+    default: null,
+  },
+  requestId: {
+    type: [String, Number],
+    default: null,
+  },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits(['back'])
+
+const { success } = useToast()
+
+const sourceEndpoints = computed(() => {
+  if (!props.rule?.endpoints) return []
+  return props.rule.endpoints.filter(
+    (ep) => ep.endpoint_type === 'source' || ep.type === 'source'
+  )
+})
+
+const destinationEndpoints = computed(() => {
+  if (!props.rule?.endpoints) return []
+  return props.rule.endpoints.filter(
+    (ep) => ep.endpoint_type === 'destination' || ep.type === 'destination'
+  )
+})
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    success('Copied to clipboard')
+  } catch (err) {
+    console.error('Failed to copy:', err)
+  }
+}
+</script>
+
