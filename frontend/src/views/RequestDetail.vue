@@ -161,15 +161,6 @@
       </Card>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <DeleteConfirmModal
-      v-model="showDeleteModal"
-      :request="request"
-      :deleting="deleting"
-      @confirm="confirmDelete"
-      @cancel="cancelDelete"
-    />
-
     <!-- Error State -->
     <Card v-else>
       <div class="text-center py-12">
@@ -179,6 +170,15 @@
         </Button>
       </div>
     </Card>
+
+    <!-- Delete Confirmation Modal -->
+    <DeleteConfirmModal
+      v-model="showDeleteModal"
+      :request="request"
+      :deleting="deleting"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </div>
 </template>
 

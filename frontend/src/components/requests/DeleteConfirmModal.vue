@@ -1,5 +1,5 @@
 <template>
-  <Modal v-model="modelValue" size="md" @update:modelValue="$emit('update:modelValue', $event)">
+  <Modal :model-value="modelValue" size="md" @update:model-value="$emit('update:modelValue', $event)">
     <template #header>
       <h3 class="text-lg font-semibold text-gray-900">Delete Request</h3>
     </template>
