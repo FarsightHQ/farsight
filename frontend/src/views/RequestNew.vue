@@ -46,6 +46,36 @@
         </div>
       </form>
     </Card>
+
+    <!-- Processing Prompt Modal -->
+    <Modal v-model="showProcessingPrompt" size="md">
+      <template #header>
+        <h3 class="text-lg font-semibold text-gray-900">Upload Successful!</h3>
+      </template>
+
+      <div class="space-y-4">
+        <p class="text-gray-600">
+          Your CSV file has been uploaded successfully. Would you like to start processing the
+          pipeline now?
+        </p>
+        <div class="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <p class="text-sm font-medium text-primary-900 mb-2">Processing Pipeline:</p>
+          <ul class="text-sm text-primary-800 space-y-1 list-disc list-inside">
+            <li>Process CSV and create firewall rules</li>
+            <li>Compute standard facts</li>
+            <li>Compute hybrid facts</li>
+          </ul>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button variant="outline" @click="viewDetails">View Details</Button>
+        <Button variant="primary" @click="startProcessing" :disabled="starting">
+          <Spinner v-if="starting" size="sm" class="mr-2" />
+          Start Processing
+        </Button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -58,6 +88,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import Modal from '@/components/ui/Modal.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
 
 const router = useRouter()
@@ -65,6 +96,9 @@ const { success, error } = useToast()
 
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const showProcessingPrompt = ref(false)
+const createdRequestId = ref(null)
+const starting = ref(false)
 
 const form = reactive({
   title: '',
@@ -122,18 +156,42 @@ const handleSubmit = async () => {
     // Extract request ID from response
     const requestData = response.data || response
     const requestId = requestData.request_id || requestData.id
+    createdRequestId.value = requestId
 
     success('Request created successfully!')
-    
-    // Redirect to detail page
-    setTimeout(() => {
-      router.push(`/requests/${requestId}`)
-    }, 500)
+
+    // Show processing prompt modal
+    showProcessingPrompt.value = true
   } catch (err) {
     error(err.message || 'Failed to create request')
     uploadProgress.value = 0
   } finally {
     uploading.value = false
   }
+}
+
+const startProcessing = async () => {
+  if (!createdRequestId.value) return
+
+  starting.value = true
+  showProcessingPrompt.value = false
+
+  try {
+    // Navigate to detail page with processing flag
+    router.push({
+      path: `/requests/${createdRequestId.value}`,
+      query: { startProcessing: 'true' },
+    })
+  } catch (err) {
+    error(err.message || 'Failed to start processing')
+    starting.value = false
+  }
+}
+
+const viewDetails = () => {
+  if (createdRequestId.value) {
+    router.push(`/requests/${createdRequestId.value}`)
+  }
+  showProcessingPrompt.value = false
 }
 </script>

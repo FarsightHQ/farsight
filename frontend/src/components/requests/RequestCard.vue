@@ -24,10 +24,10 @@
       </div>
 
       <div class="flex items-center space-x-2 ml-4" @click.stop>
-        <Button variant="ghost" size="sm" @click="$emit('view')">
+        <Button variant="ghost" size="sm" @click="$emit('view', request)">
           View
         </Button>
-        <Button variant="ghost" size="sm" @click="$emit('delete')">
+        <Button variant="ghost" size="sm" @click="$emit('delete', request)">
           Delete
         </Button>
       </div>

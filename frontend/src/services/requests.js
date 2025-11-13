@@ -43,5 +43,10 @@ export const requestsService = {
   computeHybridFacts(id) {
     return apiClient.post(`/api/v1/far/${id}/facts/compute-hybrid`)
   },
+
+  // Delete request
+  delete(id) {
+    return apiClient.delete(`/api/v1/far/${id}`)
+  },
 }
 

@@ -156,6 +156,15 @@
         </Button>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <DeleteConfirmModal
+      v-model="showDeleteModal"
+      :request="requestToDelete"
+      :deleting="deleting"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </div>
 </template>
 
@@ -169,6 +178,7 @@ import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
 import RequestTable from '@/components/requests/RequestTable.vue'
 import RequestCard from '@/components/requests/RequestCard.vue'
+import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 
 const router = useRouter()
 const { success, error } = useToast()
@@ -183,6 +193,9 @@ const sortDirection = ref('desc')
 const currentPage = ref(1)
 const pageSize = ref(25)
 const totalRequests = ref(0)
+const showDeleteModal = ref(false)
+const requestToDelete = ref(null)
+const deleting = ref(false)
 
 const filteredRequests = computed(() => {
   let filtered = [...requests.value]
@@ -275,11 +288,42 @@ const handleView = (request) => {
   router.push(`/requests/${request.id}`)
 }
 
-const handleDelete = async (request) => {
-  if (confirm(`Are you sure you want to delete request "${request.title}"?`)) {
-    // TODO: Implement delete API call
-    error('Delete functionality not yet implemented')
+const handleDelete = (request) => {
+  requestToDelete.value = request
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async () => {
+  if (!requestToDelete.value) return
+
+  deleting.value = true
+  try {
+    await requestsService.delete(requestToDelete.value.id)
+    success(`Request "${requestToDelete.value.title}" deleted successfully`)
+    
+    // Remove from local list immediately for better UX
+    const index = requests.value.findIndex((r) => r.id === requestToDelete.value.id)
+    if (index > -1) {
+      requests.value.splice(index, 1)
+      totalRequests.value--
+    }
+    
+    // Refresh list to ensure consistency
+    await fetchRequests()
+    
+    // Close modal
+    showDeleteModal.value = false
+    requestToDelete.value = null
+  } catch (err) {
+    error(err.message || 'Failed to delete request')
+  } finally {
+    deleting.value = false
   }
+}
+
+const cancelDelete = () => {
+  showDeleteModal.value = false
+  requestToDelete.value = null
 }
 
 watch(pageSize, () => {
