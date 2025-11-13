@@ -1,33 +1,39 @@
 <template>
-  <header class="bg-white border-b border-gray-200 shadow-sm">
-    <nav class="container mx-auto px-4">
-      <div class="flex items-center justify-between h-16">
-        <router-link to="/" class="flex items-center space-x-2">
-          <h1 class="text-xl font-bold text-primary-600">Farsight</h1>
-        </router-link>
+  <header class="h-16 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+    <div class="h-full flex items-center justify-between px-6">
+      <!-- Left: Page Title or Breadcrumb -->
+      <div class="flex items-center">
+        <h2 class="text-lg font-semibold text-gray-900">{{ pageTitle }}</h2>
+      </div>
 
-        <div class="flex items-center space-x-6">
-          <router-link
-            to="/requests"
-            class="text-gray-700 hover:text-primary-600 font-medium transition-colors"
-            active-class="text-primary-600"
-          >
-            Requests
-          </router-link>
-          <router-link
-            to="/assets"
-            class="text-gray-700 hover:text-primary-600 font-medium transition-colors"
-            active-class="text-primary-600"
-          >
-            Assets
-          </router-link>
+      <!-- Right: Navigation and User Menu -->
+      <div class="flex items-center space-x-4">
+        <!-- Additional navigation items can go here -->
+        <div class="flex items-center space-x-2">
+          <!-- User menu placeholder -->
+          <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+            <span class="text-sm font-medium text-primary-700">U</span>
+          </div>
         </div>
       </div>
-    </nav>
+    </div>
   </header>
 </template>
 
 <script setup>
-// Header component with navigation
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const pageTitle = computed(() => {
+  const titles = {
+    '/': 'Dashboard',
+    '/requests': 'FAR Requests',
+    '/requests/new': 'Create Request',
+    '/assets': 'Asset Registry',
+  }
+  return titles[route.path] || 'Farsight'
+})
 </script>
 

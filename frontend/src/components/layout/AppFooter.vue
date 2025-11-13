@@ -1,9 +1,13 @@
 <template>
-  <footer class="bg-white border-t border-gray-200 mt-auto">
-    <div class="container mx-auto px-4 py-6">
-      <div class="flex items-center justify-between text-sm text-gray-600">
-        <p>&copy; {{ currentYear }} Farsight. All rights reserved.</p>
-        <p class="text-gray-400">Version 2.0.0</p>
+  <footer class="h-12 bg-white border-t border-gray-200 flex-shrink-0">
+    <div class="h-full flex items-center justify-between px-6">
+      <div class="flex items-center space-x-4 text-xs text-gray-500">
+        <span>&copy; {{ currentYear }} Farsight. All rights reserved.</span>
+      </div>
+      <div class="flex items-center space-x-4 text-xs text-gray-400">
+        <span>Version 2.0.0</span>
+        <a href="#" class="hover:text-gray-600 transition-colors">Documentation</a>
+        <a href="#" class="hover:text-gray-600 transition-colors">Support</a>
       </div>
     </div>
   </footer>
