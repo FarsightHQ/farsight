@@ -31,7 +31,7 @@ export const requestsService = {
 
   // Process CSV ingestion
   ingest(id) {
-    return apiClient.post(`/api/v1/requests/${id}/ingest`)
+    return apiClient.post(`/api/v1/far/${id}/ingest`)
   },
 
   // Compute facts
