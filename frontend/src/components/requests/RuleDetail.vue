@@ -36,7 +36,10 @@
               :key="idx"
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
             >
-              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <div class="flex items-center space-x-2 flex-1">
+                <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+                <AssetBadge :ip-address="endpoint.network_cidr || endpoint.cidr" />
+              </div>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
@@ -61,7 +64,10 @@
               :key="idx"
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
             >
-              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <div class="flex items-center space-x-2 flex-1">
+                <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+                <AssetBadge :ip-address="endpoint.network_cidr || endpoint.cidr" />
+              </div>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
@@ -156,6 +162,7 @@ import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import StatusBadge from './StatusBadge.vue'
 import RuleFacts from './RuleFacts.vue'
+import AssetBadge from '@/components/assets/AssetBadge.vue'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({

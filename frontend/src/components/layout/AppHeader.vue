@@ -32,7 +32,14 @@ const pageTitle = computed(() => {
     '/requests': 'FAR Requests',
     '/requests/new': 'Create Request',
     '/assets': 'Asset Registry',
+    '/assets/upload': 'Upload Assets',
   }
+  
+  // Handle asset detail pages
+  if (route.path.startsWith('/assets/') && route.path !== '/assets' && route.path !== '/assets/upload') {
+    return `Asset: ${route.params.ip_address}`
+  }
+  
   return titles[route.path] || 'Farsight'
 })
 </script>

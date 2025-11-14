@@ -32,6 +32,21 @@ const routes = [
     name: 'RuleDetail',
     component: () => import('../views/RuleDetail.vue'),
   },
+  {
+    path: '/assets',
+    name: 'AssetsList',
+    component: () => import('../views/AssetsList.vue'),
+  },
+  {
+    path: '/assets/upload',
+    name: 'AssetUpload',
+    component: () => import('../views/AssetUpload.vue'),
+  },
+  {
+    path: '/assets/:ip_address',
+    name: 'AssetDetail',
+    component: () => import('../views/AssetDetail.vue'),
+  },
 ]
 
 const router = createRouter({
