@@ -22,6 +22,16 @@ const routes = [
     name: 'RequestDetail',
     component: () => import('../views/RequestDetail.vue'),
   },
+  {
+    path: '/requests/:id/rules',
+    name: 'RulesList',
+    component: () => import('../views/RulesList.vue'),
+  },
+  {
+    path: '/rules/:id',
+    name: 'RuleDetail',
+    component: () => import('../views/RuleDetail.vue'),
+  },
 ]
 
 const router = createRouter({

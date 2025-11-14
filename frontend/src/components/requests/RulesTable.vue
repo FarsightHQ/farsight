@@ -3,6 +3,15 @@
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <input
+              type="checkbox"
+              :checked="allSelected"
+              :indeterminate="someSelected"
+              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              @change="handleSelectAllChange"
+            />
+          </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
             @click="handleSort('id')"
@@ -94,6 +103,14 @@
           class="hover:bg-gray-50 cursor-pointer transition-colors"
           @click="$emit('view-rule', rule)"
         >
+          <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+            <input
+              type="checkbox"
+              :checked="isSelected(rule.id)"
+              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              @change="handleSelectRule(rule.id, $event.target.checked)"
+            />
+          </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
             {{ rule.id }}
           </td>
@@ -135,7 +152,7 @@
 
         <!-- Empty State -->
         <tr v-if="!loading && rules.length === 0">
-          <td colspan="8" class="px-6 py-12 text-center">
+          <td colspan="9" class="px-6 py-12 text-center">
             <p class="text-gray-500">No rules found</p>
           </td>
         </tr>
@@ -169,9 +186,34 @@ const props = defineProps({
     default: 'asc',
     validator: (value) => ['asc', 'desc'].includes(value),
   },
+  selectedRules: {
+    type: Array,
+    default: () => [],
+  },
 })
 
-const emit = defineEmits(['sort', 'view-rule'])
+const emit = defineEmits(['sort', 'view-rule', 'select-rule', 'select-all'])
+
+const isSelected = (ruleId) => {
+  return props.selectedRules.includes(ruleId)
+}
+
+const allSelected = computed(() => {
+  return props.rules.length > 0 && props.rules.every((rule) => isSelected(rule.id))
+})
+
+const someSelected = computed(() => {
+  const selectedCount = props.rules.filter((rule) => isSelected(rule.id)).length
+  return selectedCount > 0 && selectedCount < props.rules.length
+})
+
+const handleSelectRule = (ruleId, checked) => {
+  emit('select-rule', ruleId, checked)
+}
+
+const handleSelectAllChange = (event) => {
+  emit('select-all', event.target.checked)
+}
 
 const handleSort = (key) => {
   emit('sort', key)

@@ -2,7 +2,7 @@
 FAR Request Management API endpoints
 Handles CRUD operations for FAR requests and file ingestion
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import aiofiles
@@ -20,9 +20,9 @@ router = APIRouter(prefix="/far", tags=["FAR Requests"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_far_request(
-    title: str,
+    title: str = Form(...),
     file: UploadFile = File(...),
-    external_id: Optional[str] = None,
+    external_id: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -210,13 +210,17 @@ async def ingest_far_request(
         if not os.path.exists(full_path):
             raise HTTPException(status_code=404, detail=f"File not found: {far_request.storage_path}")
         
+        # Read the file content
+        async with aiofiles.open(full_path, 'r', encoding='utf-8') as f:
+            file_content = await f.read()
+        
         # Use CSV ingestion service
         csv_service = CsvIngestionService(db)
         
         # Ingest the CSV file
         result = await csv_service.ingest_csv_file(
-            file_path=full_path,
-            request_id=request_id
+            request_id=request_id,
+            file_content=file_content
         )
         
         # Update status to ingested
@@ -225,13 +229,13 @@ async def ingest_far_request(
         
         ingest_data = {
             "request_id": request_id,
-            "rules_created": result.get("rules_created", 0),
+            "rules_created": result.get("created_rules", 0),
             "ingestion_details": result
         }
         
         return success_response(
             data=ingest_data,
-            message=f"Successfully ingested request {request_id} with {result.get('rules_created', 0)} rules created"
+            message=f"Successfully ingested request {request_id} with {result.get('created_rules', 0)} rules created"
         )
         
     except Exception as e:

@@ -142,17 +142,25 @@
           </template>
 
           <template #rules>
-            <RuleDetail
-              v-if="showRuleDetail && selectedRule"
-              :rule="selectedRule"
-              :request-id="request.id"
-              @back="handleBackToRules"
-            />
-            <RulesList
-              v-else
-              :request-id="request.id"
-              @view-rule="handleViewRule"
-            />
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Rules</h3>
+                <Button variant="outline" @click="$router.push(`/requests/${request.id}/rules`)">
+                  View All Rules
+                </Button>
+              </div>
+              <RuleDetail
+                v-if="showRuleDetail && selectedRule"
+                :rule="selectedRule"
+                :request-id="request.id"
+                @back="handleBackToRules"
+              />
+              <RulesList
+                v-else
+                :request-id="request.id"
+                @view-rule="handleViewRule"
+              />
+            </div>
           </template>
 
           <template #analysis>
@@ -630,23 +638,8 @@ const formatTime = (timestamp) => {
 }
 
 const handleViewRule = async (rule) => {
-  // If rule already has full details, show it
-  if (rule.endpoints && rule.services) {
-    selectedRule.value = rule
-    showRuleDetail.value = true
-    activeTab.value = 'rules'
-  } else {
-    // Fetch full rule details
-    try {
-      const { rulesService } = await import('@/services/rules')
-      const response = await rulesService.getRule(rule.id)
-      selectedRule.value = response.data || response
-      showRuleDetail.value = true
-      activeTab.value = 'rules'
-    } catch (err) {
-      error(err.message || 'Failed to load rule details')
-    }
-  }
+  // Navigate to standalone rule detail page
+  router.push(`/rules/${rule.id}`)
 }
 
 const handleBackToRules = () => {
