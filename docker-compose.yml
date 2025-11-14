@@ -47,22 +47,6 @@ services:
     restart: unless-stopped
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
-  # # Frontend Web Interface
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: farsight_frontend
-  #   ports:
-  #     - "3000:80"
-  #   volumes:
-  #     - ./frontend:/usr/share/nginx/html
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - farsight_network
-  #   restart: unless-stopped
-
   # pgAdmin - Database Viewer
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -99,39 +83,6 @@ services:
     networks:
       - farsight_network
     restart: unless-stopped
-
-  # Appsmith - Low-code platform for building internal tools
-  # appsmith:
-  #   image: appsmith/appsmith-ce:latest
-  #   container_name: farsight_appsmith
-  #   ports:
-  #     - "8082:80"
-  #   environment:
-  #     # Redis configuration (Appsmith uses Redis for caching)
-  #     APPSMITH_REDIS_URL: redis://redis:6379
-      
-  #     # Basic configuration for local development
-  #     APPSMITH_ENCRYPTION_PASSWORD: farsight-appsmith-encryption-key-change-in-production
-  #     APPSMITH_ENCRYPTION_SALT: farsight-appsmith-salt-change-in-production
-      
-  #     # Optional: Disable telemetry for privacy
-  #     APPSMITH_DISABLE_TELEMETRY: true
-      
-  #     # Optional: Enable signup (set to false in production)
-  #     APPSMITH_SIGNUP_DISABLED: false
-  #   volumes:
-  #     - appsmith_data:/appsmith-stacks
-  #   depends_on:
-  #     - redis
-  #   networks:
-  #     - farsight_network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
 
   # Redis - Required by Appsmith for caching and session management
   redis:
