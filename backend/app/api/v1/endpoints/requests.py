@@ -11,9 +11,14 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.models.far_request import FarRequest
 from app.schemas.far_request import FarRequestCreate, FarRequestResponse
+from app.schemas.responses import (
+    StandardResponse, StatusEnum,
+    FarRulesResponse, FarRulesSummaryModel, RuleDetailModel
+)
 from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
 from app.utils.error_handlers import success_response, paginated_response
+from datetime import datetime
 
 router = APIRouter(prefix="/far", tags=["FAR Requests"])
 
@@ -243,3 +248,229 @@ async def ingest_far_request(
         far_request.status = 'error'
         db.commit()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{request_id}/rules")
+def get_far_rules(
+    request_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    include_summary: bool = True,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get enhanced, human-readable FAR rules for a request
+    
+    Returns comprehensive rule information instead of just hashes:
+    - Complete source/destination networks
+    - Service details (protocols, ports)
+    - Human-readable rule summaries
+    - Rule statistics and analysis
+    
+    Query Parameters:
+    - skip: Number of rules to skip (pagination)
+    - limit: Maximum rules to return (pagination)
+    - include_summary: Include summary statistics
+    """
+    # Verify the request exists
+    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+    if not far_request:
+        raise HTTPException(status_code=404, detail="FAR request not found")
+    
+    # Import models here to avoid circular imports
+    from app.models.far_rule import FarRule
+    
+    # Get rules with their relationships
+    rules_query = db.query(FarRule).filter(FarRule.request_id == request_id)
+    total_rules = rules_query.count()
+    
+    rules = rules_query.offset(skip).limit(limit).all()
+    
+    # Process rules to extract human-readable information
+    enhanced_rules = []
+    all_sources = set()
+    all_destinations = set()
+    all_protocols = set()
+    allow_rules = 0
+    deny_rules = 0
+    total_tuple_estimate = 0
+    
+    for rule in rules:
+        # Extract source networks
+        source_networks = [
+            ep.network_cidr for ep in rule.endpoints 
+            if ep.endpoint_type == 'source'
+        ]
+        all_sources.update(source_networks)
+        
+        # Extract destination networks
+        destination_networks = [
+            ep.network_cidr for ep in rule.endpoints 
+            if ep.endpoint_type == 'destination'
+        ]
+        all_destinations.update(destination_networks)
+        
+        # Extract protocols and ports
+        protocols = []
+        port_ranges = []
+        for service in rule.services:
+            protocols.append(service.protocol)
+            port_ranges.append(str(service.port_ranges))
+            all_protocols.add(service.protocol)
+        
+        # Count rule types
+        if str(rule.action).upper() == 'ALLOW':
+            allow_rules += 1
+        elif str(rule.action).upper() == 'DENY':
+            deny_rules += 1
+        
+        # Calculate tuple estimate for this rule
+        tuple_estimate = len(source_networks) * len(destination_networks) * len(rule.services)
+        total_tuple_estimate += tuple_estimate
+        
+        # Generate human-readable summary
+        rule_summary = _generate_rule_summary(
+            str(rule.action), source_networks, destination_networks, protocols, port_ranges
+        )
+        
+        # Create enhanced rule data in the format expected by frontend
+        enhanced_rule_dict = {
+            'id': rule.id,
+            'action': rule.action,
+            'direction': rule.direction,
+            'source_networks': source_networks,
+            'source_count': len(source_networks),
+            'destination_networks': destination_networks,
+            'destination_count': len(destination_networks),
+            'protocols': protocols,
+            'port_ranges': port_ranges,
+            'service_count': len(rule.services),
+            'created_at': rule.created_at.isoformat(),
+            'rule_hash': rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
+            'tuple_estimate': tuple_estimate,
+            'rule_summary': rule_summary,
+            # Add endpoints array with proper structure for frontend
+            'endpoints': [
+                {
+                    'endpoint_type': 'source',
+                    'network_cidr': cidr,
+                    'cidr': cidr,
+                    'type': 'source'
+                }
+                for cidr in source_networks
+            ] + [
+                {
+                    'endpoint_type': 'destination',
+                    'network_cidr': cidr,
+                    'cidr': cidr,
+                    'type': 'destination'
+                }
+                for cidr in destination_networks
+            ],
+            # Add services array with proper structure for frontend
+            'services': [
+                {
+                    'protocol': protocol,
+                    'port_ranges': port_ranges[i] if i < len(port_ranges) else '',
+                    'ports': port_ranges[i] if i < len(port_ranges) else ''
+                }
+                for i, protocol in enumerate(protocols)
+            ]
+        }
+        
+        # Add facts if available
+        if rule.facts:
+            enhanced_rule_dict['facts'] = rule.facts
+        
+        enhanced_rules.append(enhanced_rule_dict)
+    
+    # Create summary if requested
+    summary = FarRulesSummaryModel(
+        total_rules=total_rules,
+        allow_rules=allow_rules,
+        deny_rules=deny_rules,
+        unique_sources=len(all_sources),
+        unique_destinations=len(all_destinations),
+        protocols_used=list(all_protocols),
+        estimated_tuples=total_tuple_estimate
+    ) if include_summary else FarRulesSummaryModel(
+        total_rules=0,
+        allow_rules=0,
+        deny_rules=0,
+        unique_sources=0,
+        unique_destinations=0,
+        protocols_used=[],
+        estimated_tuples=0
+    )
+    
+    # Create pagination info
+    pagination = {
+        "skip": skip,
+        "limit": limit,
+        "total": total_rules,
+        "returned": len(enhanced_rules),
+        "has_next": skip + limit < total_rules,
+        "has_previous": skip > 0
+    }
+    
+    # Create response data - use dicts directly to include endpoints and services
+    # that frontend expects but aren't in RuleDetailModel schema
+    response_data = {
+        "far_request_id": request_id,
+        "summary": summary.model_dump() if hasattr(summary, 'model_dump') else summary.dict(),
+        "rules": enhanced_rules,  # Keep as dicts to include endpoints/services
+        "pagination": pagination,
+        "metadata": {
+            "request_title": far_request.title,
+            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "processing_notes": "Enhanced human-readable rule format"
+        }
+    }
+    
+    response = StandardResponse(
+        status=StatusEnum.SUCCESS,
+        message=f"Retrieved {len(enhanced_rules)} enhanced rules for FAR request {request_id}",
+        data=response_data,
+        errors=None,
+        metadata={
+            "api_version": "2.0",
+            "enhancement": "human_readable_rules"
+        },
+        request_id=None
+    )
+    
+    # Convert to dict to match return type annotation
+    return response.model_dump(exclude_none=True) if hasattr(response, 'model_dump') else response.dict(exclude_none=True)
+
+
+def _generate_rule_summary(action: str, sources: List[str], destinations: List[str], 
+                          protocols: List[str], ports: List[str]) -> str:
+    """
+    Generate a human-readable summary of a firewall rule
+    """
+    # Simplify network lists for display
+    src_display = f"{len(sources)} source{'s' if len(sources) != 1 else ''}"
+    if len(sources) == 1:
+        src_display = sources[0]
+    elif len(sources) <= 3:
+        src_display = ", ".join(sources)
+    
+    dst_display = f"{len(destinations)} destination{'s' if len(destinations) != 1 else ''}"
+    if len(destinations) == 1:
+        dst_display = destinations[0]
+    elif len(destinations) <= 3:
+        dst_display = ", ".join(destinations)
+    
+    # Simplify protocol/port display
+    service_display = ""
+    if protocols:
+        if len(protocols) == 1:
+            protocol = protocols[0].upper()
+            if ports and len(ports) == 1:
+                service_display = f" on {protocol} port {ports[0]}"
+            else:
+                service_display = f" using {protocol}"
+        else:
+            service_display = f" using {'/'.join(set(protocols)).upper()}"
+    
+    return f"{action.upper()}: {src_display} → {dst_display}{service_display}"
