@@ -16,7 +16,7 @@ import io
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetSearchFilters,
-    AssetAnalyticsResponse
+    AssetAnalyticsResponse, AssetFilterOptionsResponse
 )
 
 
@@ -164,7 +164,11 @@ class AssetRegistryService:
             query = query.filter(AssetRegistry.os_name.ilike(f"%{filters.os}%"))
             
         if filters.environment:
-            query = query.filter(AssetRegistry.environment == filters.environment)
+            # Trim the filter value and do case-insensitive match with trimmed database values
+            env_filter = filters.environment.strip()
+            query = query.filter(
+                func.trim(func.lower(AssetRegistry.environment)) == func.lower(env_filter)
+            )
             
         if filters.hostname:
             query = query.filter(AssetRegistry.hostname.ilike(f"%{filters.hostname}%"))
@@ -436,10 +440,11 @@ class AssetRegistryService:
             func.count(AssetRegistry.id)
         ).filter(
             AssetRegistry.is_active == True,
-            AssetRegistry.environment.isnot(None)
+            AssetRegistry.environment.isnot(None),
+            AssetRegistry.environment != ''
         ).group_by(AssetRegistry.environment).all()
         
-        environments = {env: count for env, count in env_stats}
+        environments = {env: count for env, count in env_stats if env}
         
         # OS distribution
         os_stats = db.query(
@@ -447,10 +452,11 @@ class AssetRegistryService:
             func.count(AssetRegistry.id)
         ).filter(
             AssetRegistry.is_active == True,
-            AssetRegistry.os_name.isnot(None)
+            AssetRegistry.os_name.isnot(None),
+            AssetRegistry.os_name != ''
         ).group_by(AssetRegistry.os_name).all()
         
-        operating_systems = {os: count for os, count in os_stats}
+        operating_systems = {os: count for os, count in os_stats if os}
         
         # Remove criticality, security zones, and business units (not in CSV)
         criticality_levels = {}
@@ -482,5 +488,48 @@ class AssetRegistryService:
             total_vcpu=int(resource_stats.total_vcpu) if resource_stats.total_vcpu else None,
             total_memory_gb=None,  # Memory is string field, not numeric
             last_updated=last_updated
+        )
+
+    @staticmethod
+    def get_filter_options(db: Session) -> AssetFilterOptionsResponse:
+        """Get unique filter values for asset filtering"""
+        
+        # Get unique segments (active assets only)
+        segments = db.query(AssetRegistry.segment).filter(
+            AssetRegistry.is_active == True,
+            AssetRegistry.segment.isnot(None),
+            AssetRegistry.segment != ''
+        ).distinct().order_by(AssetRegistry.segment).all()
+        segments_list = [s[0] for s in segments if s[0]]
+        
+        # Get unique VLANs (active assets only)
+        vlans = db.query(AssetRegistry.vlan).filter(
+            AssetRegistry.is_active == True,
+            AssetRegistry.vlan.isnot(None),
+            AssetRegistry.vlan != ''
+        ).distinct().order_by(AssetRegistry.vlan).all()
+        vlans_list = [v[0] for v in vlans if v[0]]
+        
+        # Get unique environments (active assets only)
+        environments = db.query(AssetRegistry.environment).filter(
+            AssetRegistry.is_active == True,
+            AssetRegistry.environment.isnot(None),
+            AssetRegistry.environment != ''
+        ).distinct().order_by(AssetRegistry.environment).all()
+        environments_list = [e[0] for e in environments if e[0]]
+        
+        # Get unique OS names (active assets only)
+        os_names = db.query(AssetRegistry.os_name).filter(
+            AssetRegistry.is_active == True,
+            AssetRegistry.os_name.isnot(None),
+            AssetRegistry.os_name != ''
+        ).distinct().order_by(AssetRegistry.os_name).all()
+        os_names_list = [o[0] for o in os_names if o[0]]
+        
+        return AssetFilterOptionsResponse(
+            segments=segments_list,
+            vlans=vlans_list,
+            environments=environments_list,
+            os_names=os_names_list
         )
 

@@ -28,7 +28,7 @@
       </div>
 
       <!-- Environment Distribution -->
-      <div v-if="analytics.environments && Object.keys(analytics.environments).length > 0">
+      <div v-if="analytics.environments && typeof analytics.environments === 'object' && Object.keys(analytics.environments).length > 0">
         <h4 class="text-xs font-medium text-gray-700 mb-2">By Environment</h4>
         <div class="space-y-1.5">
           <div
@@ -42,7 +42,7 @@
                 <div
                   class="bg-primary-600 h-1.5 rounded-full"
                   :style="{
-                    width: `${(count / analytics.total_assets) * 100}%`,
+                    width: `${analytics.total_assets > 0 ? (count / analytics.total_assets) * 100 : 0}%`,
                   }"
                 ></div>
               </div>
@@ -115,6 +115,12 @@ const fetchAnalytics = async () => {
     error.value = null
     const response = await assetsService.getAnalytics()
     analytics.value = response.data || response
+    // Debug: Log environments data
+    if (analytics.value && analytics.value.environments) {
+      console.log('Analytics environments:', analytics.value.environments)
+      console.log('Environments keys:', Object.keys(analytics.value.environments))
+      console.log('Environments count:', Object.keys(analytics.value.environments).length)
+    }
   } catch (err) {
     error.value = err.message || 'Failed to load analytics'
     console.error('Error fetching analytics:', err)

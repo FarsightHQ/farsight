@@ -9,9 +9,9 @@ import io
 from app.core.database import get_db
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
 from app.schemas.asset_registry import (
-    AssetRegistryCreate, AssetRegistryUpdate, AssetRegistryResponse,
+    AssetRegistryCreate, AssetRegistryResponse,
     AssetUploadBatchResponse, CSVUploadResponse,
-    AssetSearchFilters, AssetAnalyticsResponse
+    AssetSearchFilters, AssetAnalyticsResponse, AssetFilterOptionsResponse
 )
 from app.services.asset_registry_service import AssetRegistryService
 from app.utils.error_handlers import success_response, paginated_response
@@ -81,14 +81,21 @@ async def search_assets(
         # Convert to response objects  
         assets_data = []
         for asset in assets:
+            # Helper function to normalize string fields
+            def normalize_field(value):
+                if value is None:
+                    return None
+                value_str = str(value).strip()
+                return value_str if value_str else None
+            
             asset_dict = {
                 "id": str(asset.id),
                 "ip_address": str(asset.ip_address),
-                "segment": str(asset.segment or ""),
-                "vlan": str(asset.vlan or ""),
-                "os_name": str(asset.os_name or ""),
-                "environment": str(asset.environment or ""),
-                "hostname": str(asset.hostname or ""),
+                "segment": normalize_field(asset.segment),
+                "vlan": normalize_field(asset.vlan),
+                "os_name": normalize_field(asset.os_name),
+                "environment": normalize_field(asset.environment),
+                "hostname": normalize_field(asset.hostname),
                 "is_active": bool(asset.is_active),
                 "created_at": str(asset.created_at),
                 "updated_at": str(asset.updated_at)
@@ -229,6 +236,25 @@ async def get_analytics(
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
 
 
+@router.get("/assets/filter-options",
+            summary="Get Filter Options",
+            description="Get unique filter values for asset filtering")
+async def get_filter_options(
+    db: Session = Depends(get_db)
+):
+    """Get unique filter values for asset filtering"""
+    try:
+        filter_options = AssetRegistryService.get_filter_options(db)
+        options_data = filter_options.dict() if hasattr(filter_options, 'dict') else filter_options
+        
+        return success_response(
+            data=options_data,
+            message="Successfully retrieved filter options"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get filter options: {str(e)}")
+
+
 @router.get("/assets/health",
             summary="Health Check",
             description="Check asset registry service health")
@@ -283,50 +309,5 @@ async def get_asset_by_ip(
     )
 
 
-@router.put("/assets/{ip_address}",
-            summary="Update Asset",
-            description="Update an existing asset by IP address")
-async def update_asset(
-    ip_address: str,
-    asset_update: AssetRegistryUpdate,
-    updated_by: str = Query(default="system", description="User updating the asset"),
-    db: Session = Depends(get_db)
-):
-    """Update an existing asset"""
-    try:
-        updated_asset = AssetRegistryService.update_asset(db, ip_address, asset_update, updated_by)
-        asset_data = AssetRegistryResponse.from_orm(updated_asset).dict()
-        
-        return success_response(
-            data=asset_data,
-            message=f"Successfully updated asset for IP {ip_address}"
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update asset: {str(e)}")
-
-
-@router.delete("/assets/{ip_address}",
-               summary="Deactivate Asset",
-               description="Soft delete (deactivate) an asset by IP address")
-async def deactivate_asset(
-    ip_address: str,
-    deactivated_by: str = Query(default="system", description="User deactivating the asset"),
-    db: Session = Depends(get_db)
-):
-    """Soft delete (deactivate) an asset"""
-    try:
-        deactivated_asset = AssetRegistryService.deactivate_asset(db, ip_address, deactivated_by)
-        asset_data = AssetRegistryResponse.from_orm(deactivated_asset).dict()
-        
-        return success_response(
-            data=asset_data,
-            message=f"Successfully deactivated asset for IP {ip_address}"
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to deactivate asset: {str(e)}")
 
 

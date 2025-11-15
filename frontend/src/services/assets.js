@@ -37,24 +37,6 @@ export const assetsService = {
     return apiClient.get(`/api/v1/assets/${encodeURIComponent(ipAddress)}`)
   },
 
-  // Update existing asset
-  updateAsset(ipAddress, assetData, updatedBy = 'system') {
-    return apiClient.put(`/api/v1/assets/${encodeURIComponent(ipAddress)}`, assetData, {
-      params: {
-        updated_by: updatedBy,
-      },
-    })
-  },
-
-  // Soft delete (deactivate) asset
-  deactivateAsset(ipAddress, deactivatedBy = 'system') {
-    return apiClient.delete(`/api/v1/assets/${encodeURIComponent(ipAddress)}`, {
-      params: {
-        deactivated_by: deactivatedBy,
-      },
-    })
-  },
-
   // Upload CSV file (ONLY way to create assets)
   uploadCSV(file, uploadedBy = 'system') {
     const formData = new FormData()
@@ -88,6 +70,11 @@ export const assetsService = {
   // Get asset analytics
   getAnalytics() {
     return apiClient.get('/api/v1/assets/analytics')
+  },
+
+  // Get filter options (unique values for dropdowns)
+  getFilterOptions() {
+    return apiClient.get('/api/v1/assets/filter-options')
   },
 }
 

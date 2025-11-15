@@ -189,3 +189,11 @@ class AssetAnalyticsResponse(BaseModel):
     total_vcpu: Optional[int]
     total_memory_gb: Optional[float]  # Always None (memory is string)
     last_updated: datetime
+
+
+class AssetFilterOptionsResponse(BaseModel):
+    """Unique filter values for asset filtering"""
+    segments: List[str] = Field(default_factory=list, description="Unique segment values")
+    vlans: List[str] = Field(default_factory=list, description="Unique VLAN values")
+    environments: List[str] = Field(default_factory=list, description="Unique environment values")
+    os_names: List[str] = Field(default_factory=list, description="Unique OS name values")

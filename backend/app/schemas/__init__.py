@@ -5,7 +5,7 @@ from .far_request import FarRequestResponse, FarRequestCreate
 from .asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetRegistryResponse,
     AssetUploadBatchResponse, CSVUploadResponse,
-    AssetSearchFilters, AssetAnalyticsResponse
+    AssetSearchFilters, AssetAnalyticsResponse, AssetFilterOptionsResponse
 )
 
 __all__ = [
@@ -17,5 +17,6 @@ __all__ = [
     "AssetUploadBatchResponse",
     "CSVUploadResponse",
     "AssetSearchFilters",
-    "AssetAnalyticsResponse"
+    "AssetAnalyticsResponse",
+    "AssetFilterOptionsResponse"
 ]

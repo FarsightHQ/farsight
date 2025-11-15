@@ -76,7 +76,7 @@
         <div>
           <label class="text-sm font-medium text-gray-700">Environment</label>
           <p class="mt-1">
-            <Badge v-if="asset.environment" :label="asset.environment" variant="info" />
+            <Badge v-if="asset.environment && String(asset.environment).trim()" :label="String(asset.environment).trim()" variant="info" />
             <span v-else class="text-sm text-gray-400">—</span>
           </p>
         </div>

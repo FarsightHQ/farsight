@@ -36,37 +36,46 @@
       <!-- Segment Filter -->
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">Segment</label>
-        <input
+        <select
           v-model="localFilters.segment"
-          type="text"
-          placeholder="Segment name"
           class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-          @input="updateFilters"
-        />
+          @change="updateFilters"
+        >
+          <option value="">All</option>
+          <option v-for="segment in filterOptions.segments" :key="segment" :value="segment">
+            {{ segment }}
+          </option>
+        </select>
       </div>
 
       <!-- OS Name Filter -->
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">OS Name</label>
-        <input
+        <select
           v-model="localFilters.os_name"
-          type="text"
-          placeholder="e.g., Linux, Windows"
           class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-          @input="updateFilters"
-        />
+          @change="updateFilters"
+        >
+          <option value="">All</option>
+          <option v-for="os in filterOptions.os_names" :key="os" :value="os">
+            {{ os }}
+          </option>
+        </select>
       </div>
 
       <!-- VLAN Filter -->
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">VLAN</label>
-        <input
+        <select
           v-model="localFilters.vlan"
-          type="text"
-          placeholder="VLAN ID"
           class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-          @input="updateFilters"
-        />
+          @change="updateFilters"
+        >
+          <option value="">All</option>
+          <option v-for="vlan in filterOptions.vlans" :key="vlan" :value="vlan">
+            {{ vlan }}
+          </option>
+        </select>
       </div>
 
       <!-- Environment Filter -->
@@ -78,10 +87,9 @@
           @change="updateFilters"
         >
           <option value="">All</option>
-          <option value="dev">Dev</option>
-          <option value="stage">Stage</option>
-          <option value="prod">Prod</option>
-          <option value="test">Test</option>
+          <option v-for="env in filterOptions.environments" :key="env" :value="env">
+            {{ env }}
+          </option>
         </select>
       </div>
 
@@ -122,9 +130,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
+import { assetsService } from '@/services/assets'
 
 const props = defineProps({
   filters: {
@@ -134,6 +143,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:filters'])
+
+const filterOptions = ref({
+  segments: [],
+  vlans: [],
+  environments: [],
+  os_names: [],
+})
+const loadingOptions = ref(false)
 
 const localFilters = ref({
   ip_address: props.filters.ip_address || '',
@@ -145,6 +162,19 @@ const localFilters = ref({
   hostname: props.filters.hostname || '',
   is_active: props.filters.is_active !== undefined ? props.filters.is_active : true,
 })
+
+const fetchFilterOptions = async () => {
+  try {
+    loadingOptions.value = true
+    const response = await assetsService.getFilterOptions()
+    filterOptions.value = response.data || response
+  } catch (err) {
+    console.error('Error fetching filter options:', err)
+    // Graceful degradation: if options fail to load, filters will still work as text inputs
+  } finally {
+    loadingOptions.value = false
+  }
+}
 
 watch(
   () => props.filters,
@@ -214,6 +244,10 @@ const activeFilterCount = computed(() => {
   if (localFilters.value.hostname !== '') count++
   if (localFilters.value.is_active !== true) count++
   return count
+})
+
+onMounted(() => {
+  fetchFilterOptions()
 })
 </script>
 

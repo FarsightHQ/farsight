@@ -45,12 +45,6 @@
             <Button variant="outline" @click="$router.push('/assets')">
               Back to Assets
             </Button>
-            <Button variant="outline" @click="handleEdit">
-              Edit
-            </Button>
-            <Button variant="error" @click="handleDeactivate" :disabled="!asset.is_active">
-              Deactivate
-            </Button>
           </div>
         </div>
       </Card>
@@ -148,25 +142,6 @@ const fetchRelatedRules = async () => {
 
 const handleViewRule = (rule) => {
   router.push(`/rules/${rule.id}`)
-}
-
-const handleEdit = () => {
-  // TODO: Implement edit modal or navigate to edit page
-  showError('Edit functionality not yet implemented')
-}
-
-const handleDeactivate = async () => {
-  if (!confirm(`Are you sure you want to deactivate asset ${asset.value.ip_address}?`)) {
-    return
-  }
-
-  try {
-    await assetsService.deactivateAsset(asset.value.ip_address)
-    success('Asset deactivated successfully')
-    await fetchAsset()
-  } catch (err) {
-    showError(err.message || 'Failed to deactivate asset')
-  }
 }
 
 const formatDate = (dateString) => {

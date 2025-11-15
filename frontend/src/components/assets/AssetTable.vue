@@ -166,7 +166,7 @@
             </div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <Badge v-if="asset.environment" :label="asset.environment" variant="info" />
+            <Badge v-if="asset.environment && String(asset.environment).trim()" :label="String(asset.environment).trim()" variant="info" />
             <span v-else class="text-gray-400">—</span>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
