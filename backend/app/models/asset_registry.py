@@ -69,40 +69,6 @@ class AssetRegistry(Base):
         return f"<AssetRegistry(id={self.id}, ip='{self.ip_address}', hostname='{self.hostname}', version={self.version})>"
 
 
-class AssetRegistryHistory(Base):
-    """
-    Asset Registry History - Version control for all asset changes
-    """
-    __tablename__ = "asset_registry_history"
-    
-    # Primary Key
-    id = Column(BigInteger, primary_key=True, index=True)
-    
-    # Reference to current asset
-    asset_id = Column(BigInteger, nullable=False, index=True)
-    ip_address = Column(INET, nullable=False, index=True)
-    
-    # Change Information
-    version = Column(Integer, nullable=False)
-    change_type = Column(String(20), nullable=False, index=True)  # 'create', 'update', 'delete', 'reactivate'
-    change_description = Column(Text, nullable=True)
-    
-    # Snapshot of asset data at this version
-    asset_data_snapshot = Column(JSONB, nullable=False, comment="Complete asset data at this version")
-    
-    # Change tracking
-    changed_fields = Column(JSONB, nullable=True, comment="List of fields that changed")
-    previous_values = Column(JSONB, nullable=True, comment="Previous values of changed fields")
-    
-    # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_by = Column(String(100), nullable=False)
-    upload_batch_id = Column(String(100), nullable=True, index=True)  # Track CSV upload batches
-
-    def __repr__(self):
-        return f"<AssetRegistryHistory(asset_id={self.asset_id}, version={self.version}, change='{self.change_type}')>"
-
-
 class AssetUploadBatch(Base):
     """
     Track CSV upload batches for auditing and rollback capabilities

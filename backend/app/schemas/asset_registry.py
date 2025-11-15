@@ -126,25 +126,6 @@ class AssetRegistryResponse(AssetRegistryBase):
         from_attributes = True
 
 
-class AssetRegistryHistoryResponse(BaseModel):
-    """Schema for asset history responses"""
-    id: int
-    asset_id: int
-    ip_address: str
-    version: int
-    change_type: str
-    change_description: Optional[str]
-    asset_data_snapshot: Dict[str, Any]
-    changed_fields: Optional[List[str]]
-    previous_values: Optional[Dict[str, Any]]
-    created_at: datetime
-    created_by: str
-    upload_batch_id: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
 class AssetUploadBatchResponse(BaseModel):
     """Schema for upload batch responses"""
     id: int

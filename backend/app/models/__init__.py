@@ -4,7 +4,7 @@ Database models for the application
 from .far_request import FarRequest
 from .far_rule import FarRule, FarRuleEndpoint, FarRuleService
 from .far_tuple_facts import FarTupleFacts
-from .asset_registry import AssetRegistry, AssetRegistryHistory, AssetUploadBatch
+from .asset_registry import AssetRegistry, AssetUploadBatch
 
 __all__ = [
     "FarRequest", 
@@ -13,6 +13,5 @@ __all__ = [
     "FarRuleService",
     "FarTupleFacts",
     "AssetRegistry",
-    "AssetRegistryHistory", 
     "AssetUploadBatch"
 ]

@@ -7,10 +7,10 @@ from typing import List, Optional
 import io
 
 from app.core.database import get_db
-from app.models.asset_registry import AssetRegistry, AssetRegistryHistory, AssetUploadBatch
+from app.models.asset_registry import AssetRegistry, AssetUploadBatch
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetRegistryResponse,
-    AssetRegistryHistoryResponse, AssetUploadBatchResponse, CSVUploadResponse,
+    AssetUploadBatchResponse, CSVUploadResponse,
     AssetSearchFilters, AssetAnalyticsResponse
 )
 from app.services.asset_registry_service import AssetRegistryService
@@ -330,85 +330,3 @@ async def deactivate_asset(
         raise HTTPException(status_code=500, detail=f"Failed to deactivate asset: {str(e)}")
 
 
-@router.get("/assets/{ip_address}/history",
-            summary="Get Asset History",
-            description="Get change history for a specific asset")
-async def get_asset_history(
-    ip_address: str,
-    limit: int = Query(50, ge=1, le=500, description="Number of history records to return"),
-    db: Session = Depends(get_db)
-):
-    """Get change history for an asset"""
-    
-    # First verify asset exists
-    asset = db.query(AssetRegistry).filter(
-        AssetRegistry.ip_address == ip_address
-    ).first()
-    
-    if not asset:
-        raise HTTPException(status_code=404, detail=f"Asset with IP {ip_address} not found")
-    
-    # Get history records
-    history_records = db.query(AssetRegistryHistory).filter(
-        AssetRegistryHistory.ip_address == ip_address
-    ).order_by(AssetRegistryHistory.created_at.desc()).limit(limit).all()
-    
-    history_data = [AssetRegistryHistoryResponse.from_orm(record).dict() for record in history_records]
-    
-    return success_response(
-        data={
-            "ip_address": ip_address,
-            "total_records": len(history_data),
-            "limit": limit,
-            "history": history_data
-        },
-        message=f"Retrieved {len(history_data)} history records for asset {ip_address}"
-    )
-
-
-@router.get("/assets/{ip_address}/versions",
-            summary="Get Asset Versions",
-            description="Get all versions of a specific asset")
-async def get_asset_versions(
-    ip_address: str,
-    db: Session = Depends(get_db)
-):
-    """Get all versions of an asset from history"""
-    
-    history_records = db.query(AssetRegistryHistory).filter(
-        AssetRegistryHistory.ip_address == ip_address
-    ).order_by(AssetRegistryHistory.version.desc()).all()
-    
-    if not history_records:
-        version_data = {
-            "ip_address": ip_address,
-            "total_versions": 0,
-            "versions": []
-        }
-        
-        return success_response(
-            data=version_data,
-            message=f"No version history found for asset {ip_address}"
-        )
-    
-    versions = []
-    for record in history_records:
-        versions.append({
-            "version": record.version,
-            "change_type": record.change_type,
-            "change_description": record.change_description,
-            "changed_by": record.created_by,
-            "changed_at": record.created_at,
-            "asset_data": record.asset_data_snapshot
-        })
-    
-    version_data = {
-        "ip_address": ip_address,
-        "total_versions": len(versions),
-        "versions": versions
-    }
-    
-    return success_response(
-        data=version_data,
-        message=f"Retrieved {len(versions)} versions for asset {ip_address}"
-    )

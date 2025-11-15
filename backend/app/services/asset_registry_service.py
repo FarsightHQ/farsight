@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 import pandas as pd
 import io
 
-from app.models.asset_registry import AssetRegistry, AssetRegistryHistory, AssetUploadBatch
+from app.models.asset_registry import AssetRegistry, AssetUploadBatch
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetSearchFilters,
     AssetAnalyticsResponse
@@ -76,11 +76,6 @@ class AssetRegistryService:
             db.commit()
             db.refresh(asset)
             
-            # Create history record
-            AssetRegistryService._create_history_record(
-                db, asset, 'create', 'Asset created', created_by
-            )
-            
             return asset
             
         except IntegrityError as e:
@@ -98,7 +93,7 @@ class AssetRegistryService:
         if not asset:
             raise ValueError(f"Asset with IP {ip_address} not found")
         
-        # Track changes for history
+        # Track changed fields
         changed_fields = []
         previous_values = {}
         
@@ -119,12 +114,6 @@ class AssetRegistryService:
             
             db.commit()
             db.refresh(asset)
-            
-            # Create history record
-            AssetRegistryService._create_history_record(
-                db, asset, 'update', f"Updated fields: {', '.join(changed_fields)}", 
-                updated_by, changed_fields, previous_values
-            )
         
         return asset
 
@@ -145,11 +134,6 @@ class AssetRegistryService:
         
         db.commit()
         db.refresh(asset)
-        
-        # Create history record
-        AssetRegistryService._create_history_record(
-            db, asset, 'delete', 'Asset deactivated', deactivated_by
-        )
         
         return asset
 
@@ -500,54 +484,3 @@ class AssetRegistryService:
             last_updated=last_updated
         )
 
-    @staticmethod
-    def _create_history_record(db: Session, asset: AssetRegistry, change_type: str, 
-                              description: str, changed_by: str, changed_fields: Optional[List[str]] = None,
-                              previous_values: Optional[Dict[str, Any]] = None, batch_id: Optional[str] = None):
-        """Create a history record for asset changes"""
-        
-        # Create complete snapshot of current asset data
-        asset_snapshot = {
-            'ip_address': str(asset.ip_address),
-            'segment': asset.segment,
-            'subnet': asset.subnet,
-            'gateway': str(asset.gateway) if asset.gateway else None,
-            'vlan': asset.vlan,
-            'os_name': asset.os_name,
-            'os_version': asset.os_version,
-            'app_version': asset.app_version,
-            'db_version': asset.db_version,
-            'vcpu': asset.vcpu,
-            'memory': asset.memory,
-            'hostname': asset.hostname,
-            'vm_display_name': asset.vm_display_name,
-            'environment': asset.environment,
-            'location': asset.location,
-            'availability': asset.availability,
-            'itm_id': asset.itm_id,
-            'tool_update': asset.tool_update,
-            'dmz_mz': asset.dmz_mz,
-            'confidentiality': asset.confidentiality,
-            'integrity': asset.integrity,
-            'compliance_tags': asset.compliance_tags,
-            'extended_properties': asset.extended_properties,
-            'version': asset.version,
-            'is_active': asset.is_active,
-            'data_source': asset.data_source
-        }
-        
-        history = AssetRegistryHistory(
-            asset_id=asset.id,
-            ip_address=str(asset.ip_address),
-            version=asset.version,
-            change_type=change_type,
-            change_description=description,
-            asset_data_snapshot=asset_snapshot,
-            changed_fields=changed_fields,
-            previous_values=previous_values,
-            created_by=changed_by,
-            upload_batch_id=batch_id
-        )
-        
-        db.add(history)
-        db.commit()
