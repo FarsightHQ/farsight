@@ -85,20 +85,6 @@ export const assetsService = {
     return apiClient.get(`/api/v1/assets/upload-batches/${batchId}`)
   },
 
-  // Get asset change history
-  getAssetHistory(ipAddress, limit = 50) {
-    return apiClient.get(`/api/v1/assets/${encodeURIComponent(ipAddress)}/history`, {
-      params: {
-        limit,
-      },
-    })
-  },
-
-  // Get all versions of an asset
-  getAssetVersions(ipAddress) {
-    return apiClient.get(`/api/v1/assets/${encodeURIComponent(ipAddress)}/versions`)
-  },
-
   // Get asset analytics
   getAnalytics() {
     return apiClient.get('/api/v1/assets/analytics')

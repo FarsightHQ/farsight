@@ -66,9 +66,6 @@
         :error="rulesError"
         @view-rule="handleViewRule"
       />
-
-      <!-- Asset History -->
-      <AssetHistoryTimeline :ip-address="ipAddress" />
     </div>
   </div>
 </template>
@@ -85,7 +82,6 @@ import Card from '@/components/ui/Card.vue'
 import StatusBadge from '@/components/requests/StatusBadge.vue'
 import AssetDetailPanel from '@/components/assets/AssetDetailPanel.vue'
 import AssetCoverage from '@/components/assets/AssetCoverage.vue'
-import AssetHistoryTimeline from '@/components/assets/AssetHistoryTimeline.vue'
 
 const route = useRoute()
 const router = useRouter()
