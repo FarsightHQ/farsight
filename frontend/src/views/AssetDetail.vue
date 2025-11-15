@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Breadcrumb Navigation -->
     <nav class="flex items-center space-x-2 text-sm text-gray-600">
       <router-link to="/assets" class="hover:text-primary-600">Assets</router-link>
@@ -26,12 +26,12 @@
     </Card>
 
     <!-- Asset Details -->
-    <div v-else-if="asset" class="space-y-6">
+    <div v-else-if="asset" class="space-y-4">
       <!-- Header -->
-      <Card class="p-6">
-        <div class="flex items-center justify-between mb-4">
+      <Card class="p-4">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">{{ asset.ip_address }}</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ asset.ip_address }}</h1>
             <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600">
               <StatusBadge
                 :status="asset.is_active ? 'success' : 'error'"
