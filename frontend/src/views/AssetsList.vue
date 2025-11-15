@@ -1,24 +1,18 @@
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+  <div class="flex flex-col min-h-0" style="height: 100%;">
+    <!-- Compact Header -->
+    <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Asset Registry</h1>
-        <p class="text-gray-600 mt-1">Manage and explore network assets</p>
+        <h1 class="text-xl font-bold text-gray-900">Asset Registry</h1>
+        <p class="text-sm text-gray-600 mt-0.5">Manage and explore network assets</p>
       </div>
-      <Button variant="primary" @click="$router.push('/assets/upload')">
+      <Button variant="primary" size="sm" @click="$router.push('/assets/upload')">
         Upload CSV
       </Button>
     </div>
 
-    <!-- Analytics -->
-    <AssetAnalytics />
-
-    <!-- Filters -->
-    <AssetFilter :filters="filters" @update:filters="handleFilterUpdate" />
-
-    <!-- View Toggle and Actions -->
-    <div class="flex items-center justify-between">
+    <!-- View Controls Bar -->
+    <div class="flex items-center justify-between mb-3">
       <div class="flex items-center space-x-2">
         <Button
           :variant="viewMode === 'table' ? 'primary' : 'outline'"
@@ -34,11 +28,11 @@
         >
           Cards
         </Button>
-      </div>
-      <div class="flex items-center space-x-2">
-        <div class="text-sm text-gray-600">
+        <div class="text-sm text-gray-600 ml-4">
           Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
         </div>
+      </div>
+      <div class="flex items-center space-x-2">
         <Button
           v-if="selectedAssets.length > 0"
           variant="outline"
@@ -50,94 +44,105 @@
         <Button variant="outline" size="sm" @click="handleExportAll">
           Export All
         </Button>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="loading" class="space-y-4">
-      <Card v-for="i in 5" :key="i" class="animate-pulse">
-        <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-      </Card>
-    </div>
-
-    <!-- Empty State -->
-    <Card v-else-if="!loading && assets.length === 0">
-      <div class="text-center py-12">
-        <svg
-          class="mx-auto h-12 w-12 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No assets found</h3>
-        <p class="mt-1 text-sm text-gray-500">
-          {{ hasActiveFilters ? 'Try adjusting your filters.' : 'Get started by uploading a CSV file.' }}
-        </p>
-        <div class="mt-6">
-          <Button variant="primary" @click="$router.push('/assets/upload')">
-            Upload CSV
+        <div v-if="!loading && assets.length > 0" class="flex items-center space-x-2 ml-4">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="currentPage === 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            Previous
+          </Button>
+          <span class="text-sm text-gray-600">Page {{ currentPage }} of {{ totalPages }}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="currentPage === totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            Next
           </Button>
         </div>
       </div>
-    </Card>
-
-    <!-- Assets Table View -->
-    <div v-else-if="viewMode === 'table'">
-      <AssetTable
-        :assets="displayedAssets"
-        :loading="loading"
-        :selected-assets="selectedAssets"
-        :sort-key="sortKey"
-        :sort-direction="sortDirection"
-        @view-asset="handleViewAsset"
-        @select-asset="handleSelectAsset"
-        @select-all="handleSelectAll"
-        @sort="handleSort"
-      />
     </div>
 
-    <!-- Assets Card View -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <AssetCard
-        v-for="asset in displayedAssets"
-        :key="asset.id"
-        :asset="asset"
-        :is-selected="selectedAssets.includes(asset.id)"
-        @view-asset="handleViewAsset"
-        @select-asset="handleSelectAsset"
-      />
-    </div>
-
-    <!-- Pagination -->
-    <div v-if="!loading && assets.length > 0" class="flex items-center justify-between">
-      <div class="text-sm text-gray-600">
-        Page {{ currentPage }} of {{ totalPages }}
+    <!-- Three Column Layout -->
+    <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
+      <!-- Left: Filters (Fixed Width) -->
+      <div class="w-64 flex-shrink-0 overflow-y-auto">
+        <AssetFilter :filters="filters" @update:filters="handleFilterUpdate" />
       </div>
-      <div class="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="currentPage === 1"
-          @click="goToPage(currentPage - 1)"
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="currentPage === totalPages"
-          @click="goToPage(currentPage + 1)"
-        >
-          Next
-        </Button>
+
+      <!-- Middle: Table (Flexible) -->
+      <div class="flex-1 overflow-hidden flex flex-col">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex-1 overflow-y-auto">
+          <div class="space-y-2">
+            <div v-for="i in 10" :key="i" class="h-12 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <Card v-else-if="!loading && assets.length === 0" class="flex-1 flex items-center justify-center">
+          <div class="text-center py-12">
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No assets found</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              {{ hasActiveFilters ? 'Try adjusting your filters.' : 'Get started by uploading a CSV file.' }}
+            </p>
+            <div class="mt-6">
+              <Button variant="primary" @click="$router.push('/assets/upload')">
+                Upload CSV
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Assets Table View -->
+        <div v-else-if="viewMode === 'table'" class="flex-1 overflow-y-auto">
+          <AssetTable
+            :assets="displayedAssets"
+            :loading="loading"
+            :selected-assets="selectedAssets"
+            :sort-key="sortKey"
+            :sort-direction="sortDirection"
+            @view-asset="handleViewAsset"
+            @select-asset="handleSelectAsset"
+            @select-all="handleSelectAll"
+            @sort="handleSort"
+          />
+        </div>
+
+        <!-- Assets Card View -->
+        <div v-else class="flex-1 overflow-y-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+            <AssetCard
+              v-for="asset in displayedAssets"
+              :key="asset.id"
+              :asset="asset"
+              :is-selected="selectedAssets.includes(asset.id)"
+              @view-asset="handleViewAsset"
+              @select-asset="handleSelectAsset"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Analytics (Fixed Width) -->
+      <div class="w-80 flex-shrink-0 overflow-y-auto">
+        <AssetAnalytics />
       </div>
     </div>
   </div>

@@ -7,7 +7,8 @@
       </Button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <!-- Stack filters vertically for sidebar -->
+    <div class="space-y-4">
       <!-- IP Address Search -->
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">IP Address</label>
@@ -111,8 +112,8 @@
       </div>
 
       <!-- Active Filters Count -->
-      <div class="flex items-end">
-        <div v-if="hasActiveFilters" class="text-xs text-gray-600">
+      <div v-if="hasActiveFilters" class="pt-2 border-t border-gray-200">
+        <div class="text-xs text-gray-600">
           <span class="font-medium">{{ activeFilterCount }}</span> filter(s) active
         </div>
       </div>
