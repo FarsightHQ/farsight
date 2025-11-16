@@ -1,38 +1,38 @@
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <Card class="flex items-center space-x-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <Card class="p-4 flex items-center space-x-3">
       <div class="flex-shrink-0">
-        <div class="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
-          <DocumentTextIcon class="h-6 w-6 text-primary-600" />
+        <div class="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
+          <DocumentTextIcon class="h-5 w-5 text-primary-600" />
         </div>
       </div>
       <div class="flex-1">
-        <p class="text-sm font-medium text-gray-600">Total Rules</p>
-        <p class="text-2xl font-bold text-gray-900">{{ stats.totalRules || 0 }}</p>
+        <p class="text-xs font-medium text-gray-600">Total Rules</p>
+        <p class="text-xl font-bold text-gray-900">{{ stats.totalRules || 0 }}</p>
       </div>
     </Card>
 
-    <Card class="flex items-center space-x-4">
+    <Card class="p-4 flex items-center space-x-3">
       <div class="flex-shrink-0">
-        <div class="h-12 w-12 rounded-lg bg-success-100 flex items-center justify-center">
-          <ServerIcon class="h-6 w-6 text-success-600" />
+        <div class="h-10 w-10 rounded-lg bg-success-100 flex items-center justify-center">
+          <ServerIcon class="h-5 w-5 text-success-600" />
         </div>
       </div>
       <div class="flex-1">
-        <p class="text-sm font-medium text-gray-600">Endpoints</p>
-        <p class="text-2xl font-bold text-gray-900">{{ stats.totalEndpoints || 0 }}</p>
+        <p class="text-xs font-medium text-gray-600">Endpoints</p>
+        <p class="text-xl font-bold text-gray-900">{{ stats.totalEndpoints || 0 }}</p>
       </div>
     </Card>
 
-    <Card class="flex items-center space-x-4">
+    <Card class="p-4 flex items-center space-x-3">
       <div class="flex-shrink-0">
-        <div class="h-12 w-12 rounded-lg bg-warning-100 flex items-center justify-center">
-          <CogIcon class="h-6 w-6 text-warning-600" />
+        <div class="h-10 w-10 rounded-lg bg-warning-100 flex items-center justify-center">
+          <CogIcon class="h-5 w-5 text-warning-600" />
         </div>
       </div>
       <div class="flex-1">
-        <p class="text-sm font-medium text-gray-600">Services</p>
-        <p class="text-2xl font-bold text-gray-900">{{ stats.totalServices || 0 }}</p>
+        <p class="text-xs font-medium text-gray-600">Services</p>
+        <p class="text-xl font-bold text-gray-900">{{ stats.totalServices || 0 }}</p>
       </div>
     </Card>
   </div>

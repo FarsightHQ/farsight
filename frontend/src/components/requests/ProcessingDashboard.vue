@@ -1,9 +1,9 @@
 <template>
-  <Card>
-    <div class="space-y-6">
+  <Card class="p-4">
+    <div class="space-y-4">
       <!-- Header -->
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-900">Processing Pipeline</h2>
+        <h2 class="text-sm font-semibold text-gray-900">Processing Pipeline</h2>
         <Button
           v-if="canCancel"
           variant="outline"
@@ -35,7 +35,7 @@
       <ProcessingStatus :current-step="currentStepData" />
 
       <!-- Processing Timeline -->
-      <div v-if="steps.length > 0" class="border-t pt-4">
+      <div v-if="steps.length > 0" class="border-t pt-3">
         <ProcessingTimeline :steps="steps" />
       </div>
     </div>

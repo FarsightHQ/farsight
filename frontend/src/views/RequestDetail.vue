@@ -11,9 +11,9 @@
     <!-- Request Details -->
     <div v-else-if="request">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center justify-between mb-4">
         <div>
-          <h1 class="text-3xl font-bold mb-2">{{ request.title }}</h1>
+          <h1 class="text-2xl font-bold mb-1.5">{{ request.title }}</h1>
           <div class="flex items-center space-x-4 text-sm text-gray-600">
             <span>ID: {{ request.id }}</span>
             <StatusBadge :status="request.status" />
@@ -35,19 +35,19 @@
       </div>
 
       <!-- Quick Stats -->
-      <RequestStats :stats="stats" class="mb-6" />
+      <RequestStats :stats="stats" class="mb-4" />
 
       <!-- Processing Dashboard -->
       <ProcessingDashboard
         v-if="isProcessingPipeline"
         :steps="pipelineSteps"
         :can-cancel="false"
-        class="mb-6"
+        class="mb-4"
         @retry="handleRetryStep"
       />
       
       <!-- Polling Status Indicator -->
-      <div v-if="isProcessingPipeline && isPolling" class="mb-4 text-xs text-gray-500 flex items-center space-x-2">
+      <div v-if="isProcessingPipeline && isPolling" class="mb-3 text-xs text-gray-500 flex items-center space-x-2">
         <div class="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></div>
         <span>Live updates active</span>
         <span v-if="lastUpdated" class="text-gray-400">
@@ -56,8 +56,8 @@
       </div>
 
       <!-- Action Buttons (shown when not processing) -->
-      <Card v-else class="mb-6">
-        <div class="flex items-center space-x-4">
+      <Card v-else class="p-4 mb-4">
+        <div class="flex items-center space-x-3">
           <Button
             variant="primary"
             :disabled="processing || request.status !== 'submitted'"
@@ -93,9 +93,9 @@
       </Card>
 
       <!-- Request Metadata -->
-      <Card class="mb-6">
-        <h2 class="text-lg font-semibold mb-4">Request Information</h2>
-        <div class="grid grid-cols-2 gap-4 text-sm">
+      <Card class="p-4 mb-4">
+        <h2 class="text-sm font-semibold mb-3">Request Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
           <div>
             <span class="font-medium text-gray-600">Status:</span>
             <span class="ml-2">
@@ -126,26 +126,26 @@
       </Card>
 
       <!-- Tabs -->
-      <Card>
+      <Card class="p-4">
         <RequestTabs
           :tabs="tabs"
           :active-tab="activeTab"
           @update:activeTab="activeTab = $event"
         >
           <template #overview>
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold">Overview</h3>
-              <p class="text-gray-600">
+            <div class="space-y-3">
+              <h3 class="text-sm font-semibold">Overview</h3>
+              <p class="text-gray-600 text-sm">
                 Request overview and basic information will be displayed here.
               </p>
             </div>
           </template>
 
           <template #rules>
-            <div class="space-y-4">
+            <div class="space-y-3">
               <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Rules</h3>
-                <Button variant="outline" @click="$router.push(`/requests/${request.id}/rules`)">
+                <h3 class="text-sm font-semibold">Rules</h3>
+                <Button variant="outline" size="sm" @click="$router.push(`/requests/${request.id}/rules`)">
                   View All Rules
                 </Button>
               </div>
@@ -164,18 +164,18 @@
           </template>
 
           <template #analysis>
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold">Analysis</h3>
-              <p class="text-gray-600">
+            <div class="space-y-3">
+              <h3 class="text-sm font-semibold">Analysis</h3>
+              <p class="text-gray-600 text-sm">
                 Analysis and reporting will be implemented in Phase 5.
               </p>
             </div>
           </template>
 
           <template #visualization>
-            <div class="space-y-4">
-              <h3 class="text-lg font-semibold">Visualization</h3>
-              <p class="text-gray-600">
+            <div class="space-y-3">
+              <h3 class="text-sm font-semibold">Visualization</h3>
+              <p class="text-gray-600 text-sm">
                 Network visualization will be implemented in Phase 6.
               </p>
             </div>
