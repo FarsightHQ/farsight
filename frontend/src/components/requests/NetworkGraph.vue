@@ -354,8 +354,14 @@ const initializeGraph = () => {
     }, 0)
   })
 
+  // Track if fitToView has been called (shared between tick and end handlers)
+  let fitToViewCalled = false
+  let tickCount = 0
+
   // Update positions on simulation tick
   simulation.on('tick', () => {
+    tickCount++
+
     // Update links
     link
       .attr('x1', (d) => d.source.x)
@@ -386,13 +392,30 @@ const initializeGraph = () => {
         }
       }
     })
+
+    // Fit to view after initial ticks if not already called
+    if (!fitToViewCalled && tickCount === 50) {
+      fitToViewCalled = true
+      nextTick(() => {
+        fitToView()
+      })
+    }
   })
 
-  // Ensure nodes stay within bounds
+  // Ensure nodes stay within bounds and fit to view
   simulation.on('end', () => {
+    // Fit to view on first end (initial layout complete)
+    if (!fitToViewCalled) {
+      fitToViewCalled = true
+      // Use nextTick to ensure DOM is updated
+      nextTick(() => {
+        fitToView()
+      })
+    }
+
     // Release fixed positions for rule node after initial layout
     if (isRuleGraph) {
-      const ruleNode = nodes.find(n => n.type === 'rule')
+      const ruleNode = nodes.find((n) => n.type === 'rule')
       if (ruleNode && ruleNode.fx !== undefined) {
         // Keep rule node fixed for a bit, then release
         setTimeout(() => {
@@ -505,6 +528,78 @@ const buildLegend = (groups) => {
   legendData.value = legend
 }
 
+// Fit graph to viewport
+const fitToView = () => {
+  if (!svg || !simulation || !g) return
+
+  const nodes = simulation.nodes()
+  if (!nodes || nodes.length === 0) return
+
+  // Calculate bounding box of all nodes
+  let bounds = {
+    minX: Infinity,
+    maxX: -Infinity,
+    minY: Infinity,
+    maxY: -Infinity,
+  }
+
+  nodes.forEach((n) => {
+    if (n.x === undefined || n.y === undefined) return
+
+    const radius = n.size || 15
+    const labelHeight = 20 // Approximate label height
+
+    bounds.minX = Math.min(bounds.minX, n.x - radius)
+    bounds.maxX = Math.max(bounds.maxX, n.x + radius)
+    bounds.minY = Math.min(bounds.minY, n.y - radius)
+    bounds.maxY = Math.max(bounds.maxY, n.y + radius + labelHeight)
+  })
+
+  // Handle edge cases
+  if (bounds.minX === Infinity || bounds.maxX === -Infinity) {
+    // No valid nodes, center at origin
+    bounds = { minX: -50, maxX: 50, minY: -50, maxY: 50 }
+  }
+
+  // If bounds are too small (single node or very clustered), add padding
+  const graphWidth = bounds.maxX - bounds.minX
+  const graphHeight = bounds.maxY - bounds.minY
+
+  if (graphWidth < 10 || graphHeight < 10) {
+    const padding = 100
+    bounds.minX -= padding
+    bounds.maxX += padding
+    bounds.minY -= padding
+    bounds.maxY += padding
+  }
+
+  // Calculate scale and translation
+  const padding = 50
+  const availableWidth = width - 2 * padding
+  const availableHeight = height - 2 * padding
+
+  const scaleX = availableWidth / (bounds.maxX - bounds.minX)
+  const scaleY = availableHeight / (bounds.maxY - bounds.minY)
+  const scale = Math.min(scaleX, scaleY, 1.0) // Don't zoom in beyond 1:1
+
+  // Calculate center of graph
+  const graphCenterX = (bounds.minX + bounds.maxX) / 2
+  const graphCenterY = (bounds.minY + bounds.maxY) / 2
+
+  // Calculate translation to center graph in viewport
+  const translateX = width / 2 - graphCenterX * scale
+  const translateY = height / 2 - graphCenterY * scale
+
+  // Apply transform with smooth transition
+  svg
+    .transition()
+    .duration(750)
+    .call(
+      zoom.transform,
+      d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+    )
+}
+
 // Zoom controls
 const zoomIn = () => {
   if (svg && zoom) {
@@ -520,13 +615,20 @@ const zoomOut = () => {
 
 const resetView = () => {
   if (svg && zoom) {
-    svg.transition().call(zoom.transform, d3.zoomIdentity)
     // Reset node positions and restart simulation
     if (simulation) {
       const nodes = simulation.nodes()
-      const isRuleGraph = nodes.some(n => n.type === 'rule')
+      const isRuleGraph = nodes.some((n) => n.type === 'rule')
       initializeNodePositions(nodes, isRuleGraph)
       simulation.alpha(1).restart()
+
+      // Fit to view after a short delay to allow simulation to stabilize
+      setTimeout(() => {
+        fitToView()
+      }, 500)
+    } else {
+      // If no simulation, just reset zoom
+      svg.transition().call(zoom.transform, d3.zoomIdentity)
     }
   }
 }
