@@ -43,7 +43,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!graphData || !graphData.topology || !graphData.topology.nodes || graphData.topology.nodes.length === 0" class="flex items-center justify-center h-96">
+    <div v-else-if="!graphData || (!graphData.sources || graphData.sources.length === 0) || (!graphData.destinations || graphData.destinations.length === 0)" class="flex items-center justify-center h-96">
       <div class="text-center max-w-md">
         <InformationCircleIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-gray-900 mb-2">No Network Data</h4>
@@ -53,13 +53,13 @@
 
     <!-- Graph Visualization -->
     <div v-else class="h-[calc(100vh-12rem)] min-h-[600px]">
-      <NetworkGraph :graph-data="graphData.topology" />
+      <NetworkGraph :graph-data="graphData" />
     </div>
 
     <template #footer>
       <div class="flex items-center justify-between w-full">
         <div class="text-xs text-gray-500">
-          <p>Drag nodes to reposition • Click nodes to highlight connections • Use controls to zoom/pan</p>
+          <p>Hover over elements to see details • Port count badges show number of ports per connection</p>
         </div>
         <Button variant="outline" @click="$emit('update:modelValue', false)">Close</Button>
       </div>
@@ -130,16 +130,15 @@ const fetchTopology = async () => {
 
       // Graph data is nested in responseData.graph when include=graph
       if (responseData.graph) {
-        graphData.value = {
-          topology: responseData.graph,
-        }
+        // New flow-style format: sources, destinations, connections
+        graphData.value = responseData.graph
         summary.value = {
-          source_count: responseData.endpoints?.source_count || 0,
-          destination_count: responseData.endpoints?.destination_count || 0,
-          service_count: responseData.service_count || 0,
+          source_count: responseData.graph.metadata?.source_count || responseData.endpoints?.source_count || 0,
+          destination_count: responseData.graph.metadata?.destination_count || responseData.endpoints?.destination_count || 0,
+          service_count: responseData.graph.metadata?.service_count || responseData.service_count || 0,
         }
       } else if (responseData.topology) {
-        // Fallback for request-level topology format
+        // Fallback for request-level topology format (old format)
         graphData.value = responseData
         summary.value = responseData.summary || {
           source_count: responseData.endpoints?.source_count || 0,
