@@ -56,7 +56,7 @@
     </div>
 
     <!-- Graph Visualization -->
-    <div v-else class="h-[calc(100vh-12rem)] min-h-[600px]">
+    <div v-else class="w-full min-h-[600px]">
       <NetworkGraph :graph-data="graphData" />
     </div>
 

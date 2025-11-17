@@ -1,6 +1,6 @@
 <template>
-  <div ref="containerRef" class="w-full h-full bg-gray-50 relative">
-    <svg ref="svgRef" class="w-full h-full"></svg>
+  <div ref="containerRef" class="w-full bg-gray-50 relative">
+    <svg ref="svgRef" class="w-full"></svg>
     
     <!-- Tooltip -->
     <div
@@ -70,19 +70,6 @@ const initializeGraph = () => {
   // Explicitly remove any port circle elements by class (extra safety)
   svgSelection.selectAll('.port-circle, .ports circle, circle[class*="port"]').remove()
 
-  // Get container dimensions
-  const container = containerRef.value
-  if (container) {
-    width = container.clientWidth || 800
-    height = container.clientHeight || 600
-  }
-
-  // Create SVG
-  svg = d3
-    .select(svgRef.value)
-    .attr('width', width)
-    .attr('height', height)
-
   // Extract data
   const sources = props.graphData.sources || []
   const destinations = props.graphData.destinations || []
@@ -92,10 +79,27 @@ const initializeGraph = () => {
     return
   }
 
+  // Get container width
+  const container = containerRef.value
+  if (container) {
+    width = container.clientWidth || 800
+  }
+
+  // Calculate height based on content
+  const maxItems = Math.max(sources.length, destinations.length)
+  const padding = 100 // Top and bottom padding
+  height = Math.max(600, padding + maxItems * VERTICAL_SPACING + RECT_HEIGHT)
+
+  // Create SVG
+  svg = d3
+    .select(svgRef.value)
+    .attr('width', width)
+    .attr('height', height)
+
   // Calculate positions
   const leftX = width * LEFT_X
   const rightX = width * RIGHT_X
-  const startY = height * START_Y
+  const startY = 50 // Fixed top padding instead of percentage
 
   // Position source rectangles
   sources.forEach((src, i) => {
