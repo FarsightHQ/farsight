@@ -88,7 +88,7 @@
       <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
         <!-- Left Sidebar: Filters -->
         <aside class="w-72 flex-shrink-0 overflow-y-auto">
-          <RulesFilter :filters="filters" @update:filters="handleFilterUpdate" />
+          <RulesFilter :filters="filters" :rules="rulesData" @update:filters="handleFilterUpdate" />
         </aside>
 
         <!-- Middle Column: Rules List -->
@@ -105,6 +105,7 @@
             :filters="filters"
             @view-rule="handleViewRule"
             @stats-updated="handleStatsUpdated"
+            @rules-loaded="handleRulesLoaded"
           />
         </main>
 
@@ -205,12 +206,16 @@ const deleting = ref(false)
 const selectedRule = ref(null)
 const showRuleDetail = ref(false)
 const rulesStats = ref({})
+const rulesData = ref([])
 const filters = ref({
   action: '',
   protocol: '',
+  direction: '',
   hasFacts: '',
   selfFlow: '',
   anyAny: '',
+  publicIP: '',
+  hasIssues: '',
 })
 
 // Use request status polling
@@ -629,6 +634,10 @@ const handleFilterUpdate = (newFilters) => {
 
 const handleStatsUpdated = (stats) => {
   rulesStats.value = stats
+}
+
+const handleRulesLoaded = (rules) => {
+  rulesData.value = rules || []
 }
 
 onMounted(() => {

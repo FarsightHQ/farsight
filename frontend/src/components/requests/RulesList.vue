@@ -108,7 +108,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view-rule', 'stats-updated'])
+const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded'])
 
 const { error: showError } = useToast()
 
@@ -119,9 +119,12 @@ const searchQuery = ref('')
 const localFilters = ref({
   action: props.filters.action || '',
   protocol: props.filters.protocol || '',
+  direction: props.filters.direction || '',
   hasFacts: props.filters.hasFacts || '',
   selfFlow: props.filters.selfFlow || '',
   anyAny: props.filters.anyAny || '',
+  publicIP: props.filters.publicIP || '',
+  hasIssues: props.filters.hasIssues || '',
 })
 const sortKey = ref('id')
 const sortDirection = ref('asc')
@@ -150,9 +153,12 @@ watch(
     localFilters.value = {
       action: newFilters.action || '',
       protocol: newFilters.protocol || '',
+      direction: newFilters.direction || '',
       hasFacts: newFilters.hasFacts || '',
       selfFlow: newFilters.selfFlow || '',
       anyAny: newFilters.anyAny || '',
+      publicIP: newFilters.publicIP || '',
+      hasIssues: newFilters.hasIssues || '',
     }
     currentPage.value = 1
   },
@@ -177,9 +183,12 @@ const clearAll = () => {
   localFilters.value = {
     action: '',
     protocol: '',
+    direction: '',
     hasFacts: '',
     selfFlow: '',
     anyAny: '',
+    publicIP: '',
+    hasIssues: '',
   }
   currentPage.value = 1
 }
@@ -251,6 +260,56 @@ const filteredRules = computed(() => {
     }
   }
 
+  // Public IP filter
+  if (localFilters.value.publicIP) {
+    if (localFilters.value.publicIP === 'src') {
+      filtered = filtered.filter((rule) => rule.facts?.src_has_public === true)
+    } else if (localFilters.value.publicIP === 'dst') {
+      filtered = filtered.filter((rule) => rule.facts?.dst_has_public === true)
+    } else if (localFilters.value.publicIP === 'either') {
+      filtered = filtered.filter(
+        (rule) => rule.facts?.src_has_public === true || rule.facts?.dst_has_public === true
+      )
+    } else if (localFilters.value.publicIP === 'none') {
+      filtered = filtered.filter(
+        (rule) => !rule.facts?.src_has_public && !rule.facts?.dst_has_public
+      )
+    }
+  }
+
+  // Direction filter
+  if (localFilters.value.direction) {
+    filtered = filtered.filter((rule) => {
+      const ruleDirection = (rule.direction || 'bidirectional').toLowerCase()
+      return ruleDirection === localFilters.value.direction.toLowerCase()
+    })
+  }
+
+  // Has Issues filter (combines self-flow, any/any, public IPs)
+  if (localFilters.value.hasIssues === 'yes') {
+    filtered = filtered.filter((rule) => {
+      const facts = rule.facts || {}
+      return (
+        facts.is_self_flow ||
+        facts.src_is_any ||
+        facts.dst_is_any ||
+        facts.src_has_public ||
+        facts.dst_has_public
+      )
+    })
+  } else if (localFilters.value.hasIssues === 'no') {
+    filtered = filtered.filter((rule) => {
+      const facts = rule.facts || {}
+      return (
+        !facts.is_self_flow &&
+        !facts.src_is_any &&
+        !facts.dst_is_any &&
+        !facts.src_has_public &&
+        !facts.dst_has_public
+      )
+    })
+  }
+
   // Sort
   filtered.sort((a, b) => {
     let aVal = a[sortKey.value]
@@ -297,6 +356,7 @@ const fetchRules = async () => {
     if (data) {
       if (data.rules) {
         rules.value = data.rules
+        emit('rules-loaded', data.rules)
       }
       if (data.summary) {
         stats.value = data.summary
