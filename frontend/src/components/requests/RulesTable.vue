@@ -133,9 +133,14 @@
             {{ formatDate(rule.created_at) }}
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <Button variant="ghost" size="sm" @click.stop="$emit('view-rule', rule)">
-              View
-            </Button>
+            <div class="flex items-center justify-end space-x-2">
+              <Button variant="ghost" size="sm" @click.stop="$emit('visualize-rule', rule)">
+                Visualize
+              </Button>
+              <Button variant="ghost" size="sm" @click.stop="$emit('view-rule', rule)">
+                View
+              </Button>
+            </div>
           </td>
         </tr>
 

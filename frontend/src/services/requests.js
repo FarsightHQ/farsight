@@ -48,5 +48,17 @@ export const requestsService = {
   delete(id) {
     return apiClient.delete(`/api/v1/far/${id}`)
   },
+
+  // Get network topology for visualization
+  getNetworkTopology(id) {
+    return apiClient.get(`/api/v1/analysis/${id}/network-topology`)
+  },
+
+  // Get network graph for a single rule
+  getRuleGraph(ruleId) {
+    return apiClient.get(`/api/v1/rules/${ruleId}`, {
+      params: { include: 'graph' }
+    })
+  },
 }
 

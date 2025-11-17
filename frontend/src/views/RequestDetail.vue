@@ -106,6 +106,7 @@
             @view-rule="handleViewRule"
             @stats-updated="handleStatsUpdated"
             @rules-loaded="handleRulesLoaded"
+            @visualize-rule="handleVisualizeRule"
           />
         </main>
 
@@ -173,6 +174,13 @@
       @confirm="confirmDelete"
       @cancel="cancelDelete"
     />
+
+    <!-- Network Graph Visualization Modal -->
+    <NetworkGraphModal
+      v-model="showGraphModal"
+      :rule-id="selectedRuleForVisualization?.id"
+      :rule-title="`Rule ${selectedRuleForVisualization?.id}`"
+    />
   </div>
 </template>
 
@@ -191,6 +199,7 @@ import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
+import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -203,7 +212,9 @@ const isProcessingPipeline = ref(false)
 const pipelineSteps = ref([])
 const showDeleteModal = ref(false)
 const deleting = ref(false)
+const showGraphModal = ref(false)
 const selectedRule = ref(null)
+const selectedRuleForVisualization = ref(null)
 const showRuleDetail = ref(false)
 const rulesStats = ref({})
 const rulesData = ref([])
@@ -638,6 +649,11 @@ const handleStatsUpdated = (stats) => {
 
 const handleRulesLoaded = (rules) => {
   rulesData.value = rules || []
+}
+
+const handleVisualizeRule = (rule) => {
+  selectedRuleForVisualization.value = rule
+  showGraphModal.value = true
 }
 
 onMounted(() => {

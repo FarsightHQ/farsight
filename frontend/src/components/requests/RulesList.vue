@@ -30,6 +30,7 @@
         :sort-direction="sortDirection"
         @sort="handleSort"
         @view-rule="$emit('view-rule', $event)"
+        @visualize-rule="handleVisualizeRule"
       />
     </Card>
 
@@ -108,7 +109,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded'])
+const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded', 'visualize-rule'])
 
 const { error: showError } = useToast()
 
@@ -191,6 +192,10 @@ const clearAll = () => {
     hasIssues: '',
   }
   currentPage.value = 1
+}
+
+const handleVisualizeRule = (rule) => {
+  emit('visualize-rule', rule)
 }
 
 const hasActiveFilters = computed(() => {
