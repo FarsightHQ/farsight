@@ -143,9 +143,6 @@
             </div>
           </Card>
 
-          <!-- Request Stats -->
-          <RequestStats v-if="rulesStats && Object.keys(rulesStats).length > 0" :stats="rulesStats" />
-
           <!-- Processing Dashboard -->
           <ProcessingDashboard
             v-if="isProcessingPipeline"
@@ -188,7 +185,6 @@ import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import StatusBadge from '@/components/requests/StatusBadge.vue'
-import RequestStats from '@/components/requests/RequestStats.vue'
 import ProcessingDashboard from '@/components/requests/ProcessingDashboard.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
