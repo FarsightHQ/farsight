@@ -82,6 +82,7 @@ const initializeGraph = () => {
     .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collision', d3.forceCollide().radius((d) => (d.size || 15) + 10))
+    .alphaDecay(0.02) // Allow simulation to stop naturally after stabilizing
 
   // Create links
   link = svg
@@ -139,17 +140,16 @@ const initializeGraph = () => {
   })
 }
 
-// Watch for data changes
+// Watch for data changes (shallow watch to avoid infinite loop from position updates)
 watch(
-  () => props.graphData,
+  () => props.graphData?.nodes?.length,
   () => {
-    if (props.graphData && props.graphData.nodes) {
+    if (props.graphData && props.graphData.nodes && props.graphData.nodes.length > 0) {
       nextTick(() => {
         initializeGraph()
       })
     }
-  },
-  { deep: true }
+  }
 )
 
 onMounted(() => {
