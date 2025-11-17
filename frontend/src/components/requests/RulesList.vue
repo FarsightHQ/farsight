@@ -1,14 +1,9 @@
 <template>
   <div class="space-y-6">
-    <!-- Stats -->
-    <RulesStats v-if="stats && Object.keys(stats).length > 0" :stats="stats" />
 
-    <!-- Filters -->
-    <RulesFilter :filters="filters" @update:filters="handleFilterUpdate" />
-
-    <!-- Search and Actions Bar -->
+    <!-- Search -->
     <Card class="p-4">
-      <div class="flex items-center space-x-4 mb-4">
+      <div class="flex items-center space-x-4">
         <div class="flex-1 relative">
           <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
           <input
@@ -24,136 +19,18 @@
           <Button variant="ghost" size="sm" @click="clearSearch">Clear</Button>
         </div>
       </div>
-
-      <!-- View Mode and Export Controls -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-gray-600">View:</span>
-          <div class="flex border border-gray-300 rounded-md overflow-hidden">
-            <button
-              :class="[
-                'px-3 py-1 text-sm font-medium transition-colors',
-                viewMode === 'table'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50',
-              ]"
-              @click="viewMode = 'table'"
-            >
-              Table
-            </button>
-            <button
-              :class="[
-                'px-3 py-1 text-sm font-medium transition-colors border-l border-gray-300',
-                viewMode === 'cards'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50',
-              ]"
-              @click="viewMode = 'cards'"
-            >
-              Cards
-            </button>
-            <button
-              :class="[
-                'px-3 py-1 text-sm font-medium transition-colors border-l border-gray-300',
-                viewMode === 'compact'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50',
-              ]"
-              @click="viewMode = 'compact'"
-            >
-              Compact
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <div v-if="selectedRules.length > 0" class="text-sm text-gray-600 mr-2">
-            {{ selectedRules.length }} selected
-          </div>
-          <div class="relative">
-            <Button variant="outline" size="sm" @click="showExportMenu = !showExportMenu">
-              <ArrowDownTrayIcon class="h-4 w-4 mr-1" />
-              Export
-            </Button>
-            <div
-              v-if="showExportMenu"
-              class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200"
-            >
-              <button
-                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-md"
-                @click="handleExportCSV"
-              >
-                Export to CSV
-              </button>
-              <button
-                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-b-md"
-                @click="handleExportJSON"
-              >
-                Export to JSON
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </Card>
 
-    <!-- Rules Display (Table, Cards, or Compact) -->
-    <Card v-if="viewMode === 'table'">
+    <!-- Rules Table -->
+    <Card>
       <RulesTable
         :rules="paginatedRules"
         :loading="loading"
         :sort-key="sortKey"
         :sort-direction="sortDirection"
-        :selected-rules="selectedRules"
         @sort="handleSort"
         @view-rule="$emit('view-rule', $event)"
-        @select-rule="handleSelectRule"
-        @select-all="handleSelectAll"
       />
-    </Card>
-
-    <div v-else-if="viewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <RuleCard
-        v-for="rule in paginatedRules"
-        :key="rule.id"
-        :rule="rule"
-        :selected="selectedRules.includes(rule.id)"
-        @click="$emit('view-rule', rule)"
-        @select="handleSelectRule(rule.id, $event)"
-      />
-    </div>
-
-    <Card v-else-if="viewMode === 'compact'">
-      <div class="divide-y divide-gray-200">
-        <div
-          v-for="rule in paginatedRules"
-          :key="rule.id"
-          class="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-          @click="$emit('view-rule', rule)"
-        >
-          <div class="flex items-center space-x-4 flex-1">
-            <input
-              type="checkbox"
-              :checked="selectedRules.includes(rule.id)"
-              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              @click.stop
-              @change="handleSelectRule(rule.id, $event.target.checked)"
-            />
-            <span class="text-sm font-medium text-gray-900">#{{ rule.id }}</span>
-            <StatusBadge
-              :status="rule.action === 'allow' ? 'success' : 'error'"
-              :label="rule.action"
-            />
-            <span class="text-sm text-gray-600">
-              {{ formatNetworks(rule.endpoints, 'source') || '—' }} →
-              {{ formatNetworks(rule.endpoints, 'destination') || '—' }}
-            </span>
-          </div>
-          <Button variant="ghost" size="sm" @click.stop="$emit('view-rule', rule)">
-            View
-          </Button>
-        </div>
-      </div>
     </Card>
 
     <!-- Pagination -->
@@ -205,52 +82,52 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
+import { ref, computed, watch, onMounted } from 'vue'
+import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
-import StatusBadge from './StatusBadge.vue'
-import RulesStats from './RulesStats.vue'
-import RulesFilter from './RulesFilter.vue'
 import RulesTable from './RulesTable.vue'
-import RuleCard from './RuleCard.vue'
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
-import { exportRulesToCSV, exportRulesToJSON } from '@/services/export'
 
 const props = defineProps({
   requestId: {
     type: [String, Number],
     required: true,
   },
+  filters: {
+    type: Object,
+    default: () => ({
+      action: '',
+      protocol: '',
+      hasFacts: '',
+      selfFlow: '',
+      anyAny: '',
+    }),
+  },
 })
 
-const emit = defineEmits(['view-rule'])
+const emit = defineEmits(['view-rule', 'stats-updated'])
 
-const { error: showError, success: showSuccess } = useToast()
+const { error: showError } = useToast()
 
 const loading = ref(false)
 const rules = ref([])
 const stats = ref({})
 const searchQuery = ref('')
-const filters = ref({
-  action: '',
-  protocol: '',
-  hasFacts: '',
-  selfFlow: '',
-  anyAny: '',
-  ipRange: '',
-  portRange: '',
+const localFilters = ref({
+  action: props.filters.action || '',
+  protocol: props.filters.protocol || '',
+  hasFacts: props.filters.hasFacts || '',
+  selfFlow: props.filters.selfFlow || '',
+  anyAny: props.filters.anyAny || '',
 })
 const sortKey = ref('id')
 const sortDirection = ref('asc')
 const currentPage = ref(1)
 const pageSize = ref(25)
 const totalRules = ref(0)
-const viewMode = ref('table')
-const selectedRules = ref([])
-const showExportMenu = ref(false)
 
 // Debounce search
 let searchTimeout = null
@@ -266,10 +143,21 @@ const clearSearch = () => {
   currentPage.value = 1
 }
 
-const handleFilterUpdate = (newFilters) => {
-  filters.value = { ...newFilters }
-  currentPage.value = 1
-}
+// Watch props.filters for external updates
+watch(
+  () => props.filters,
+  (newFilters) => {
+    localFilters.value = {
+      action: newFilters.action || '',
+      protocol: newFilters.protocol || '',
+      hasFacts: newFilters.hasFacts || '',
+      selfFlow: newFilters.selfFlow || '',
+      anyAny: newFilters.anyAny || '',
+    }
+    currentPage.value = 1
+  },
+  { deep: true }
+)
 
 const handleSort = (key) => {
   if (sortKey.value === key) {
@@ -286,100 +174,18 @@ const handlePageSizeChange = () => {
 
 const clearAll = () => {
   searchQuery.value = ''
-  filters.value = {
+  localFilters.value = {
     action: '',
     protocol: '',
     hasFacts: '',
     selfFlow: '',
     anyAny: '',
-    ipRange: '',
-    portRange: '',
   }
-  selectedRules.value = []
   currentPage.value = 1
 }
 
-const handleSelectRule = (ruleId, checked) => {
-  if (checked) {
-    if (!selectedRules.value.includes(ruleId)) {
-      selectedRules.value.push(ruleId)
-    }
-  } else {
-    selectedRules.value = selectedRules.value.filter((id) => id !== ruleId)
-  }
-}
-
-const handleSelectAll = (checked) => {
-  if (checked) {
-    selectedRules.value = paginatedRules.value.map((rule) => rule.id)
-  } else {
-    selectedRules.value = []
-  }
-}
-
-const handleExportCSV = () => {
-  try {
-    const rulesToExport = selectedRules.value.length > 0
-      ? filteredRules.value.filter((rule) => selectedRules.value.includes(rule.id))
-      : filteredRules.value
-    
-    if (rulesToExport.length === 0) {
-      showError('No rules to export')
-      return
-    }
-    
-    exportRulesToCSV(rulesToExport, `rules-export-${new Date().toISOString().split('T')[0]}`)
-    showExportMenu.value = false
-    showSuccess(`Exported ${rulesToExport.length} rules to CSV`)
-  } catch (err) {
-    showError(err.message || 'Failed to export rules')
-  }
-}
-
-const handleExportJSON = () => {
-  try {
-    const rulesToExport = selectedRules.value.length > 0
-      ? filteredRules.value.filter((rule) => selectedRules.value.includes(rule.id))
-      : filteredRules.value
-    
-    if (rulesToExport.length === 0) {
-      showError('No rules to export')
-      return
-    }
-    
-    exportRulesToJSON(rulesToExport, `rules-export-${new Date().toISOString().split('T')[0]}`)
-    showExportMenu.value = false
-    showSuccess(`Exported ${rulesToExport.length} rules to JSON`)
-  } catch (err) {
-    showError(err.message || 'Failed to export rules')
-  }
-}
-
-const formatNetworks = (endpoints, type) => {
-  if (!endpoints || !Array.isArray(endpoints)) return ''
-  const networks = endpoints
-    .filter((ep) => ep.endpoint_type === type || ep.type === type)
-    .map((ep) => ep.network_cidr || ep.cidr)
-  return networks.length > 0 ? networks.join(', ') : ''
-}
-
-// Close export menu when clicking outside
-const handleClickOutside = (event) => {
-  if (!event.target.closest('.relative')) {
-    showExportMenu.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some((value) => value !== '') || searchQuery.value !== ''
+  return Object.values(localFilters.value).some((value) => value !== '') || searchQuery.value !== ''
 })
 
 // Filter rules based on search and filters
@@ -403,73 +209,46 @@ const filteredRules = computed(() => {
   }
 
   // Action filter
-  if (filters.value.action) {
-    filtered = filtered.filter((rule) => rule.action === filters.value.action)
+  if (localFilters.value.action) {
+    filtered = filtered.filter((rule) => rule.action === localFilters.value.action)
   }
 
   // Protocol filter
-  if (filters.value.protocol) {
+  if (localFilters.value.protocol) {
     filtered = filtered.filter((rule) =>
-      rule.services?.some((svc) => svc.protocol?.toLowerCase() === filters.value.protocol)
+      rule.services?.some((svc) => svc.protocol?.toLowerCase() === localFilters.value.protocol)
     )
   }
 
   // Has Facts filter
-  if (filters.value.hasFacts === 'yes') {
+  if (localFilters.value.hasFacts === 'yes') {
     filtered = filtered.filter((rule) => rule.facts && Object.keys(rule.facts).length > 0)
-  } else if (filters.value.hasFacts === 'no') {
+  } else if (localFilters.value.hasFacts === 'no') {
     filtered = filtered.filter((rule) => !rule.facts || Object.keys(rule.facts).length === 0)
   }
 
   // Self-Flow filter
-  if (filters.value.selfFlow === 'yes') {
+  if (localFilters.value.selfFlow === 'yes') {
     filtered = filtered.filter((rule) => rule.facts?.is_self_flow === true)
-  } else if (filters.value.selfFlow === 'no') {
+  } else if (localFilters.value.selfFlow === 'no') {
     filtered = filtered.filter((rule) => !rule.facts?.is_self_flow)
   }
 
   // Any/Any filter
-  if (filters.value.anyAny) {
-    if (filters.value.anyAny === 'source') {
+  if (localFilters.value.anyAny) {
+    if (localFilters.value.anyAny === 'source') {
       filtered = filtered.filter((rule) => rule.facts?.src_is_any === true)
-    } else if (filters.value.anyAny === 'destination') {
+    } else if (localFilters.value.anyAny === 'destination') {
       filtered = filtered.filter((rule) => rule.facts?.dst_is_any === true)
-    } else if (filters.value.anyAny === 'both') {
+    } else if (localFilters.value.anyAny === 'both') {
       filtered = filtered.filter(
         (rule) => rule.facts?.src_is_any === true && rule.facts?.dst_is_any === true
       )
-    } else if (filters.value.anyAny === 'none') {
+    } else if (localFilters.value.anyAny === 'none') {
       filtered = filtered.filter(
         (rule) => !rule.facts?.src_is_any && !rule.facts?.dst_is_any
       )
     }
-  }
-
-  // IP Range filter (CIDR matching)
-  if (filters.value.ipRange) {
-    const ipRange = filters.value.ipRange.toLowerCase().trim()
-    filtered = filtered.filter((rule) => {
-      const endpoints = rule.endpoints || []
-      return endpoints.some((ep) => {
-        const cidr = (ep.network_cidr || ep.cidr || '').toLowerCase()
-        // Simple CIDR matching - check if the filter CIDR contains or is contained by rule CIDR
-        // For more precise matching, would need CIDR library
-        return cidr.includes(ipRange) || ipRange.includes(cidr.split('/')[0])
-      })
-    })
-  }
-
-  // Port Range filter
-  if (filters.value.portRange) {
-    const portRange = filters.value.portRange.trim()
-    filtered = filtered.filter((rule) => {
-      const services = rule.services || []
-      return services.some((svc) => {
-        const ports = (svc.port_ranges || svc.ports || '').toString()
-        // Check if port range matches (simple string matching)
-        return ports.includes(portRange)
-      })
-    })
   }
 
   // Sort
@@ -521,6 +300,7 @@ const fetchRules = async () => {
       }
       if (data.summary) {
         stats.value = data.summary
+        emit('stats-updated', data.summary)
       }
       if (data.pagination) {
         totalRules.value = data.pagination.total || rules.value.length

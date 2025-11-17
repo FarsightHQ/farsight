@@ -9,57 +9,23 @@
     </div>
 
     <!-- Request Details -->
-    <div v-else-if="request">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
+    <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 12rem);">
+      <!-- Header with Actions -->
+      <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
         <div>
-          <h1 class="text-2xl font-bold mb-1.5">{{ request.title }}</h1>
+          <h1 class="text-3xl font-bold mb-2">{{ request.title }}</h1>
           <div class="flex items-center space-x-4 text-sm text-gray-600">
             <span>ID: {{ request.id }}</span>
             <StatusBadge :status="request.status" />
             <span v-if="request.external_id">External ID: {{ request.external_id }}</span>
           </div>
         </div>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-2 flex-wrap gap-2">
+          <!-- Action Buttons -->
           <Button
-            variant="outline"
-            class="text-error-600 border-error-300 hover:bg-error-50"
-            @click="handleDeleteClick"
-          >
-            Delete
-          </Button>
-          <Button variant="outline" @click="$router.push('/requests')">
-            Back to List
-          </Button>
-        </div>
-      </div>
-
-      <!-- Quick Stats -->
-      <RequestStats :stats="stats" class="mb-4" />
-
-      <!-- Processing Dashboard -->
-      <ProcessingDashboard
-        v-if="isProcessingPipeline"
-        :steps="pipelineSteps"
-        :can-cancel="false"
-        class="mb-4"
-        @retry="handleRetryStep"
-      />
-      
-      <!-- Polling Status Indicator -->
-      <div v-if="isProcessingPipeline && isPolling" class="mb-3 text-xs text-gray-500 flex items-center space-x-2">
-        <div class="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></div>
-        <span>Live updates active</span>
-        <span v-if="lastUpdated" class="text-gray-400">
-          • Last updated: {{ formatTime(lastUpdated) }}
-        </span>
-      </div>
-
-      <!-- Action Buttons (shown when not processing) -->
-      <Card v-else class="p-4 mb-4">
-        <div class="flex items-center space-x-3">
-          <Button
+            v-if="!isProcessingPipeline"
             variant="primary"
+            size="sm"
             :disabled="processing || request.status !== 'submitted'"
             @click="handleIngest"
           >
@@ -67,7 +33,9 @@
             Process CSV
           </Button>
           <Button
+            v-if="!isProcessingPipeline"
             variant="secondary"
+            size="sm"
             :disabled="processing || request.status !== 'ingested'"
             @click="handleComputeFacts"
           >
@@ -75,7 +43,9 @@
             Compute Facts
           </Button>
           <Button
+            v-if="!isProcessingPipeline"
             variant="secondary"
+            size="sm"
             :disabled="processing || request.status !== 'ingested'"
             @click="handleComputeHybrid"
           >
@@ -83,105 +53,108 @@
             Compute Hybrid Facts
           </Button>
           <Button
-            v-if="request.status === 'submitted'"
+            v-if="!isProcessingPipeline && request.status === 'submitted'"
             variant="outline"
+            size="sm"
             @click="startFullPipeline"
           >
             Run Full Pipeline
           </Button>
+          <!-- Delete and Back Buttons -->
+          <Button
+            variant="outline"
+            size="sm"
+            class="text-error-600 border-error-300 hover:bg-error-50"
+            @click="handleDeleteClick"
+          >
+            Delete
+          </Button>
+          <Button variant="outline" size="sm" @click="$router.push('/requests')">
+            Back to List
+          </Button>
         </div>
-      </Card>
+      </div>
 
-      <!-- Request Metadata -->
-      <Card class="p-4 mb-4">
-        <h2 class="text-sm font-semibold mb-3">Request Information</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          <div>
-            <span class="font-medium text-gray-600">Status:</span>
-            <span class="ml-2">
-              <StatusBadge :status="request.status" />
-            </span>
-          </div>
-          <div>
-            <span class="font-medium text-gray-600">Created:</span>
-            <span class="ml-2">{{ formatDate(request.created_at) }}</span>
-          </div>
-          <div>
-            <span class="font-medium text-gray-600">File Name:</span>
-            <span class="ml-2">{{ request.source_filename }}</span>
-          </div>
-          <div>
-            <span class="font-medium text-gray-600">File Size:</span>
-            <span class="ml-2">{{ formatFileSize(request.source_size_bytes) }}</span>
-          </div>
-          <div>
-            <span class="font-medium text-gray-600">SHA256:</span>
-            <span class="ml-2 font-mono text-xs">{{ request.source_sha256 }}</span>
-          </div>
-          <div>
-            <span class="font-medium text-gray-600">Created By:</span>
-            <span class="ml-2">{{ request.created_by || 'system' }}</span>
-          </div>
-        </div>
-      </Card>
+      <!-- Polling Status Indicator -->
+      <div v-if="isProcessingPipeline && isPolling" class="mb-4 text-xs text-gray-500 flex items-center space-x-2 flex-shrink-0">
+        <div class="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></div>
+        <span>Live updates active</span>
+        <span v-if="lastUpdated" class="text-gray-400">
+          • Last updated: {{ formatTime(lastUpdated) }}
+        </span>
+      </div>
 
-      <!-- Tabs -->
-      <Card class="p-4">
-        <RequestTabs
-          :tabs="tabs"
-          :active-tab="activeTab"
-          @update:activeTab="activeTab = $event"
-        >
-          <template #overview>
-            <div class="space-y-3">
-              <h3 class="text-sm font-semibold">Overview</h3>
-              <p class="text-gray-600 text-sm">
-                Request overview and basic information will be displayed here.
-              </p>
-            </div>
-          </template>
+      <!-- 3-Column Layout -->
+      <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
+        <!-- Left Sidebar: Filters -->
+        <aside class="w-72 flex-shrink-0 overflow-y-auto">
+          <RulesFilter :filters="filters" @update:filters="handleFilterUpdate" />
+        </aside>
 
-          <template #rules>
-            <div class="space-y-3">
+        <!-- Middle Column: Rules List -->
+        <main class="flex-1 overflow-y-auto min-w-0">
+          <RuleDetail
+            v-if="showRuleDetail && selectedRule"
+            :rule="selectedRule"
+            :request-id="request.id"
+            @back="handleBackToRules"
+          />
+          <RulesList
+            v-else
+            :request-id="request.id"
+            :filters="filters"
+            @view-rule="handleViewRule"
+            @stats-updated="handleStatsUpdated"
+          />
+        </main>
+
+        <!-- Right Panel: FAR Analysis -->
+        <aside class="w-96 flex-shrink-0 overflow-y-auto space-y-4">
+          <!-- Request Metadata -->
+          <Card>
+            <h2 class="text-lg font-semibold mb-4">Request Information</h2>
+            <div class="space-y-3 text-sm">
               <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold">Rules</h3>
-                <Button variant="outline" size="sm" @click="$router.push(`/requests/${request.id}/rules`)">
-                  View All Rules
-                </Button>
+                <span class="font-medium text-gray-600">Status:</span>
+                <StatusBadge :status="request.status" />
               </div>
-              <RuleDetail
-                v-if="showRuleDetail && selectedRule"
-                :rule="selectedRule"
-                :request-id="request.id"
-                @back="handleBackToRules"
-              />
-              <RulesList
-                v-else
-                :request-id="request.id"
-                @view-rule="handleViewRule"
-              />
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-600">Created:</span>
+                <span class="text-gray-900">{{ formatDate(request.created_at) }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-600">File Name:</span>
+                <span class="text-gray-900 truncate ml-2" :title="request.source_filename">
+                  {{ request.source_filename }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-600">File Size:</span>
+                <span class="text-gray-900">{{ formatFileSize(request.source_size_bytes) }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-medium text-gray-600 mb-1">SHA256:</span>
+                <span class="font-mono text-xs text-gray-900 break-all">{{ request.source_sha256 }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-600">Created By:</span>
+                <span class="text-gray-900">{{ request.created_by || 'system' }}</span>
+              </div>
             </div>
-          </template>
+          </Card>
 
-          <template #analysis>
-            <div class="space-y-3">
-              <h3 class="text-sm font-semibold">Analysis</h3>
-              <p class="text-gray-600 text-sm">
-                Analysis and reporting will be implemented in Phase 5.
-              </p>
-            </div>
-          </template>
+          <!-- Request Stats -->
+          <RequestStats v-if="rulesStats && Object.keys(rulesStats).length > 0" :stats="rulesStats" />
 
-          <template #visualization>
-            <div class="space-y-3">
-              <h3 class="text-sm font-semibold">Visualization</h3>
-              <p class="text-gray-600 text-sm">
-                Network visualization will be implemented in Phase 6.
-              </p>
-            </div>
-          </template>
-        </RequestTabs>
-      </Card>
+          <!-- Processing Dashboard -->
+          <ProcessingDashboard
+            v-if="isProcessingPipeline"
+            :steps="pipelineSteps"
+            :can-cancel="false"
+            @retry="handleRetryStep"
+          />
+        </aside>
+      </div>
     </div>
 
     <!-- Error State -->
@@ -216,10 +189,10 @@ import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import StatusBadge from '@/components/requests/StatusBadge.vue'
 import RequestStats from '@/components/requests/RequestStats.vue'
-import RequestTabs from '@/components/requests/RequestTabs.vue'
 import ProcessingDashboard from '@/components/requests/ProcessingDashboard.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
+import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
 
 const route = useRoute()
@@ -229,13 +202,20 @@ const { success, error } = useToast()
 const loading = ref(false)
 const processing = ref(false)
 const request = ref(null)
-const activeTab = ref('overview')
 const isProcessingPipeline = ref(false)
 const pipelineSteps = ref([])
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const selectedRule = ref(null)
 const showRuleDetail = ref(false)
+const rulesStats = ref({})
+const filters = ref({
+  action: '',
+  protocol: '',
+  hasFacts: '',
+  selfFlow: '',
+  anyAny: '',
+})
 
 // Use request status polling
 const requestId = computed(() => route.params.id)
@@ -246,19 +226,6 @@ const {
   lastUpdated,
   isPolling,
 } = useRequestStatus(requestId)
-
-const tabs = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'rules', label: 'Rules' },
-  { key: 'analysis', label: 'Analysis' },
-  { key: 'visualization', label: 'Visualization' },
-]
-
-const stats = computed(() => ({
-  totalRules: 0, // Will be populated from API in Phase 4
-  totalEndpoints: 0,
-  totalServices: 0,
-}))
 
 const initializePipelineSteps = () => {
   const now = new Date().toISOString()
@@ -638,13 +605,34 @@ const formatTime = (timestamp) => {
 }
 
 const handleViewRule = async (rule) => {
-  // Navigate to standalone rule detail page
-  router.push(`/rules/${rule.id}`)
+  // If rule already has full details, show it
+  if (rule.endpoints && rule.services) {
+    selectedRule.value = rule
+    showRuleDetail.value = true
+  } else {
+    // Fetch full rule details
+    try {
+      const { rulesService } = await import('@/services/rules')
+      const response = await rulesService.getRule(rule.id)
+      selectedRule.value = response.data || response
+      showRuleDetail.value = true
+    } catch (err) {
+      error(err.message || 'Failed to load rule details')
+    }
+  }
 }
 
 const handleBackToRules = () => {
   showRuleDetail.value = false
   selectedRule.value = null
+}
+
+const handleFilterUpdate = (newFilters) => {
+  filters.value = { ...newFilters }
+}
+
+const handleStatsUpdated = (stats) => {
+  rulesStats.value = stats
 }
 
 onMounted(() => {

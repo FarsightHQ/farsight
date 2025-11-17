@@ -7,7 +7,7 @@
       </Button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div class="space-y-4">
       <!-- Action Filter -->
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-2">Action</label>
@@ -82,33 +82,9 @@
         </select>
       </div>
 
-      <!-- IP Range Filter -->
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-2">IP Range (CIDR)</label>
-        <input
-          v-model="localFilters.ipRange"
-          type="text"
-          placeholder="e.g., 192.168.1.0/24"
-          class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-          @input="updateFilters"
-        />
-      </div>
-
-      <!-- Port Range Filter -->
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-2">Port Range</label>
-        <input
-          v-model="localFilters.portRange"
-          type="text"
-          placeholder="e.g., 80-443 or 8080"
-          class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-          @input="updateFilters"
-        />
-      </div>
-
       <!-- Active Filters Count -->
-      <div class="flex items-end">
-        <div v-if="hasActiveFilters" class="text-xs text-gray-600">
+      <div v-if="hasActiveFilters" class="pt-2 border-t border-gray-200">
+        <div class="text-xs text-gray-600">
           <span class="font-medium">{{ activeFilterCount }}</span> filter(s) active
         </div>
       </div>
@@ -136,8 +112,6 @@ const localFilters = ref({
   hasFacts: props.filters.hasFacts || '',
   selfFlow: props.filters.selfFlow || '',
   anyAny: props.filters.anyAny || '',
-  ipRange: props.filters.ipRange || '',
-  portRange: props.filters.portRange || '',
 })
 
 watch(
@@ -149,8 +123,6 @@ watch(
       hasFacts: newFilters.hasFacts || '',
       selfFlow: newFilters.selfFlow || '',
       anyAny: newFilters.anyAny || '',
-      ipRange: newFilters.ipRange || '',
-      portRange: newFilters.portRange || '',
     }
   },
   { deep: true }
@@ -167,8 +139,6 @@ const clearFilters = () => {
     hasFacts: '',
     selfFlow: '',
     anyAny: '',
-    ipRange: '',
-    portRange: '',
   }
   updateFilters()
 }
