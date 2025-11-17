@@ -23,14 +23,32 @@
 
     <!-- Rules Table -->
     <Card>
+      <div v-if="selectedRules.length > 0" class="p-4 border-b border-gray-200 bg-gray-50">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-700">
+            {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
+          </span>
+          <Button 
+            variant="primary" 
+            @click="handleVisualizeSelected"
+            :disabled="selectedRules.length === 0"
+          >
+            Visualize Selected
+          </Button>
+        </div>
+      </div>
       <RulesTable
         :rules="paginatedRules"
         :loading="loading"
         :sort-key="sortKey"
         :sort-direction="sortDirection"
+        :selected-rules="selectedRules"
         @sort="handleSort"
         @view-rule="$emit('view-rule', $event)"
         @visualize-rule="handleVisualizeRule"
+        @select-rule="handleSelectRule"
+        @select-all="handleSelectAll"
+        @deselect-all="handleDeselectAll"
       />
     </Card>
 
@@ -90,6 +108,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import RulesTable from './RulesTable.vue'
 import { rulesService } from '@/services/rules'
+import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -109,7 +128,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded', 'visualize-rule'])
+const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded', 'visualize-rule', 'visualize-multiple-rules'])
 
 const { error: showError } = useToast()
 
@@ -117,6 +136,7 @@ const loading = ref(false)
 const rules = ref([])
 const stats = ref({})
 const searchQuery = ref('')
+const selectedRules = ref([])
 const localFilters = ref({
   action: props.filters.action || '',
   protocol: props.filters.protocol || '',
@@ -145,6 +165,7 @@ const handleSearch = () => {
 const clearSearch = () => {
   searchQuery.value = ''
   currentPage.value = 1
+  selectedRules.value = [] // Clear selection when search changes
 }
 
 // Watch props.filters for external updates
@@ -162,6 +183,7 @@ watch(
       hasIssues: newFilters.hasIssues || '',
     }
     currentPage.value = 1
+    selectedRules.value = [] // Clear selection when filters change
   },
   { deep: true }
 )
@@ -196,6 +218,123 @@ const clearAll = () => {
 
 const handleVisualizeRule = (rule) => {
   emit('visualize-rule', rule)
+}
+
+const handleSelectRule = (ruleId) => {
+  const index = selectedRules.value.indexOf(ruleId)
+  if (index > -1) {
+    selectedRules.value.splice(index, 1)
+  } else {
+    selectedRules.value.push(ruleId)
+  }
+}
+
+const handleSelectAll = (ruleIds) => {
+  selectedRules.value = [...ruleIds]
+}
+
+const handleDeselectAll = () => {
+  selectedRules.value = []
+}
+
+const mergeGraphData = (responses) => {
+  const allSources = []
+  const allDestinations = []
+  const allConnections = []
+  const sourceMap = new Map() // key: network_cidr
+  const destMap = new Map() // key: network_cidr
+  
+  responses.forEach((response, index) => {
+    const data = response.data?.data || response.data || response
+    const graph = data.graph || data
+    
+    if (!graph.sources || !graph.destinations) return
+    
+    // Merge sources (deduplicate by network_cidr)
+    graph.sources.forEach(src => {
+      if (!sourceMap.has(src.network_cidr)) {
+        sourceMap.set(src.network_cidr, {
+          ...src,
+          id: `src_merged_${sourceMap.size}`
+        })
+        allSources.push(sourceMap.get(src.network_cidr))
+      }
+    })
+    
+    // Merge destinations (deduplicate by network_cidr, merge ports)
+    graph.destinations.forEach(dest => {
+      if (!destMap.has(dest.network_cidr)) {
+        destMap.set(dest.network_cidr, {
+          ...dest,
+          id: `dst_merged_${destMap.size}`,
+          ports: [...(dest.ports || [])]
+        })
+        allDestinations.push(destMap.get(dest.network_cidr))
+      } else {
+        // Merge ports if destination already exists
+        const existing = destMap.get(dest.network_cidr)
+        if (dest.ports) {
+          existing.ports.push(...dest.ports)
+        }
+      }
+    })
+    
+    // Map connections to merged source/dest IDs
+    graph.connections?.forEach(conn => {
+      const source = graph.sources.find(s => s.id === conn.source_id)
+      const dest = graph.destinations.find(d => d.id === conn.destination_id)
+      
+      if (source && dest) {
+        const mergedSource = sourceMap.get(source.network_cidr)
+        const mergedDest = destMap.get(dest.network_cidr)
+        
+        if (mergedSource && mergedDest) {
+          allConnections.push({
+            source_id: mergedSource.id,
+            destination_id: mergedDest.id,
+            port_count: conn.port_count,
+            services: conn.services
+          })
+        }
+      }
+    })
+  })
+  
+  return {
+    sources: allSources,
+    destinations: allDestinations,
+    connections: allConnections,
+    metadata: {
+      rule_count: selectedRules.value.length,
+      source_count: allSources.length,
+      destination_count: allDestinations.length,
+      connection_count: allConnections.length
+    }
+  }
+}
+
+const handleVisualizeSelected = async () => {
+  if (selectedRules.value.length === 0) return
+  
+  try {
+    // Fetch graph data for each selected rule
+    const graphPromises = selectedRules.value.map(ruleId => 
+      requestsService.getRuleGraph(ruleId)
+    )
+    
+    const responses = await Promise.all(graphPromises)
+    
+    // Merge graph data from all selected rules
+    const mergedGraph = mergeGraphData(responses)
+    
+    // Emit event with merged graph data
+    emit('visualize-multiple-rules', {
+      ruleIds: selectedRules.value,
+      graphData: mergedGraph
+    })
+  } catch (err) {
+    showError(err.message || 'Failed to load graph data')
+  }
 }
 
 const hasActiveFilters = computed(() => {

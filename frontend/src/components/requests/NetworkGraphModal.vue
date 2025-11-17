@@ -8,6 +8,10 @@
           <p v-else-if="requestTitle" class="text-sm text-gray-600 mt-1">{{ requestTitle }}</p>
         </div>
         <div v-if="summary" class="flex items-center space-x-6 text-sm">
+          <div v-if="summary.rule_count" class="text-center">
+            <div class="font-semibold text-gray-900">{{ summary.rule_count || 0 }}</div>
+            <div class="text-gray-600">Rules</div>
+          </div>
           <div class="text-center">
             <div class="font-semibold text-gray-900">{{ summary.source_count || 0 }}</div>
             <div class="text-gray-600">Sources</div>
@@ -43,7 +47,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!graphData || !graphData.topology || !graphData.topology.nodes || graphData.topology.nodes.length === 0" class="flex items-center justify-center h-96">
+    <div v-else-if="!graphData || (!graphData.sources || graphData.sources.length === 0) || (!graphData.destinations || graphData.destinations.length === 0)" class="flex items-center justify-center h-96">
       <div class="text-center max-w-md">
         <InformationCircleIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-gray-900 mb-2">No Network Data</h4>
@@ -52,14 +56,14 @@
     </div>
 
     <!-- Graph Visualization -->
-    <div v-else class="h-[calc(100vh-12rem)] min-h-[600px]">
-      <NetworkGraph :graph-data="graphData.topology" />
+    <div v-else class="w-full min-h-[600px]">
+      <NetworkGraph :graph-data="graphData" />
     </div>
 
     <template #footer>
       <div class="flex items-center justify-between w-full">
         <div class="text-xs text-gray-500">
-          <p>Drag nodes to reposition • Click nodes to highlight connections • Use controls to zoom/pan</p>
+          <p>Hover over elements to see details • Port count badges show number of ports per connection</p>
         </div>
         <Button variant="outline" @click="$emit('update:modelValue', false)">Close</Button>
       </div>
@@ -99,6 +103,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  graphData: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -111,6 +119,19 @@ const graphData = ref(null)
 const summary = ref(null)
 
 const fetchTopology = async () => {
+  // If graphData is provided directly, use it
+  if (props.graphData) {
+    graphData.value = props.graphData
+    summary.value = {
+      rule_count: props.graphData.metadata?.rule_count || 0,
+      source_count: props.graphData.metadata?.source_count || 0,
+      destination_count: props.graphData.metadata?.destination_count || 0,
+      service_count: props.graphData.metadata?.service_count || 0,
+    }
+    loading.value = false
+    return
+  }
+
   // Prioritize ruleId over requestId
   const id = props.ruleId || props.requestId
   if (!id) return
@@ -130,16 +151,15 @@ const fetchTopology = async () => {
 
       // Graph data is nested in responseData.graph when include=graph
       if (responseData.graph) {
-        graphData.value = {
-          topology: responseData.graph,
-        }
+        // New flow-style format: sources, destinations, connections
+        graphData.value = responseData.graph
         summary.value = {
-          source_count: responseData.endpoints?.source_count || 0,
-          destination_count: responseData.endpoints?.destination_count || 0,
-          service_count: responseData.service_count || 0,
+          source_count: responseData.graph.metadata?.source_count || responseData.endpoints?.source_count || 0,
+          destination_count: responseData.graph.metadata?.destination_count || responseData.endpoints?.destination_count || 0,
+          service_count: responseData.graph.metadata?.service_count || responseData.service_count || 0,
         }
       } else if (responseData.topology) {
-        // Fallback for request-level topology format
+        // Fallback for request-level topology format (old format)
         graphData.value = responseData
         summary.value = responseData.summary || {
           source_count: responseData.endpoints?.source_count || 0,
@@ -209,6 +229,25 @@ watch(
       fetchTopology()
     }
   }
+)
+
+// Watch for graphData prop changes
+watch(
+  () => props.graphData,
+  (newData) => {
+    if (newData && props.modelValue) {
+      graphData.value = newData
+      summary.value = {
+        rule_count: newData.metadata?.rule_count || 0,
+        source_count: newData.metadata?.source_count || 0,
+        destination_count: newData.metadata?.destination_count || 0,
+        service_count: newData.metadata?.service_count || 0,
+      }
+      loading.value = false
+      error.value = null
+    }
+  },
+  { immediate: true, deep: true }
 )
 </script>
 

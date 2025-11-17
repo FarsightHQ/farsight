@@ -22,6 +22,11 @@ const routes = [
     name: 'RequestDetail',
     component: () => import('../views/RequestDetail.vue'),
   },
+  {
+    path: '/assets',
+    name: 'Assets',
+    component: () => import('../views/AssetsList.vue'),
+  },
 ]
 
 const router = createRouter({

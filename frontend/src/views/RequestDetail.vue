@@ -107,6 +107,7 @@
             @stats-updated="handleStatsUpdated"
             @rules-loaded="handleRulesLoaded"
             @visualize-rule="handleVisualizeRule"
+            @visualize-multiple-rules="handleVisualizeMultipleRules"
           />
         </main>
 
@@ -179,7 +180,8 @@
     <NetworkGraphModal
       v-model="showGraphModal"
       :rule-id="selectedRuleForVisualization?.id"
-      :rule-title="`Rule ${selectedRuleForVisualization?.id}`"
+      :rule-title="selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`"
+      :graph-data="mergedGraphData"
     />
   </div>
 </template>
@@ -215,6 +217,7 @@ const deleting = ref(false)
 const showGraphModal = ref(false)
 const selectedRule = ref(null)
 const selectedRuleForVisualization = ref(null)
+const mergedGraphData = ref(null)
 const showRuleDetail = ref(false)
 const rulesStats = ref({})
 const rulesData = ref([])
@@ -653,6 +656,16 @@ const handleRulesLoaded = (rules) => {
 
 const handleVisualizeRule = (rule) => {
   selectedRuleForVisualization.value = rule
+  mergedGraphData.value = null // Clear merged data for single rule
+  showGraphModal.value = true
+}
+
+const handleVisualizeMultipleRules = (data) => {
+  mergedGraphData.value = data.graphData
+  selectedRuleForVisualization.value = { 
+    id: data.ruleIds.join(', '), 
+    title: `${data.ruleIds.length} Selected Rules` 
+  }
   showGraphModal.value = true
 }
 
