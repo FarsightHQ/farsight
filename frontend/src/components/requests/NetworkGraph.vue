@@ -69,6 +69,8 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
 import { PlusIcon, MinusIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { formatCidrToRange } from '@/utils/ipUtils'
+import { formatPortRanges } from '@/utils/portUtils'
 
 const props = defineProps({
   graphData: {
@@ -94,6 +96,9 @@ let zoom = null
 let transform = d3.zoomIdentity
 let width = 800
 let height = 600
+let link = null
+let node = null
+let label = null
 
 const tooltip = ref({
   visible: false,
@@ -104,12 +109,79 @@ const tooltip = ref({
 
 const legendData = ref([])
 
+// Helper function to truncate text
+const truncateText = (text, maxLength = 20) => {
+  if (!text) return ''
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength - 3) + '...'
+}
+
+// Helper function to format node label
+const formatNodeLabel = (node) => {
+  if (!node.label) return node.id || ''
+  
+  // Format CIDR addresses
+  if (node.type === 'source' || node.type === 'destination') {
+    return truncateText(formatCidrToRange(node.label), 25)
+  }
+  
+  // Format service labels (protocol/port)
+  if (node.type === 'service' && node.label.includes('/')) {
+    const [protocol, ports] = node.label.split('/')
+    const formattedPorts = formatPortRanges(ports)
+    return `${protocol}/${formattedPorts ? truncateText(formattedPorts, 15) : 'any'}`
+  }
+  
+  return truncateText(node.label, 25)
+}
+
+// Initialize node positions
+const initializeNodePositions = (nodes, isRuleGraph = false) => {
+  const centerX = width / 2
+  const centerY = height / 2
+  
+  if (isRuleGraph && nodes.length > 0) {
+    // Find the rule node (should be first or marked as center)
+    const ruleNode = nodes.find(n => n.type === 'rule') || nodes[0]
+    const otherNodes = nodes.filter(n => n.id !== ruleNode.id)
+    
+    // Place rule node at center
+    ruleNode.x = centerX
+    ruleNode.y = centerY
+    ruleNode.fx = centerX
+    ruleNode.fy = centerY
+    
+    // Place other nodes in a circle around the rule
+    const radius = Math.min(width, height) * 0.3
+    const angleStep = (2 * Math.PI) / Math.max(otherNodes.length, 1)
+    
+    otherNodes.forEach((n, i) => {
+      const angle = i * angleStep
+      n.x = centerX + radius * Math.cos(angle)
+      n.y = centerY + radius * Math.sin(angle)
+    })
+  } else {
+    // Random initial positions spread around center
+    nodes.forEach((n) => {
+      const angle = Math.random() * 2 * Math.PI
+      const distance = Math.random() * Math.min(width, height) * 0.3
+      n.x = centerX + distance * Math.cos(angle)
+      n.y = centerY + distance * Math.sin(angle)
+    })
+  }
+}
+
 // Initialize graph
 const initializeGraph = () => {
   if (!svgRef.value || !props.graphData) return
 
   // Clear existing content
   d3.select(svgRef.value).selectAll('*').remove()
+
+  // Stop existing simulation
+  if (simulation) {
+    simulation.stop()
+  }
 
   // Get container dimensions
   const container = containerRef.value
@@ -139,9 +211,16 @@ const initializeGraph = () => {
   svg.call(zoom)
 
   // Prepare data
-  const nodes = props.graphData.nodes || []
+  const nodes = [...(props.graphData.nodes || [])] // Create copy to avoid mutating props
   const links = props.graphData.links || []
   const layoutHints = props.graphData.layout_hints || {}
+  const metadata = props.graphData.metadata || {}
+
+  // Detect if this is a rule graph (has rule node or metadata indicates it)
+  const isRuleGraph = nodes.some(n => n.type === 'rule') || metadata.rule_id
+
+  // Initialize node positions before simulation
+  initializeNodePositions(nodes, isRuleGraph)
 
   // Ensure links have proper structure (D3 will resolve IDs to objects)
   const processedLinks = links.map((link) => ({
@@ -153,6 +232,18 @@ const initializeGraph = () => {
   // Build legend
   buildLegend(layoutHints.groups || {})
 
+  // Calculate optimal force parameters based on graph size
+  const nodeCount = nodes.length
+  const linkCount = processedLinks.length
+  
+  // Adjust charge strength: smaller graphs need less repulsion
+  const baseCharge = layoutHints.force_simulation?.charge || -300
+  const chargeStrength = nodeCount < 10 ? baseCharge * 0.5 : baseCharge
+  
+  // Adjust link distance: more links need more space
+  const baseLinkDistance = layoutHints.force_simulation?.link_distance || 150
+  const linkDistance = nodeCount < 10 ? baseLinkDistance * 1.5 : baseLinkDistance
+
   // Create force simulation
   simulation = d3
     .forceSimulation(nodes)
@@ -161,16 +252,31 @@ const initializeGraph = () => {
       d3
         .forceLink(processedLinks)
         .id((d) => d.id)
-        .distance(layoutHints.force_simulation?.link_distance || 100)
+        .distance(linkDistance)
     )
-    .force('charge', d3.forceManyBody().strength(layoutHints.force_simulation?.charge || -300))
+    .force('charge', d3.forceManyBody().strength(chargeStrength))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius((d) => (d.size || 15) + 5))
+    .force('collision', d3.forceCollide().radius((d) => (d.size || 15) + 10))
+    .alpha(1) // Start with high energy
+    .alphaDecay(0.02) // Slower decay for better convergence
+    .velocityDecay(0.4) // Add friction
 
-  // Create links
-  const link = g
-    .append('g')
-    .attr('class', 'links')
+  // Add radial force for rule graphs to keep nodes around center
+  if (isRuleGraph && nodes.length > 1) {
+    const ruleNode = nodes.find(n => n.type === 'rule')
+    if (ruleNode) {
+      simulation.force('radial', d3.forceRadial(
+        Math.min(width, height) * 0.25,
+        width / 2,
+        height / 2
+      ).strength(0.1))
+    }
+  }
+
+  // Create links (straight lines for now, can be curved if needed)
+  const linkGroup = g.append('g').attr('class', 'links')
+  
+  link = linkGroup
     .selectAll('line')
     .data(processedLinks)
     .enter()
@@ -180,9 +286,9 @@ const initializeGraph = () => {
     .attr('stroke-width', 2)
 
   // Create nodes
-  const node = g
-    .append('g')
-    .attr('class', 'nodes')
+  const nodeGroup = g.append('g').attr('class', 'nodes')
+  
+  node = nodeGroup
     .selectAll('circle')
     .data(nodes)
     .enter()
@@ -197,33 +303,109 @@ const initializeGraph = () => {
     .on('mouseout', handleMouseOut)
     .on('click', handleNodeClick)
 
-  // Add labels
-  const label = g
-    .append('g')
-    .attr('class', 'labels')
-    .selectAll('text')
+  // Add labels with background for readability
+  const labelGroup = g.append('g').attr('class', 'labels')
+  
+  // Create label groups (text + background)
+  const labelGroups = labelGroup
+    .selectAll('g')
     .data(nodes)
     .enter()
+    .append('g')
+    .attr('class', 'label-group')
+
+  // Create background rectangles for labels
+  const labelBg = labelGroups
+    .append('rect')
+    .attr('fill', 'white')
+    .attr('fill-opacity', 0.85)
+    .attr('stroke', '#ddd')
+    .attr('stroke-width', 1)
+    .attr('rx', 3)
+    .attr('ry', 3)
+    .style('pointer-events', 'none')
+
+  // Create label text
+  label = labelGroups
     .append('text')
-    .text((d) => d.label || d.id)
-    .attr('font-size', '12px')
+    .text((d) => formatNodeLabel(d))
+    .attr('font-size', '11px')
     .attr('fill', '#333')
     .attr('text-anchor', 'middle')
-    .attr('dy', (d) => (d.size || 15) + 18)
+    .attr('dy', '0.35em')
     .style('pointer-events', 'none')
     .style('user-select', 'none')
+    .style('font-weight', '500')
+
+  // Update label backgrounds to fit text
+  label.each(function(d, i) {
+    // Use setTimeout to ensure text is rendered before measuring
+    setTimeout(() => {
+      const bbox = this.getBBox()
+      const bgNode = d3.select(labelBg.nodes()[i])
+      
+      if (bbox.width > 0 && bbox.height > 0) {
+        bgNode
+          .attr('x', bbox.x - 4)
+          .attr('y', bbox.y - 2)
+          .attr('width', bbox.width + 8)
+          .attr('height', bbox.height + 4)
+      }
+    }, 0)
+  })
 
   // Update positions on simulation tick
   simulation.on('tick', () => {
+    // Update links
     link
       .attr('x1', (d) => d.source.x)
       .attr('y1', (d) => d.source.y)
       .attr('x2', (d) => d.target.x)
       .attr('y2', (d) => d.target.y)
 
+    // Update nodes
     node.attr('cx', (d) => d.x).attr('cy', (d) => d.y)
 
-    label.attr('x', (d) => d.x).attr('y', (d) => d.y)
+    // Update label groups (text and background move together)
+    labelGroups.each(function(d) {
+      const labelY = d.y + (d.size || 15) + 18
+      d3.select(this).attr('transform', `translate(${d.x},${labelY})`)
+      
+      // Update background size based on text bounding box
+      const textNode = d3.select(this).select('text').node()
+      const bgNode = d3.select(this).select('rect')
+      
+      if (textNode) {
+        const bbox = textNode.getBBox()
+        if (bbox.width > 0 && bbox.height > 0) {
+          bgNode
+            .attr('x', bbox.x - 4)
+            .attr('y', bbox.y - 2)
+            .attr('width', bbox.width + 8)
+            .attr('height', bbox.height + 4)
+        }
+      }
+    })
+  })
+
+  // Ensure nodes stay within bounds
+  simulation.on('end', () => {
+    // Release fixed positions for rule node after initial layout
+    if (isRuleGraph) {
+      const ruleNode = nodes.find(n => n.type === 'rule')
+      if (ruleNode && ruleNode.fx !== undefined) {
+        // Keep rule node fixed for a bit, then release
+        setTimeout(() => {
+          if (ruleNode) {
+            ruleNode.fx = null
+            ruleNode.fy = null
+            if (simulation) {
+              simulation.alpha(0.3).restart()
+            }
+          }
+        }, 1000)
+      }
+    }
   })
 }
 
@@ -339,8 +521,11 @@ const zoomOut = () => {
 const resetView = () => {
   if (svg && zoom) {
     svg.transition().call(zoom.transform, d3.zoomIdentity)
-    // Reset node positions
+    // Reset node positions and restart simulation
     if (simulation) {
+      const nodes = simulation.nodes()
+      const isRuleGraph = nodes.some(n => n.type === 'rule')
+      initializeNodePositions(nodes, isRuleGraph)
       simulation.alpha(1).restart()
     }
   }
