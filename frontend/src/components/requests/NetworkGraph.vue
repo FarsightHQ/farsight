@@ -51,6 +51,9 @@ const tooltip = ref({
   text: '',
 })
 
+// Selection state
+const selectedIP = ref(null)
+
 // Constants
 const RECT_WIDTH = 120
 const RECT_HEIGHT = 40
@@ -63,6 +66,9 @@ const VERTICAL_SPACING = 80
 // Initialize graph
 const initializeGraph = () => {
   if (!svgRef.value || !props.graphData) return
+
+  // Reset selection when graph is reinitialized
+  selectedIP.value = null
 
   // Clear existing content - remove all SVG elements including any lingering port circles
   const svgSelection = d3.select(svgRef.value)
@@ -95,6 +101,13 @@ const initializeGraph = () => {
     .select(svgRef.value)
     .attr('width', width)
     .attr('height', height)
+    .on('click', (event) => {
+      // Clear selection when clicking blank SVG area
+      if (event.target === svgRef.value || event.target.tagName === 'svg') {
+        selectedIP.value = null
+        updateHighlighting()
+      }
+    })
 
   // Calculate positions
   const leftX = width * LEFT_X
@@ -152,6 +165,9 @@ const initializeGraph = () => {
     .data(connections)
     .enter()
     .append('path')
+    .attr('class', 'connection')
+    .attr('data-source-id', (d) => d.source_id)
+    .attr('data-destination-id', (d) => d.destination_id)
     .attr('d', (d) => {
       // Create curved path
       const midX = (d.x1 + d.x2) / 2
@@ -174,6 +190,7 @@ const initializeGraph = () => {
     .enter()
     .append('rect')
     .attr('class', 'source')
+    .attr('data-id', (d) => d.id)
     .attr('x', (d) => d.x)
     .attr('y', (d) => d.y)
     .attr('width', (d) => d.width)
@@ -183,6 +200,12 @@ const initializeGraph = () => {
     .attr('stroke-width', 2)
     .attr('rx', 4)
     .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      // Toggle selection: if same IP clicked, deselect; otherwise select new IP
+      selectedIP.value = selectedIP.value === d.id ? null : d.id
+      updateHighlighting()
+    })
     .on('mouseover', (event, d) => showTooltip(event, d.tooltip || d.formatted_label))
     .on('mouseout', hideTooltip)
 
@@ -193,6 +216,7 @@ const initializeGraph = () => {
     .enter()
     .append('rect')
     .attr('class', 'destination')
+    .attr('data-id', (d) => d.id)
     .attr('x', (d) => d.x)
     .attr('y', (d) => d.y)
     .attr('width', (d) => d.width)
@@ -202,6 +226,12 @@ const initializeGraph = () => {
     .attr('stroke-width', 2)
     .attr('rx', 4)
     .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      // Toggle selection: if same IP clicked, deselect; otherwise select new IP
+      selectedIP.value = selectedIP.value === d.id ? null : d.id
+      updateHighlighting()
+    })
     .on('mouseover', (event, d) => showTooltip(event, d.tooltip || d.formatted_label))
     .on('mouseout', hideTooltip)
 
@@ -246,6 +276,7 @@ const initializeGraph = () => {
     .enter()
     .append('text')
     .attr('class', 'source-label')
+    .attr('data-id', (d) => d.id)
     .attr('x', (d) => d.x + d.width / 2)
     .attr('y', (d) => d.y + d.height / 2)
     .attr('dy', '0.35em')
@@ -263,6 +294,7 @@ const initializeGraph = () => {
     .enter()
     .append('text')
     .attr('class', 'destination-label')
+    .attr('data-id', (d) => d.id)
     .attr('x', (d) => d.x + d.width / 2)
     .attr('y', (d) => d.y + d.height / 2)
     .attr('dy', '0.35em')
@@ -272,6 +304,145 @@ const initializeGraph = () => {
     .attr('font-weight', '500')
     .text((d) => d.formatted_label || d.label)
     .style('pointer-events', 'none')
+
+  // Initial highlighting update
+  updateHighlighting()
+}
+
+// Update highlighting based on selected IP
+const updateHighlighting = () => {
+  if (!svg || !props.graphData) return
+
+  const selectedId = selectedIP.value
+  const sources = props.graphData.sources || []
+  const destinations = props.graphData.destinations || []
+  const connections = props.graphData.connections || []
+
+  // Find all connected IP IDs
+  let connectedIPIds = new Set()
+  if (selectedId) {
+    // Find all connections involving the selected IP
+    connections.forEach(conn => {
+      if (conn.source_id === selectedId) {
+        // Selected is a source, highlight connected destinations
+        connectedIPIds.add(conn.destination_id)
+      } else if (conn.destination_id === selectedId) {
+        // Selected is a destination, highlight connected sources
+        connectedIPIds.add(conn.source_id)
+      }
+    })
+    // Also include the selected IP itself
+    connectedIPIds.add(selectedId)
+  }
+
+  // Update source rectangles
+  svg
+    .selectAll('rect.source')
+    .each(function (d) {
+      const rect = d3.select(this)
+      const isSelected = d.id === selectedId
+      const isConnected = connectedIPIds.has(d.id)
+      
+      if (isSelected || isConnected) {
+        rect
+          .attr('opacity', 1)
+          .attr('stroke-width', 4)
+          .attr('stroke', '#ffd700') // Gold border for selected/connected
+      } else if (selectedId) {
+        rect.attr('opacity', 0.3)
+        rect.attr('stroke-width', 2)
+        rect.attr('stroke', '#fff')
+      } else {
+        rect.attr('opacity', 1)
+        rect.attr('stroke-width', 2)
+        rect.attr('stroke', '#fff')
+      }
+    })
+
+  // Update destination rectangles
+  svg
+    .selectAll('rect.destination')
+    .each(function (d) {
+      const rect = d3.select(this)
+      const isSelected = d.id === selectedId
+      const isConnected = connectedIPIds.has(d.id)
+      
+      if (isSelected || isConnected) {
+        rect
+          .attr('opacity', 1)
+          .attr('stroke-width', 4)
+          .attr('stroke', '#ffd700') // Gold border for selected/connected
+      } else if (selectedId) {
+        rect.attr('opacity', 0.3)
+        rect.attr('stroke-width', 2)
+        rect.attr('stroke', '#fff')
+      } else {
+        rect.attr('opacity', 1)
+        rect.attr('stroke-width', 2)
+        rect.attr('stroke', '#fff')
+      }
+    })
+
+  // Update connection lines
+  svg
+    .selectAll('path.connection')
+    .each(function (d) {
+      const path = d3.select(this)
+      const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
+      
+      if (isRelated) {
+        path
+          .attr('stroke-opacity', 1)
+          .attr('stroke-width', 3)
+          .attr('stroke', '#666')
+      } else if (selectedId) {
+        path
+          .attr('stroke-opacity', 0.2)
+          .attr('stroke-width', 2)
+          .attr('stroke', '#999')
+      } else {
+        path
+          .attr('stroke-opacity', 0.6)
+          .attr('stroke-width', 2)
+          .attr('stroke', '#999')
+      }
+    })
+
+  // Update port count badges
+  svg
+    .selectAll('g.badge')
+    .each(function (d) {
+      const badge = d3.select(this)
+      const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
+      
+      if (isRelated) {
+        badge.select('circle').attr('opacity', 1)
+        badge.select('text').attr('opacity', 1)
+      } else if (selectedId) {
+        badge.select('circle').attr('opacity', 0.2)
+        badge.select('text').attr('opacity', 0.2)
+      } else {
+        badge.select('circle').attr('opacity', 1)
+        badge.select('text').attr('opacity', 1)
+      }
+    })
+
+  // Update labels to match their rectangles
+  svg
+    .selectAll('text.source-label, text.destination-label')
+    .each(function (d) {
+      const label = d3.select(this)
+      const isSelected = d.id === selectedId
+      const isConnected = connectedIPIds.has(d.id)
+      
+      if (isSelected || isConnected) {
+        label.attr('opacity', 1)
+      } else if (selectedId) {
+        label.attr('opacity', 0.3)
+      } else {
+        label.attr('opacity', 1)
+      }
+    })
 }
 
 // Tooltip functions
@@ -320,11 +491,12 @@ onUnmounted(() => {
 .links path {
   stroke: #999;
   stroke-opacity: 0.6;
+  transition: stroke-opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
 }
 
 .rectangles rect {
   cursor: pointer;
-  transition: stroke-width 0.2s;
+  transition: opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
 }
 
 .rectangles rect:hover {
@@ -333,11 +505,17 @@ onUnmounted(() => {
 
 .badges circle {
   cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.badges text {
+  transition: opacity 0.3s ease;
 }
 
 .labels text {
   font-family: system-ui, -apple-system, sans-serif;
   pointer-events: none;
   user-select: none;
+  transition: opacity 0.3s ease;
 }
 </style>
