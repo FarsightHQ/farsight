@@ -8,6 +8,10 @@
           <p v-else-if="requestTitle" class="text-sm text-gray-600 mt-1">{{ requestTitle }}</p>
         </div>
         <div v-if="summary" class="flex items-center space-x-6 text-sm">
+          <div v-if="summary.rule_count" class="text-center">
+            <div class="font-semibold text-gray-900">{{ summary.rule_count || 0 }}</div>
+            <div class="text-gray-600">Rules</div>
+          </div>
           <div class="text-center">
             <div class="font-semibold text-gray-900">{{ summary.source_count || 0 }}</div>
             <div class="text-gray-600">Sources</div>
@@ -99,6 +103,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  graphData: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -111,6 +119,19 @@ const graphData = ref(null)
 const summary = ref(null)
 
 const fetchTopology = async () => {
+  // If graphData is provided directly, use it
+  if (props.graphData) {
+    graphData.value = props.graphData
+    summary.value = {
+      rule_count: props.graphData.metadata?.rule_count || 0,
+      source_count: props.graphData.metadata?.source_count || 0,
+      destination_count: props.graphData.metadata?.destination_count || 0,
+      service_count: props.graphData.metadata?.service_count || 0,
+    }
+    loading.value = false
+    return
+  }
+
   // Prioritize ruleId over requestId
   const id = props.ruleId || props.requestId
   if (!id) return
@@ -208,6 +229,25 @@ watch(
       fetchTopology()
     }
   }
+)
+
+// Watch for graphData prop changes
+watch(
+  () => props.graphData,
+  (newData) => {
+    if (newData && props.modelValue) {
+      graphData.value = newData
+      summary.value = {
+        rule_count: newData.metadata?.rule_count || 0,
+        source_count: newData.metadata?.source_count || 0,
+        destination_count: newData.metadata?.destination_count || 0,
+        service_count: newData.metadata?.service_count || 0,
+      }
+      loading.value = false
+      error.value = null
+    }
+  },
+  { immediate: true, deep: true }
 )
 </script>
 
