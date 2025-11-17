@@ -96,10 +96,10 @@
           <div class="flex items-center justify-between">
             <div>
               <span class="text-sm font-medium text-gray-700 uppercase">{{ service.protocol }}</span>
-              <span class="text-sm text-gray-600 ml-2">{{ service.port_ranges || service.ports }}</span>
+              <span class="text-sm text-gray-600 ml-2">{{ formatPortRanges(service.port_ranges || service.ports) }}</span>
             </div>
             <button
-              @click="copyToClipboard(`${service.protocol}:${service.port_ranges || service.ports}`)"
+              @click="copyToClipboard(`${service.protocol}:${formatPortRanges(service.port_ranges || service.ports)}`)"
               class="text-gray-400 hover:text-gray-600"
               title="Copy to clipboard"
             >
@@ -164,6 +164,7 @@ import StatusBadge from './StatusBadge.vue'
 import RuleFacts from './RuleFacts.vue'
 import { useToast } from '@/composables/useToast'
 import { formatCidrToRange } from '@/utils/ipUtils'
+import { formatPortRanges } from '@/utils/portUtils'
 
 const props = defineProps({
   rule: {

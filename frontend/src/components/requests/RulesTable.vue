@@ -157,6 +157,7 @@ import Button from '@/components/ui/Button.vue'
 import StatusBadge from './StatusBadge.vue'
 import RuleFactsIndicator from './RuleFactsIndicator.vue'
 import { formatCidrToRange } from '@/utils/ipUtils'
+import { formatPortRanges } from '@/utils/portUtils'
 
 const props = defineProps({
   rules: {
@@ -210,7 +211,8 @@ const formatServices = (services) => {
     .map((svc) => {
       const protocol = (svc.protocol || '').toUpperCase()
       const ports = svc.port_ranges || svc.ports || ''
-      return ports ? `${protocol}: ${ports}` : protocol
+      const formattedPorts = formatPortRanges(ports)
+      return formattedPorts ? `${protocol}: ${formattedPorts}` : protocol
     })
     .join(', ')
 }
