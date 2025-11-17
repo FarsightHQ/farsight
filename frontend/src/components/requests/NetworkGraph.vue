@@ -1,76 +1,12 @@
 <template>
-  <div ref="containerRef" class="relative w-full h-full bg-gray-50 rounded-lg overflow-hidden">
-    <!-- SVG Container -->
+  <div ref="containerRef" class="w-full h-full bg-gray-50">
     <svg ref="svgRef" class="w-full h-full"></svg>
-
-    <!-- Tooltip -->
-    <div
-      v-if="tooltip.visible"
-      ref="tooltipRef"
-      class="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded px-3 py-2 shadow-lg max-w-xs"
-      :style="{
-        left: tooltip.x + 'px',
-        top: tooltip.y + 'px',
-        transform: 'translate(-50%, -100%)',
-      }"
-    >
-      <div class="whitespace-pre-line">{{ tooltip.text }}</div>
-    </div>
-
-    <!-- Controls -->
-    <div class="absolute top-4 right-4 flex flex-col gap-2 z-10">
-      <button
-        @click="zoomIn"
-        class="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 border border-gray-200"
-        title="Zoom In"
-      >
-        <PlusIcon class="h-5 w-5 text-gray-600" />
-      </button>
-      <button
-        @click="zoomOut"
-        class="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 border border-gray-200"
-        title="Zoom Out"
-      >
-        <MinusIcon class="h-5 w-5 text-gray-600" />
-      </button>
-      <button
-        @click="resetView"
-        class="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 border border-gray-200"
-        title="Reset View"
-      >
-        <ArrowPathIcon class="h-5 w-5 text-gray-600" />
-      </button>
-    </div>
-
-    <!-- Legend -->
-    <div
-      v-if="legendData.length > 0"
-      class="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-4 border border-gray-200 z-10"
-    >
-      <h4 class="text-xs font-semibold text-gray-700 mb-2">Node Types</h4>
-      <div class="space-y-1">
-        <div
-          v-for="item in legendData"
-          :key="item.type"
-          class="flex items-center space-x-2 text-xs"
-        >
-          <div
-            class="w-4 h-4 rounded-full"
-            :style="{ backgroundColor: item.color }"
-          ></div>
-          <span class="text-gray-600 capitalize">{{ item.label }}</span>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
-import { PlusIcon, MinusIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
-import { formatCidrToRange } from '@/utils/ipUtils'
-import { formatPortRanges } from '@/utils/portUtils'
 
 const props = defineProps({
   graphData: {
@@ -87,89 +23,15 @@ const props = defineProps({
 
 const containerRef = ref(null)
 const svgRef = ref(null)
-const tooltipRef = ref(null)
 
 let simulation = null
 let svg = null
-let g = null
-let zoom = null
-let transform = d3.zoomIdentity
 let width = 800
 let height = 600
 let link = null
 let node = null
 let label = null
 
-const tooltip = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  text: '',
-})
-
-const legendData = ref([])
-
-// Helper function to truncate text
-const truncateText = (text, maxLength = 20) => {
-  if (!text) return ''
-  if (text.length <= maxLength) return text
-  return text.substring(0, maxLength - 3) + '...'
-}
-
-// Helper function to format node label
-const formatNodeLabel = (node) => {
-  if (!node.label) return node.id || ''
-  
-  // Format CIDR addresses
-  if (node.type === 'source' || node.type === 'destination') {
-    return truncateText(formatCidrToRange(node.label), 25)
-  }
-  
-  // Format service labels (protocol/port)
-  if (node.type === 'service' && node.label.includes('/')) {
-    const [protocol, ports] = node.label.split('/')
-    const formattedPorts = formatPortRanges(ports)
-    return `${protocol}/${formattedPorts ? truncateText(formattedPorts, 15) : 'any'}`
-  }
-  
-  return truncateText(node.label, 25)
-}
-
-// Initialize node positions
-const initializeNodePositions = (nodes, isRuleGraph = false) => {
-  const centerX = width / 2
-  const centerY = height / 2
-  
-  if (isRuleGraph && nodes.length > 0) {
-    // Find the rule node (should be first or marked as center)
-    const ruleNode = nodes.find(n => n.type === 'rule') || nodes[0]
-    const otherNodes = nodes.filter(n => n.id !== ruleNode.id)
-    
-    // Place rule node at center
-    ruleNode.x = centerX
-    ruleNode.y = centerY
-    ruleNode.fx = centerX
-    ruleNode.fy = centerY
-    
-    // Place other nodes in a circle around the rule
-    const radius = Math.min(width, height) * 0.3
-    const angleStep = (2 * Math.PI) / Math.max(otherNodes.length, 1)
-    
-    otherNodes.forEach((n, i) => {
-      const angle = i * angleStep
-      n.x = centerX + radius * Math.cos(angle)
-      n.y = centerY + radius * Math.sin(angle)
-    })
-  } else {
-    // Random initial positions spread around center
-    nodes.forEach((n) => {
-      const angle = Math.random() * 2 * Math.PI
-      const distance = Math.random() * Math.min(width, height) * 0.3
-      n.x = centerX + distance * Math.cos(angle)
-      n.y = centerY + distance * Math.sin(angle)
-    })
-  }
-}
 
 // Initialize graph
 const initializeGraph = () => {
@@ -196,31 +58,15 @@ const initializeGraph = () => {
     .attr('width', width)
     .attr('height', height)
 
-  // Create main group for zoom/pan
-  g = svg.append('g')
-
-  // Set up zoom behavior
-  zoom = d3
-    .zoom()
-    .scaleExtent([0.1, 4])
-    .on('zoom', (event) => {
-      transform = event.transform
-      g.attr('transform', event.transform)
-    })
-
-  svg.call(zoom)
-
   // Prepare data
   const nodes = [...(props.graphData.nodes || [])] // Create copy to avoid mutating props
   const links = props.graphData.links || []
-  const layoutHints = props.graphData.layout_hints || {}
-  const metadata = props.graphData.metadata || {}
 
-  // Detect if this is a rule graph (has rule node or metadata indicates it)
-  const isRuleGraph = nodes.some(n => n.type === 'rule') || metadata.rule_id
-
-  // Initialize node positions before simulation
-  initializeNodePositions(nodes, isRuleGraph)
+  // Simple random initial positioning
+  nodes.forEach((n) => {
+    n.x = width / 2 + (Math.random() - 0.5) * 200
+    n.y = height / 2 + (Math.random() - 0.5) * 200
+  })
 
   // Ensure links have proper structure (D3 will resolve IDs to objects)
   const processedLinks = links.map((link) => ({
@@ -229,54 +75,18 @@ const initializeGraph = () => {
     ...link,
   }))
 
-  // Build legend
-  buildLegend(layoutHints.groups || {})
-
-  // Calculate optimal force parameters based on graph size
-  const nodeCount = nodes.length
-  const linkCount = processedLinks.length
-  
-  // Adjust charge strength: smaller graphs need less repulsion
-  const baseCharge = layoutHints.force_simulation?.charge || -300
-  const chargeStrength = nodeCount < 10 ? baseCharge * 0.5 : baseCharge
-  
-  // Adjust link distance: more links need more space
-  const baseLinkDistance = layoutHints.force_simulation?.link_distance || 150
-  const linkDistance = nodeCount < 10 ? baseLinkDistance * 1.5 : baseLinkDistance
-
   // Create force simulation
   simulation = d3
     .forceSimulation(nodes)
-    .force(
-      'link',
-      d3
-        .forceLink(processedLinks)
-        .id((d) => d.id)
-        .distance(linkDistance)
-    )
-    .force('charge', d3.forceManyBody().strength(chargeStrength))
+    .force('link', d3.forceLink(processedLinks).id((d) => d.id).distance(150))
+    .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collision', d3.forceCollide().radius((d) => (d.size || 15) + 10))
-    .alpha(1) // Start with high energy
-    .alphaDecay(0.02) // Slower decay for better convergence
-    .velocityDecay(0.4) // Add friction
 
-  // Add radial force for rule graphs to keep nodes around center
-  if (isRuleGraph && nodes.length > 1) {
-    const ruleNode = nodes.find(n => n.type === 'rule')
-    if (ruleNode) {
-      simulation.force('radial', d3.forceRadial(
-        Math.min(width, height) * 0.25,
-        width / 2,
-        height / 2
-      ).strength(0.1))
-    }
-  }
-
-  // Create links (straight lines for now, can be curved if needed)
-  const linkGroup = g.append('g').attr('class', 'links')
-  
-  link = linkGroup
+  // Create links
+  link = svg
+    .append('g')
+    .attr('class', 'links')
     .selectAll('line')
     .data(processedLinks)
     .enter()
@@ -286,9 +96,9 @@ const initializeGraph = () => {
     .attr('stroke-width', 2)
 
   // Create nodes
-  const nodeGroup = g.append('g').attr('class', 'nodes')
-  
-  node = nodeGroup
+  node = svg
+    .append('g')
+    .attr('class', 'nodes')
     .selectAll('circle')
     .data(nodes)
     .enter()
@@ -297,71 +107,23 @@ const initializeGraph = () => {
     .attr('fill', (d) => d.color || '#4ecdc4')
     .attr('stroke', '#fff')
     .attr('stroke-width', 2)
-    .style('cursor', 'pointer')
-    .call(drag(simulation))
-    .on('mouseover', handleMouseOver)
-    .on('mouseout', handleMouseOut)
-    .on('click', handleNodeClick)
 
-  // Add labels with background for readability
-  const labelGroup = g.append('g').attr('class', 'labels')
-  
-  // Create label groups (text + background)
-  const labelGroups = labelGroup
-    .selectAll('g')
+  // Create labels
+  label = svg
+    .append('g')
+    .attr('class', 'labels')
+    .selectAll('text')
     .data(nodes)
     .enter()
-    .append('g')
-    .attr('class', 'label-group')
-
-  // Create background rectangles for labels
-  const labelBg = labelGroups
-    .append('rect')
-    .attr('fill', 'white')
-    .attr('fill-opacity', 0.85)
-    .attr('stroke', '#ddd')
-    .attr('stroke-width', 1)
-    .attr('rx', 3)
-    .attr('ry', 3)
-    .style('pointer-events', 'none')
-
-  // Create label text
-  label = labelGroups
     .append('text')
-    .text((d) => formatNodeLabel(d))
+    .text((d) => d.label || d.id)
     .attr('font-size', '11px')
     .attr('fill', '#333')
     .attr('text-anchor', 'middle')
-    .attr('dy', '0.35em')
     .style('pointer-events', 'none')
-    .style('user-select', 'none')
-    .style('font-weight', '500')
-
-  // Update label backgrounds to fit text
-  label.each(function(d, i) {
-    // Use setTimeout to ensure text is rendered before measuring
-    setTimeout(() => {
-      const bbox = this.getBBox()
-      const bgNode = d3.select(labelBg.nodes()[i])
-      
-      if (bbox.width > 0 && bbox.height > 0) {
-        bgNode
-          .attr('x', bbox.x - 4)
-          .attr('y', bbox.y - 2)
-          .attr('width', bbox.width + 8)
-          .attr('height', bbox.height + 4)
-      }
-    }, 0)
-  })
-
-  // Track if fitToView has been called (shared between tick and end handlers)
-  let fitToViewCalled = false
-  let tickCount = 0
 
   // Update positions on simulation tick
   simulation.on('tick', () => {
-    tickCount++
-
     // Update links
     link
       .attr('x1', (d) => d.source.x)
@@ -372,265 +134,9 @@ const initializeGraph = () => {
     // Update nodes
     node.attr('cx', (d) => d.x).attr('cy', (d) => d.y)
 
-    // Update label groups (text and background move together)
-    labelGroups.each(function(d) {
-      const labelY = d.y + (d.size || 15) + 18
-      d3.select(this).attr('transform', `translate(${d.x},${labelY})`)
-      
-      // Update background size based on text bounding box
-      const textNode = d3.select(this).select('text').node()
-      const bgNode = d3.select(this).select('rect')
-      
-      if (textNode) {
-        const bbox = textNode.getBBox()
-        if (bbox.width > 0 && bbox.height > 0) {
-          bgNode
-            .attr('x', bbox.x - 4)
-            .attr('y', bbox.y - 2)
-            .attr('width', bbox.width + 8)
-            .attr('height', bbox.height + 4)
-        }
-      }
-    })
-
-    // Fit to view after initial ticks if not already called
-    if (!fitToViewCalled && tickCount === 50) {
-      fitToViewCalled = true
-      nextTick(() => {
-        fitToView()
-      })
-    }
+    // Update labels
+    label.attr('x', (d) => d.x).attr('y', (d) => d.y + (d.size || 15) + 18)
   })
-
-  // Ensure nodes stay within bounds and fit to view
-  simulation.on('end', () => {
-    // Fit to view on first end (initial layout complete)
-    if (!fitToViewCalled) {
-      fitToViewCalled = true
-      // Use nextTick to ensure DOM is updated
-      nextTick(() => {
-        fitToView()
-      })
-    }
-
-    // Release fixed positions for rule node after initial layout
-    if (isRuleGraph) {
-      const ruleNode = nodes.find((n) => n.type === 'rule')
-      if (ruleNode && ruleNode.fx !== undefined) {
-        // Keep rule node fixed for a bit, then release
-        setTimeout(() => {
-          if (ruleNode) {
-            ruleNode.fx = null
-            ruleNode.fy = null
-            if (simulation) {
-              simulation.alpha(0.3).restart()
-            }
-          }
-        }, 1000)
-      }
-    }
-  })
-}
-
-// Drag behavior
-const drag = (simulation) => {
-  const dragstarted = (event, d) => {
-    if (!event.active) simulation.alphaTarget(0.3).restart()
-    d.fx = d.x
-    d.fy = d.y
-  }
-
-  const dragged = (event, d) => {
-    d.fx = event.x
-    d.fy = event.y
-  }
-
-  const dragended = (event, d) => {
-    if (!event.active) simulation.alphaTarget(0)
-    d.fx = null
-    d.fy = null
-  }
-
-  return d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended)
-}
-
-// Mouse event handlers
-const handleMouseOver = (event, d) => {
-  if (containerRef.value) {
-    const rect = containerRef.value.getBoundingClientRect()
-    tooltip.value = {
-      visible: true,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-      text: d.tooltip || d.label || d.id,
-    }
-  }
-}
-
-const handleMouseOut = () => {
-  tooltip.value.visible = false
-}
-
-const handleNodeClick = (event, d) => {
-  // Highlight connected nodes
-  if (svg && g) {
-    const connectedNodeIds = new Set([d.id])
-    const connectedLinks = []
-
-    props.graphData.links?.forEach((link) => {
-      const sourceId = typeof link.source === 'string' ? link.source : link.source?.id || link.source
-      const targetId = typeof link.target === 'string' ? link.target : link.target?.id || link.target
-      if (sourceId === d.id || targetId === d.id) {
-        connectedNodeIds.add(sourceId === d.id ? targetId : sourceId)
-        connectedLinks.push(link)
-      }
-    })
-
-    // Update node opacity
-    g.selectAll('circle').attr('opacity', (node) => {
-      return connectedNodeIds.has(node.id) ? 1 : 0.2
-    })
-
-    // Update link opacity
-    g.selectAll('line').attr('opacity', (link) => {
-      return connectedLinks.includes(link) ? 1 : 0.1
-    })
-
-    // Reset after 2 seconds
-    setTimeout(() => {
-      if (g) {
-        g.selectAll('circle').attr('opacity', 1)
-        g.selectAll('line').attr('opacity', 0.6)
-      }
-    }, 2000)
-  }
-}
-
-// Build legend from groups
-const buildLegend = (groups) => {
-  const legend = []
-  const labels = {
-    source: 'Source Network',
-    destination: 'Destination Network',
-    service: 'Service',
-    rule: 'Rule',
-    network: 'Network',
-  }
-
-  Object.entries(groups).forEach(([type, config]) => {
-    legend.push({
-      type,
-      label: labels[type] || type,
-      color: config.color || '#4ecdc4',
-    })
-  })
-
-  legendData.value = legend
-}
-
-// Fit graph to viewport
-const fitToView = () => {
-  if (!svg || !simulation || !g) return
-
-  const nodes = simulation.nodes()
-  if (!nodes || nodes.length === 0) return
-
-  // Calculate bounding box of all nodes
-  let bounds = {
-    minX: Infinity,
-    maxX: -Infinity,
-    minY: Infinity,
-    maxY: -Infinity,
-  }
-
-  nodes.forEach((n) => {
-    if (n.x === undefined || n.y === undefined) return
-
-    const radius = n.size || 15
-    const labelHeight = 20 // Approximate label height
-
-    bounds.minX = Math.min(bounds.minX, n.x - radius)
-    bounds.maxX = Math.max(bounds.maxX, n.x + radius)
-    bounds.minY = Math.min(bounds.minY, n.y - radius)
-    bounds.maxY = Math.max(bounds.maxY, n.y + radius + labelHeight)
-  })
-
-  // Handle edge cases
-  if (bounds.minX === Infinity || bounds.maxX === -Infinity) {
-    // No valid nodes, center at origin
-    bounds = { minX: -50, maxX: 50, minY: -50, maxY: 50 }
-  }
-
-  // If bounds are too small (single node or very clustered), add padding
-  const graphWidth = bounds.maxX - bounds.minX
-  const graphHeight = bounds.maxY - bounds.minY
-
-  if (graphWidth < 10 || graphHeight < 10) {
-    const padding = 100
-    bounds.minX -= padding
-    bounds.maxX += padding
-    bounds.minY -= padding
-    bounds.maxY += padding
-  }
-
-  // Calculate scale and translation
-  const padding = 50
-  const availableWidth = width - 2 * padding
-  const availableHeight = height - 2 * padding
-
-  const scaleX = availableWidth / (bounds.maxX - bounds.minX)
-  const scaleY = availableHeight / (bounds.maxY - bounds.minY)
-  const scale = Math.min(scaleX, scaleY, 1.0) // Don't zoom in beyond 1:1
-
-  // Calculate center of graph
-  const graphCenterX = (bounds.minX + bounds.maxX) / 2
-  const graphCenterY = (bounds.minY + bounds.maxY) / 2
-
-  // Calculate translation to center graph in viewport
-  const translateX = width / 2 - graphCenterX * scale
-  const translateY = height / 2 - graphCenterY * scale
-
-  // Apply transform with smooth transition
-  svg
-    .transition()
-    .duration(750)
-    .call(
-      zoom.transform,
-      d3.zoomIdentity.translate(translateX, translateY).scale(scale)
-    )
-}
-
-// Zoom controls
-const zoomIn = () => {
-  if (svg && zoom) {
-    svg.transition().call(zoom.scaleBy, 1.5)
-  }
-}
-
-const zoomOut = () => {
-  if (svg && zoom) {
-    svg.transition().call(zoom.scaleBy, 1 / 1.5)
-  }
-}
-
-const resetView = () => {
-  if (svg && zoom) {
-    // Reset node positions and restart simulation
-    if (simulation) {
-      const nodes = simulation.nodes()
-      const isRuleGraph = nodes.some((n) => n.type === 'rule')
-      initializeNodePositions(nodes, isRuleGraph)
-      simulation.alpha(1).restart()
-
-      // Fit to view after a short delay to allow simulation to stabilize
-      setTimeout(() => {
-        fitToView()
-      }, 500)
-    } else {
-      // If no simulation, just reset zoom
-      svg.transition().call(zoom.transform, d3.zoomIdentity)
-    }
-  }
 }
 
 // Watch for data changes
@@ -646,38 +152,18 @@ watch(
   { deep: true }
 )
 
-// Handle resize
-const handleResize = () => {
-  if (containerRef.value && svgRef.value) {
-    width = containerRef.value.clientWidth || 800
-    height = containerRef.value.clientHeight || 600
-
-    if (svg) {
-      svg.attr('width', width).attr('height', height)
-
-      if (simulation) {
-        simulation.force('center', d3.forceCenter(width / 2, height / 2))
-        simulation.alpha(0.3).restart()
-      }
-    }
-  }
-}
-
 onMounted(() => {
   if (props.graphData && props.graphData.nodes) {
     nextTick(() => {
       initializeGraph()
     })
   }
-
-  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   if (simulation) {
     simulation.stop()
   }
-  window.removeEventListener('resize', handleResize)
 })
 </script>
 
