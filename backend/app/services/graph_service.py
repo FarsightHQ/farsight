@@ -5,6 +5,8 @@ Handles creation of graph data structures for network visualization
 import logging
 from typing import Dict, List, Any, Set, Tuple, Optional
 from ..services.asset_service import AssetService
+from ..utils.ip_formatter import format_cidr_to_range
+from ..utils.port_formatter import format_port_ranges
 
 logger = logging.getLogger(__name__)
 
@@ -69,16 +71,20 @@ class GraphService:
         # Add individual source nodes
         for i, source in enumerate(sources):
             source_id = f"src_{rule_id}_{i}"
-            asset_info = self.asset_service.get_asset_by_ip(source["network_cidr"])
+            network_cidr = source["network_cidr"]
+            asset_info = self.asset_service.get_asset_by_ip(network_cidr)
+            formatted_label = format_cidr_to_range(network_cidr)
+            base_tooltip = self.asset_service.create_node_tooltip(network_cidr, asset_info, "Source")
             
             source_node = {
                 "id": source_id,
                 "type": "source",
-                "label": source["network_cidr"],
+                "label": formatted_label,
+                "network_cidr": network_cidr,
                 "group": "source",
                 "size": 10,
                 "color": "#4ecdc4",
-                "tooltip": self.asset_service.create_node_tooltip(source["network_cidr"], asset_info, "Source")
+                "tooltip": f"{base_tooltip}\\nCIDR: {network_cidr}"
             }
             nodes.append(source_node)
             node_map[source_id] = source_node
@@ -119,16 +125,20 @@ class GraphService:
         # Add individual destination nodes
         for i, dest in enumerate(destinations):
             dest_id = f"dst_{rule_id}_{i}"
-            asset_info = self.asset_service.get_asset_by_ip(dest["network_cidr"])
+            network_cidr = dest["network_cidr"]
+            asset_info = self.asset_service.get_asset_by_ip(network_cidr)
+            formatted_label = format_cidr_to_range(network_cidr)
+            base_tooltip = self.asset_service.create_node_tooltip(network_cidr, asset_info, "Destination")
             
             dest_node = {
                 "id": dest_id,
                 "type": "destination",
-                "label": dest["network_cidr"],
+                "label": formatted_label,
+                "network_cidr": network_cidr,
                 "group": "destination",
                 "size": 10,
                 "color": "#45b7d1",
-                "tooltip": self.asset_service.create_node_tooltip(dest["network_cidr"], asset_info, "Destination")
+                "tooltip": f"{base_tooltip}\\nCIDR: {network_cidr}"
             }
             nodes.append(dest_node)
             node_map[dest_id] = dest_node
@@ -169,17 +179,19 @@ class GraphService:
         # Add individual service nodes
         for i, service in enumerate(services):
             service_id = f"svc_{rule_id}_{i}"
-            port_range = service["port_ranges"].strip('{}').strip('[]')
-            port_display = self._format_port_range(port_range)
+            port_ranges_raw = service["port_ranges"]
+            port_display = format_port_ranges(port_ranges_raw)
+            protocol = service['protocol']
             
             service_node = {
                 "id": service_id,
                 "type": "service",
-                "label": f"{service['protocol']}/{port_display}",
+                "label": f"{protocol}/{port_display}" if port_display else f"{protocol}/any",
+                "port_ranges": port_ranges_raw,
                 "group": "service",
                 "size": 10,
                 "color": "#96ceb4",
-                "tooltip": f"Protocol: {service['protocol']}\\nPorts: {port_display}"
+                "tooltip": f"Protocol: {protocol}\\nPorts: {port_display or 'any'}\\nRaw: {port_ranges_raw}"
             }
             nodes.append(service_node)
             node_map[service_id] = service_node
@@ -282,14 +294,18 @@ class GraphService:
         # Create network nodes
         for network in networks:
             asset_info = self.asset_service.get_asset_by_ip(network)
+            formatted_label = format_cidr_to_range(network)
+            base_tooltip = self.asset_service.create_node_tooltip(network, asset_info, "Network")
+            
             node = {
                 "id": f"net_{network.replace('/', '_').replace('.', '_')}",
                 "type": "network",
-                "label": network,
+                "label": formatted_label,
+                "network_cidr": network,
                 "group": "network",
                 "size": 12,
                 "color": "#feca57",
-                "tooltip": self.asset_service.create_node_tooltip(network, asset_info, "Network")
+                "tooltip": f"{base_tooltip}\\nCIDR: {network}"
             }
             nodes.append(node)
             network_map[network] = node["id"]
@@ -324,14 +340,6 @@ class GraphService:
                 "connection_count": len(links)
             }
         }
-    
-    def _format_port_range(self, port_range: str) -> str:
-        """Format port range for display"""
-        if ',' in port_range:
-            start_port, end_port = port_range.split(',')
-            return f"{start_port}-{end_port}" if start_port != end_port else start_port
-        else:
-            return port_range
     
     def _find_shared_elements(self, rule_data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Set[int]]]:
         """Find elements shared between multiple rules"""
