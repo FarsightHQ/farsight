@@ -35,12 +35,15 @@
               v-for="(endpoint, idx) in sourceEndpoints"
               :key="idx"
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+              :title="endpoint.network_cidr || endpoint.cidr"
             >
-              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <code class="text-sm font-mono text-gray-900">
+                {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+              </code>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
-                title="Copy to clipboard"
+                title="Copy CIDR to clipboard"
               >
                 <DocumentDuplicateIcon class="h-4 w-4" />
               </button>
@@ -60,12 +63,15 @@
               v-for="(endpoint, idx) in destinationEndpoints"
               :key="idx"
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+              :title="endpoint.network_cidr || endpoint.cidr"
             >
-              <code class="text-sm font-mono text-gray-900">{{ endpoint.network_cidr || endpoint.cidr }}</code>
+              <code class="text-sm font-mono text-gray-900">
+                {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+              </code>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
-                title="Copy to clipboard"
+                title="Copy CIDR to clipboard"
               >
                 <DocumentDuplicateIcon class="h-4 w-4" />
               </button>
@@ -157,6 +163,7 @@ import Button from '@/components/ui/Button.vue'
 import StatusBadge from './StatusBadge.vue'
 import RuleFacts from './RuleFacts.vue'
 import { useToast } from '@/composables/useToast'
+import { formatCidrToRange } from '@/utils/ipUtils'
 
 const props = defineProps({
   rule: {

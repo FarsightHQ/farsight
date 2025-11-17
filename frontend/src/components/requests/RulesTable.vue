@@ -104,12 +104,18 @@
             />
           </td>
           <td class="px-6 py-4 text-sm text-gray-600">
-            <div class="max-w-xs truncate" :title="formatNetworks(rule.endpoints, 'source')">
+            <div 
+              class="max-w-xs truncate" 
+              :title="getOriginalCidr(rule.endpoints, 'source')"
+            >
               {{ formatNetworks(rule.endpoints, 'source') || '—' }}
             </div>
           </td>
           <td class="px-6 py-4 text-sm text-gray-600">
-            <div class="max-w-xs truncate" :title="formatNetworks(rule.endpoints, 'destination')">
+            <div 
+              class="max-w-xs truncate" 
+              :title="getOriginalCidr(rule.endpoints, 'destination')"
+            >
               {{ formatNetworks(rule.endpoints, 'destination') || '—' }}
             </div>
           </td>
@@ -150,6 +156,7 @@ import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ui/Button.vue'
 import StatusBadge from './StatusBadge.vue'
 import RuleFactsIndicator from './RuleFactsIndicator.vue'
+import { formatCidrToRange } from '@/utils/ipUtils'
 
 const props = defineProps({
   rules: {
@@ -178,6 +185,18 @@ const handleSort = (key) => {
 }
 
 const formatNetworks = (endpoints, type) => {
+  if (!endpoints || !Array.isArray(endpoints)) return ''
+  const networks = endpoints
+    .filter((ep) => ep.endpoint_type === type || ep.type === type)
+    .map((ep) => {
+      const cidr = ep.network_cidr || ep.cidr
+      return formatCidrToRange(cidr)
+    })
+  return networks.length > 0 ? networks.join(', ') : ''
+}
+
+// Helper to get original CIDR for tooltip
+const getOriginalCidr = (endpoints, type) => {
   if (!endpoints || !Array.isArray(endpoints)) return ''
   const networks = endpoints
     .filter((ep) => ep.endpoint_type === type || ep.type === type)
