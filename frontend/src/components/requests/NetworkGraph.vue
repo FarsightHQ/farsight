@@ -6,14 +6,16 @@
     <div
       v-if="tooltip.visible"
       ref="tooltipRef"
-      class="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded px-3 py-2 shadow-lg max-w-xs"
+      class="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded-lg px-4 py-3 shadow-xl max-w-sm border border-gray-700"
       :style="{
         left: tooltip.x + 'px',
         top: tooltip.y + 'px',
-        transform: 'translate(-50%, -100%)',
+        transform: tooltip.position === 'below' 
+          ? 'translate(-50%, 0)' 
+          : 'translate(-50%, -100%)',
       }"
     >
-      <div class="whitespace-pre-line">{{ tooltip.text }}</div>
+      <div class="whitespace-pre-line font-mono leading-relaxed" v-html="formatTooltipText(tooltip.text)"></div>
     </div>
   </div>
 </template>
@@ -22,7 +24,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
 import { useAssetCache } from '@/composables/useAssetCache'
-import { extractBaseIpFromCidr } from '@/utils/ipUtils'
+import { extractBaseIpFromCidr, formatCidrToCompact, formatCidrToRange, calculateIpCount } from '@/utils/ipUtils'
 
 const props = defineProps({
   graphData: {
@@ -51,6 +53,7 @@ const tooltip = ref({
   x: 0,
   y: 0,
   text: '',
+  position: 'above', // 'above' or 'below'
 })
 
 // Selection state
@@ -73,6 +76,9 @@ const GROUP_PADDING = 20 // Padding around VLAN groups
 const SEGMENT_PADDING = 12 // Padding around segments within VLAN
 const NODE_SPACING = 60 // Spacing between nodes within segment
 const GROUP_SPACING = 40 // Spacing between VLAN groups
+const LABEL_BOTTOM_PADDING = 10 // Padding below VLAN/Segment labels
+const SEGMENT_BOTTOM_PADDING = 10 // Padding at bottom of segment boxes
+const SEGMENT_SPACING = 6 // Spacing between segments (half of original)
 
 // Color scheme - light pastel shades
 const VLAN_COLORS = {
@@ -158,7 +164,8 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
     
     Object.entries(segments).forEach(([segment, nodes]) => {
       const segmentStartY = vlanCurrentY
-      let segmentCurrentY = vlanCurrentY + SEGMENT_PADDING
+      // Start nodes after label height (16px for segment label) + label bottom padding (10px) = 26px from segment start
+      let segmentCurrentY = vlanCurrentY + 16 + LABEL_BOTTOM_PADDING
       
       // Position nodes within segment
       nodes.forEach((node, i) => {
@@ -169,7 +176,8 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
         segmentCurrentY += NODE_SPACING
       })
       
-      const segmentEndY = segmentCurrentY - NODE_SPACING + RECT_HEIGHT
+      // Add bottom padding to segment end
+      const segmentEndY = segmentCurrentY - NODE_SPACING + RECT_HEIGHT + SEGMENT_BOTTOM_PADDING
       segmentBounds.push({
         segment,
         startY: segmentStartY,
@@ -179,10 +187,13 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
       })
       
       vlanNodes.push(...nodes)
-      vlanCurrentY = segmentEndY + SEGMENT_PADDING + GROUP_SPACING
+      // Use SEGMENT_SPACING (6px) instead of SEGMENT_PADDING + GROUP_SPACING for segment-to-segment spacing
+      // GROUP_SPACING is only used between VLAN groups
+      vlanCurrentY = segmentEndY + SEGMENT_SPACING
     })
     
-    const vlanEndY = vlanCurrentY - GROUP_SPACING
+    // vlanCurrentY points to where next segment would start, so subtract SEGMENT_SPACING to get actual end
+    const vlanEndY = vlanCurrentY - SEGMENT_SPACING
     groupBounds.push({
       vlan,
       startY: vlanStartY,
@@ -198,28 +209,118 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
   return groupBounds
 }
 
+// Helper function to detect if CIDR represents an IP range (not single IP)
+const isIpRange = (cidr) => {
+  if (!cidr || typeof cidr !== 'string') return false
+  
+  // Check if CIDR has prefix less than 32 (single IP)
+  if (cidr.includes('/')) {
+    const parts = cidr.split('/')
+    if (parts.length === 2) {
+      const prefix = parseInt(parts[1], 10)
+      if (!isNaN(prefix)) {
+        return prefix < 32
+      }
+    }
+  }
+  
+  // If it's already in compact format, check for dash (range indicator)
+  if (cidr.includes('-')) {
+    return true
+  }
+  
+  // If it's in range format (contains " - ")
+  if (cidr.includes(' - ')) {
+    return true
+  }
+  
+  return false
+}
+
 // Build enhanced tooltip text with asset information
 const buildTooltipText = (nodeData) => {
-  const baseTooltip = nodeData.tooltip || nodeData.formatted_label || nodeData.label || ''
   const cidr = nodeData.network_cidr
   
-  if (!cidr) return baseTooltip
+  if (!cidr) {
+    return nodeData.tooltip || nodeData.formatted_label || nodeData.label || ''
+  }
   
   const baseIp = extractBaseIpFromCidr(cidr)
   const asset = baseIp ? getAssetForCidr(cidr) : null
   
-  if (!asset) return baseTooltip
+  // Get IP range details
+  const ipRange = formatCidrToRange(cidr)
+  const ipCount = calculateIpCount(cidr)
   
-  // Build asset info lines
-  const assetLines = []
-  if (asset.hostname) assetLines.push(`Hostname: ${asset.hostname}`)
-  if (asset.segment) assetLines.push(`Segment: ${asset.segment}`)
-  if (asset.vlan) assetLines.push(`VLAN: ${asset.vlan}`)
-  if (asset.os_name) assetLines.push(`OS: ${asset.os_name}`)
+  // Build tooltip sections
+  const sections = []
   
-  if (assetLines.length === 0) return baseTooltip
+  // Section 1: Prominent Hostname and OS (if available)
+  if (asset && (asset.hostname || asset.os_name)) {
+    const prominentInfo = []
+    if (asset.hostname) prominentInfo.push(asset.hostname)
+    if (asset.os_name) prominentInfo.push(asset.os_name)
+    
+    sections.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    sections.push(`${prominentInfo.join(' | ')}`)
+    sections.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  }
   
-  return `${baseTooltip}\n\n${assetLines.join('\n')}`
+  // Section 2: IP Range Details
+  sections.push(`IP Range: ${ipRange}`)
+  sections.push(`CIDR: ${cidr}`)
+  if (ipCount) {
+    sections.push(`IPs: ${ipCount}`)
+  }
+  
+  // Section 3: Network Information
+  if (asset) {
+    const networkInfo = []
+    if (asset.segment) networkInfo.push(`Segment: ${asset.segment}`)
+    if (asset.vlan) networkInfo.push(`VLAN: ${asset.vlan}`)
+    if (asset.subnet) networkInfo.push(`Subnet: ${asset.subnet}`)
+    
+    if (networkInfo.length > 0) {
+      sections.push('')
+      sections.push('Network:')
+      networkInfo.forEach(info => sections.push(`  ${info}`))
+    }
+  }
+  
+  // Section 4: Asset Metadata
+  if (asset) {
+    const assetInfo = []
+    if (asset.environment) assetInfo.push(`Environment: ${asset.environment}`)
+    if (asset.location) assetInfo.push(`Location: ${asset.location}`)
+    if (asset.availability) assetInfo.push(`Availability: ${asset.availability}`)
+    if (asset.vm_display_name) assetInfo.push(`VM: ${asset.vm_display_name}`)
+    
+    if (assetInfo.length > 0) {
+      sections.push('')
+      sections.push('Asset:')
+      assetInfo.forEach(info => sections.push(`  ${info}`))
+    }
+  }
+  
+  // Section 5: Security/Compliance
+  if (asset) {
+    const securityInfo = []
+    if (asset.confidentiality) securityInfo.push(`Confidentiality: ${asset.confidentiality}`)
+    if (asset.integrity) securityInfo.push(`Integrity: ${asset.integrity}`)
+    
+    if (securityInfo.length > 0) {
+      sections.push('')
+      sections.push('Security:')
+      securityInfo.forEach(info => sections.push(`  ${info}`))
+    }
+  }
+  
+  // If no asset info, return basic IP details
+  if (sections.length === 0) {
+    return `IP Range: ${ipRange}\nCIDR: ${cidr}${ipCount ? `\nIPs: ${ipCount}` : ''}`
+  }
+  
+  return sections.join('\n')
 }
 
 // Initialize graph
@@ -469,10 +570,16 @@ const initializeGraph = async () => {
     .attr('y', (d) => d.y)
     .attr('width', (d) => d.width)
     .attr('height', (d) => d.height)
-    .attr('fill', '#4ecdc4')
+    .attr('fill', (d) => {
+      const cidr = d.network_cidr
+      return isIpRange(cidr) ? '#3ab8b0' : '#4ecdc4' // Darker for IP ranges
+    })
     .attr('stroke', '#fff')
     .attr('stroke-width', 2)
-    .attr('rx', 4)
+    .attr('rx', (d) => {
+      const cidr = d.network_cidr
+      return isIpRange(cidr) ? 2 : 6 // Less rounded for ranges, more rounded for single IPs
+    })
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       event.stopPropagation()
@@ -495,10 +602,16 @@ const initializeGraph = async () => {
     .attr('y', (d) => d.y)
     .attr('width', (d) => d.width)
     .attr('height', (d) => d.height)
-    .attr('fill', '#45b7d1')
+    .attr('fill', (d) => {
+      const cidr = d.network_cidr
+      return isIpRange(cidr) ? '#3498b5' : '#45b7d1' // Darker for IP ranges
+    })
     .attr('stroke', '#fff')
     .attr('stroke-width', 2)
-    .attr('rx', 4)
+    .attr('rx', (d) => {
+      const cidr = d.network_cidr
+      return isIpRange(cidr) ? 2 : 6 // Less rounded for ranges, more rounded for single IPs
+    })
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       event.stopPropagation()
@@ -558,7 +671,13 @@ const initializeGraph = async () => {
     .attr('font-size', '11px')
     .attr('fill', '#fff')
     .attr('font-weight', '500')
-    .text((d) => d.formatted_label || d.label)
+    .text((d) => {
+      const cidr = d.network_cidr
+      if (cidr) {
+        return formatCidrToCompact(cidr)
+      }
+      return d.formatted_label || d.label || ''
+    })
     .style('pointer-events', 'none')
 
   // Draw labels for destination rectangles
@@ -576,7 +695,13 @@ const initializeGraph = async () => {
     .attr('font-size', '11px')
     .attr('fill', '#fff')
     .attr('font-weight', '500')
-    .text((d) => d.formatted_label || d.label)
+    .text((d) => {
+      const cidr = d.network_cidr
+      if (cidr) {
+        return formatCidrToCompact(cidr)
+      }
+      return d.formatted_label || d.label || ''
+    })
     .style('pointer-events', 'none')
 
   // Initial highlighting update
@@ -719,15 +844,73 @@ const updateHighlighting = () => {
     })
 }
 
+// Format tooltip text with better styling
+const formatTooltipText = (text) => {
+  if (!text) return ''
+  
+  // Split by lines and apply formatting
+  const lines = text.split('\n')
+  return lines.map(line => {
+    // Bold prominent sections (hostname/OS line - first non-separator line after separator)
+    // Check if this is the prominent info line (between separators, not starting with separator or indented)
+    if (line && !line.startsWith('━━') && !line.startsWith('  ') && !line.includes(':') && line.trim().length > 0) {
+      // Check if previous line was separator to identify prominent section
+      const lineIndex = lines.indexOf(line)
+      if (lineIndex > 0 && lines[lineIndex - 1].startsWith('━━')) {
+        return `<div class="font-bold text-base mb-1 text-cyan-300">${line}</div>`
+      }
+    }
+    // Style separator lines
+    if (line.startsWith('━━')) {
+      return `<div class="text-gray-500 text-xs my-1">${line}</div>`
+    }
+    // Style section headers (lines ending with ':')
+    if (line.endsWith(':') && !line.startsWith('  ')) {
+      return `<div class="font-semibold text-gray-300 mt-2 mb-1">${line}</div>`
+    }
+    // Style indented lines (sub-items)
+    if (line.startsWith('  ')) {
+      return `<div class="text-gray-400 ml-2">${line}</div>`
+    }
+    // Regular lines
+    return `<div>${line}</div>`
+  }).join('')
+}
+
 // Tooltip functions
 const showTooltip = (event, text) => {
   if (containerRef.value) {
     const rect = containerRef.value.getBoundingClientRect()
+    const tooltipWidth = 320 // max-w-sm = 384px, but we use smaller estimate
+    const tooltipHeight = 200 // approximate height
+    const padding = 10 // padding from edges
+    
+    let x = event.clientX - rect.left
+    let y = event.clientY - rect.top
+    let position = 'above'
+    
+    // Check right boundary
+    if (x + tooltipWidth / 2 > rect.width - padding) {
+      x = rect.width - tooltipWidth / 2 - padding
+    }
+    // Check left boundary
+    if (x - tooltipWidth / 2 < padding) {
+      x = tooltipWidth / 2 + padding
+    }
+    
+    // Check top boundary (tooltip appears above cursor)
+    if (y - tooltipHeight < padding) {
+      // Show below cursor instead
+      y = y + 20 // Offset below cursor
+      position = 'below'
+    }
+    
     tooltip.value = {
       visible: true,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: x,
+      y: y,
       text: text,
+      position: position,
     }
   }
 }

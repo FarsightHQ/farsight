@@ -210,3 +210,114 @@ export function extractBaseIpFromCidr(cidr) {
   }
 }
 
+/**
+ * Convert IP range to compact format
+ * 
+ * @param {string} cidr - CIDR notation or IP range (e.g., "192.168.1.0/24" or "192.168.1.0 - 192.168.1.255")
+ * @returns {string} - Compact format (e.g., "192.168.1.0-255")
+ * 
+ * Examples:
+ * - "192.168.1.0 - 192.168.1.255" → "192.168.1.0-255"
+ * - "10.0.0.1" → "10.0.0.1"
+ * - "172.16.0.0 - 172.16.255.255" → "172.16.0.0-255.255"
+ * - "192.168.1.0/24" → "192.168.1.0-255" (converts CIDR to range first)
+ */
+export function formatCidrToCompact(cidr) {
+  if (!cidr || typeof cidr !== 'string') {
+    return cidr || ''
+  }
+
+  try {
+    let range = cidr
+    
+    // If CIDR notation, convert to range first
+    if (cidr.includes('/') && !cidr.includes(' - ')) {
+      range = formatCidrToRange(cidr)
+    }
+    
+    // If already in range format, convert to compact
+    if (range.includes(' - ')) {
+      const [start, end] = range.split(' - ')
+      const startParts = start.split('.')
+      const endParts = end.split('.')
+      
+      // Find where they differ
+      let diffIndex = -1
+      for (let i = 0; i < 4; i++) {
+        if (startParts[i] !== endParts[i]) {
+          diffIndex = i
+          break
+        }
+      }
+      
+      if (diffIndex === -1) {
+        // Same IP (single IP)
+        return start
+      }
+      
+      // Build compact format: show common prefix, then range for differing parts
+      const commonParts = startParts.slice(0, diffIndex)
+      const rangeParts = []
+      for (let i = diffIndex; i < 4; i++) {
+        if (startParts[i] === endParts[i]) {
+          rangeParts.push(startParts[i])
+        } else {
+          rangeParts.push(`${startParts[i]}-${endParts[i]}`)
+        }
+      }
+      
+      return [...commonParts, ...rangeParts].join('.')
+    }
+    
+    // Single IP or already compact, return as-is
+    return range
+  } catch (error) {
+    console.warn('Error formatting CIDR to compact:', error, cidr)
+    return cidr
+  }
+}
+
+/**
+ * Calculate number of IPs from CIDR notation
+ * 
+ * @param {string} cidr - CIDR notation (e.g., "192.168.1.0/24")
+ * @returns {string} - Formatted IP count (e.g., "256 IPs" or "1 IP")
+ * 
+ * Examples:
+ * - "192.168.1.0/24" → "256 IPs"
+ * - "10.0.0.1/32" → "1 IP"
+ * - "172.16.0.0/16" → "65,536 IPs"
+ */
+export function calculateIpCount(cidr) {
+  if (!cidr || typeof cidr !== 'string') {
+    return ''
+  }
+
+  try {
+    // Check if it contains CIDR notation (has /)
+    if (!cidr.includes('/')) {
+      return '1 IP' // Single IP
+    }
+
+    const [ipStr, prefixStr] = cidr.split('/')
+    const prefix = parseInt(prefixStr, 10)
+
+    // Validate prefix
+    if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+      return '' // Invalid prefix
+    }
+
+    // Calculate number of IPs: 2^(32 - prefix)
+    const hostBits = 32 - prefix
+    const ipCount = Math.pow(2, hostBits)
+    
+    // Format with commas for large numbers
+    const formattedCount = ipCount.toLocaleString()
+    
+    return `${formattedCount} IP${ipCount !== 1 ? 's' : ''}`
+  } catch (error) {
+    console.warn('Error calculating IP count:', error, cidr)
+    return ''
+  }
+}
+

@@ -27,16 +27,25 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 
 const pageTitle = computed(() => {
+  if (!route || !route.path) {
+    return 'Farsight'
+  }
+  
   const titles = {
     '/': 'Dashboard',
     '/requests': 'FAR Requests',
     '/requests/new': 'Create Request',
     '/assets': 'Asset Registry',
     '/assets/upload': 'Upload Assets',
+    '/rules': 'All Rules',
   }
   // For dynamic routes like /assets/:id, check if path starts with /assets/
   if (route.path.startsWith('/assets/') && route.path !== '/assets/upload') {
     return 'Asset Details'
+  }
+  // For dynamic routes like /requests/:id
+  if (route.path.startsWith('/requests/') && route.path !== '/requests/new') {
+    return 'FAR Request Details'
   }
   return titles[route.path] || 'Farsight'
 })
