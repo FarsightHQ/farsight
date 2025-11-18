@@ -32,6 +32,11 @@ const pageTitle = computed(() => {
     '/requests': 'FAR Requests',
     '/requests/new': 'Create Request',
     '/assets': 'Asset Registry',
+    '/assets/upload': 'Upload Assets',
+  }
+  // For dynamic routes like /assets/:id, check if path starts with /assets/
+  if (route.path.startsWith('/assets/') && route.path !== '/assets/upload') {
+    return 'Asset Details'
   }
   return titles[route.path] || 'Farsight'
 })

@@ -90,7 +90,7 @@ const rulesLoading = ref(false)
 const rulesError = ref(null)
 
 const ipAddress = computed(() => {
-  return route.params.ip_address ? decodeURIComponent(route.params.ip_address) : ''
+  return route.params.id ? decodeURIComponent(route.params.id) : ''
 })
 
 const fetchAsset = async () => {

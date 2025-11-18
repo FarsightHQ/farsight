@@ -27,6 +27,16 @@ const routes = [
     name: 'Assets',
     component: () => import('../views/AssetsList.vue'),
   },
+  {
+    path: '/assets/upload',
+    name: 'AssetUpload',
+    component: () => import('../views/AssetUpload.vue'),
+  },
+  {
+    path: '/assets/:id',
+    name: 'AssetDetail',
+    component: () => import('../views/AssetDetail.vue'),
+  },
 ]
 
 const router = createRouter({
