@@ -10,40 +10,74 @@
 
     <!-- Request Details -->
     <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 12rem);">
-      <!-- Header with Actions -->
-      <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
-        <div>
-          <h1 class="text-3xl font-bold mb-2">{{ request.title }}</h1>
-          <div class="flex items-center space-x-4 text-sm text-gray-600">
-            <span>ID: {{ request.id }}</span>
-            <StatusBadge :status="request.status" />
-            <span v-if="request.external_id">External ID: {{ request.external_id }}</span>
+      <!-- Header: 3-Column Layout -->
+      <div class="mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
+        <div class="grid grid-cols-3 gap-6 items-start">
+          <!-- Column 1: Title and Basic Info -->
+          <div>
+            <h1 class="text-3xl font-bold mb-2">{{ request.title }}</h1>
+            <div class="flex flex-col space-y-1 text-sm text-gray-600">
+              <div class="flex items-center space-x-2">
+                <span>ID: {{ request.id }}</span>
+                <StatusBadge :status="request.status" />
+              </div>
+              <span v-if="request.external_id">External ID: {{ request.external_id }}</span>
+            </div>
           </div>
-        </div>
-        <div class="flex items-center space-x-2 flex-wrap gap-2">
-          <!-- Delete and Back Buttons -->
-          <Button
-            variant="outline"
-            size="sm"
-            class="text-error-600 border-error-300 hover:bg-error-50"
-            @click="handleDeleteClick"
-          >
-            Delete
-          </Button>
-          <Button variant="outline" size="sm" @click="$router.push('/requests')">
-            Back to List
-          </Button>
+
+          <!-- Column 2: Request Information -->
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-600">Created:</span>
+              <span class="text-gray-900">{{ formatDate(request.created_at) }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-600">File Name:</span>
+              <span class="text-gray-900 truncate ml-2" :title="request.source_filename">
+                {{ request.source_filename }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-600">File Size:</span>
+              <span class="text-gray-900">{{ formatFileSize(request.source_size_bytes) }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-600">Created By:</span>
+              <span class="text-gray-900">{{ request.created_by || 'system' }}</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="font-medium text-gray-600 mb-1">SHA256:</span>
+              <span class="font-mono text-xs text-gray-900 break-all">{{ request.source_sha256 }}</span>
+            </div>
+          </div>
+
+          <!-- Column 3: Action Buttons -->
+          <div class="flex items-start justify-end">
+            <div class="flex flex-col items-end space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                class="text-error-600 border-error-300 hover:bg-error-50"
+                @click="handleDeleteClick"
+              >
+                Delete
+              </Button>
+              <Button variant="outline" size="sm" @click="$router.push('/requests')">
+                Back to List
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 3-Column Layout -->
+      <!-- 2-Column Layout -->
       <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
         <!-- Left Sidebar: Filters -->
         <aside class="w-72 flex-shrink-0 overflow-y-auto">
           <RulesFilter :filters="filters" :rules="rulesData" @update:filters="handleFilterUpdate" />
         </aside>
 
-        <!-- Middle Column: Rules List -->
+        <!-- Right Column: Rules List (Expanded) -->
         <main class="flex-1 overflow-y-auto min-w-0">
           <RuleDetail
             v-if="showRuleDetail && selectedRule"
@@ -63,42 +97,6 @@
             @visualize-multiple-rules="handleVisualizeMultipleRules"
           />
         </main>
-
-        <!-- Right Panel: FAR Analysis -->
-        <aside class="w-96 flex-shrink-0 overflow-y-auto space-y-4">
-          <!-- Request Metadata -->
-          <Card>
-            <h2 class="text-lg font-semibold mb-4">Request Information</h2>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-600">Status:</span>
-                <StatusBadge :status="request.status" />
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-600">Created:</span>
-                <span class="text-gray-900">{{ formatDate(request.created_at) }}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-600">File Name:</span>
-                <span class="text-gray-900 truncate ml-2" :title="request.source_filename">
-                  {{ request.source_filename }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-600">File Size:</span>
-                <span class="text-gray-900">{{ formatFileSize(request.source_size_bytes) }}</span>
-              </div>
-              <div class="flex flex-col">
-                <span class="font-medium text-gray-600 mb-1">SHA256:</span>
-                <span class="font-mono text-xs text-gray-900 break-all">{{ request.source_sha256 }}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-600">Created By:</span>
-                <span class="text-gray-900">{{ request.created_by || 'system' }}</span>
-              </div>
-            </div>
-          </Card>
-        </aside>
       </div>
     </div>
 
