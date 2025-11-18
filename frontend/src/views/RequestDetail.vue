@@ -21,45 +21,6 @@
           </div>
         </div>
         <div class="flex items-center space-x-2 flex-wrap gap-2">
-          <!-- Action Buttons -->
-          <Button
-            v-if="!isProcessingPipeline"
-            variant="primary"
-            size="sm"
-            :disabled="processing || request.status !== 'submitted'"
-            @click="handleIngest"
-          >
-            <Spinner v-if="processing" size="sm" class="mr-2" />
-            Process CSV
-          </Button>
-          <Button
-            v-if="!isProcessingPipeline"
-            variant="secondary"
-            size="sm"
-            :disabled="processing || request.status !== 'ingested'"
-            @click="handleComputeFacts"
-          >
-            <Spinner v-if="processing" size="sm" class="mr-2" />
-            Compute Facts
-          </Button>
-          <Button
-            v-if="!isProcessingPipeline"
-            variant="secondary"
-            size="sm"
-            :disabled="processing || request.status !== 'ingested'"
-            @click="handleComputeHybrid"
-          >
-            <Spinner v-if="processing" size="sm" class="mr-2" />
-            Compute Hybrid Facts
-          </Button>
-          <Button
-            v-if="!isProcessingPipeline && request.status === 'submitted'"
-            variant="outline"
-            size="sm"
-            @click="startFullPipeline"
-          >
-            Run Full Pipeline
-          </Button>
           <!-- Delete and Back Buttons -->
           <Button
             variant="outline"
@@ -73,15 +34,6 @@
             Back to List
           </Button>
         </div>
-      </div>
-
-      <!-- Polling Status Indicator -->
-      <div v-if="isProcessingPipeline && isPolling" class="mb-4 text-xs text-gray-500 flex items-center space-x-2 flex-shrink-0">
-        <div class="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></div>
-        <span>Live updates active</span>
-        <span v-if="lastUpdated" class="text-gray-400">
-          • Last updated: {{ formatTime(lastUpdated) }}
-        </span>
       </div>
 
       <!-- 3-Column Layout -->
@@ -146,14 +98,6 @@
               </div>
             </div>
           </Card>
-
-          <!-- Processing Dashboard -->
-          <ProcessingDashboard
-            v-if="isProcessingPipeline"
-            :steps="pipelineSteps"
-            :can-cancel="false"
-            @retry="handleRetryStep"
-          />
         </aside>
       </div>
     </div>
@@ -188,16 +132,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
-import { useRequestStatus } from '@/composables/useRequestStatus'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
-import Spinner from '@/components/ui/Spinner.vue'
 import StatusBadge from '@/components/requests/StatusBadge.vue'
-import ProcessingDashboard from '@/components/requests/ProcessingDashboard.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
@@ -209,10 +150,7 @@ const router = useRouter()
 const { success, error } = useToast()
 
 const loading = ref(false)
-const processing = ref(false)
 const request = ref(null)
-const isProcessingPipeline = ref(false)
-const pipelineSteps = ref([])
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const showGraphModal = ref(false)
@@ -233,336 +171,16 @@ const filters = ref({
   hasIssues: '',
 })
 
-// Use request status polling
-const requestId = computed(() => route.params.id)
-const {
-  request: polledRequest,
-  startPolling,
-  stopPolling,
-  lastUpdated,
-  isPolling,
-} = useRequestStatus(requestId)
-
-const initializePipelineSteps = () => {
-  const now = new Date().toISOString()
-  pipelineSteps.value = [
-    {
-      key: 'upload',
-      label: 'Upload',
-      status: 'completed',
-      progress: 100,
-      startedAt: request.value?.created_at || now,
-      completedAt: request.value?.created_at || now,
-      duration: 0, // Upload is instant
-    },
-    {
-      key: 'ingest',
-      label: 'Process CSV',
-      status: 'pending',
-      progress: 0,
-      startedAt: null,
-      completedAt: null,
-      duration: null,
-    },
-    {
-      key: 'facts',
-      label: 'Compute Facts',
-      status: 'pending',
-      progress: 0,
-      startedAt: null,
-      completedAt: null,
-      duration: null,
-    },
-    {
-      key: 'hybrid',
-      label: 'Compute Hybrid',
-      status: 'pending',
-      progress: 0,
-      startedAt: null,
-      completedAt: null,
-      duration: null,
-    },
-  ]
-}
-
-const updatePipelineStep = (stepKey, updates) => {
-  const step = pipelineSteps.value.find((s) => s.key === stepKey)
-  if (step) {
-    // Track start time if status changes to processing
-    if (updates.status === 'processing' && !step.startedAt) {
-      updates.startedAt = new Date().toISOString()
-    }
-    
-    // Calculate duration if step is completed
-    if (updates.status === 'completed' || updates.status === 'error') {
-      if (step.startedAt && !step.completedAt) {
-        updates.completedAt = new Date().toISOString()
-        const startTime = new Date(step.startedAt).getTime()
-        const endTime = new Date(updates.completedAt).getTime()
-        updates.duration = endTime - startTime
-      }
-    }
-    
-    Object.assign(step, updates)
-  }
-}
-
 const fetchRequest = async () => {
   loading.value = true
   try {
     const response = await requestsService.get(route.params.id)
     request.value = response.data || response
-
-    // Update polled request
-    if (polledRequest.value) {
-      polledRequest.value = request.value
-    }
   } catch (err) {
     error(err.message || 'Failed to load request')
     request.value = null
   } finally {
     loading.value = false
-  }
-}
-
-// Watch for route query param to start processing
-watch(
-  () => route.query.startProcessing,
-  (shouldStart) => {
-    if (shouldStart === 'true' && request.value?.status === 'submitted') {
-      startFullPipeline()
-      // Remove query param
-      router.replace({ query: {} })
-    }
-  },
-  { immediate: true }
-)
-
-// Watch polled request for status updates
-watch(
-  () => polledRequest.value,
-  (newRequest) => {
-    if (newRequest && isProcessingPipeline.value) {
-      request.value = newRequest
-      updatePipelineStatus(newRequest.status)
-    }
-  }
-)
-
-const updatePipelineStatus = (status) => {
-  const statusLower = status?.toLowerCase()
-
-  if (statusLower === 'ingested') {
-    updatePipelineStep('ingest', {
-      status: 'completed',
-      progress: 100,
-    })
-    // Auto-start facts computation
-    if (pipelineSteps.value.find((s) => s.key === 'facts')?.status === 'pending') {
-      handleComputeFacts(true)
-    }
-  } else if (statusLower === 'processing') {
-    updatePipelineStep('ingest', {
-      status: 'processing',
-      progress: 50,
-    })
-  }
-}
-
-const startFullPipeline = async () => {
-  if (request.value?.status !== 'submitted') {
-    error('Request must be in submitted status to start pipeline')
-    return
-  }
-
-  isProcessingPipeline.value = true
-  initializePipelineSteps()
-  startPolling(3000) // Poll every 3 seconds
-
-  // Start with CSV ingestion
-  await handleIngest(true)
-}
-
-const handleIngest = async (isPipeline = false) => {
-  if (!isPipeline) {
-    processing.value = true
-  } else {
-    updatePipelineStep('ingest', {
-      status: 'processing',
-      progress: 0,
-      description: 'Processing CSV file and creating firewall rules...',
-    })
-  }
-
-  try {
-    const response = await requestsService.ingest(route.params.id)
-    const result = response.data || response
-
-    if (isPipeline) {
-      updatePipelineStep('ingest', {
-        status: 'processing',
-        progress: 75,
-        results: {
-          'Rules created': result.rules_created || 0,
-        },
-      })
-    } else {
-      success('CSV processing started successfully')
-    }
-
-    await fetchRequest()
-  } catch (err) {
-    if (isPipeline) {
-      updatePipelineStep('ingest', {
-        status: 'error',
-        error: err.message || 'Failed to process CSV',
-      })
-      isProcessingPipeline.value = false
-      stopPolling()
-    } else {
-      error(err.message || 'Failed to process CSV')
-    }
-  } finally {
-    if (!isPipeline) {
-      processing.value = false
-    }
-  }
-}
-
-const handleComputeFacts = async (isPipeline = false) => {
-  if (!isPipeline) {
-    processing.value = true
-  } else {
-    updatePipelineStep('facts', {
-      status: 'processing',
-      progress: 0,
-      description: 'Computing standard facts for all rules...',
-    })
-  }
-
-  try {
-    const startTime = Date.now()
-    const response = await requestsService.computeFacts(route.params.id)
-    const result = response.data || response
-    const duration = Date.now() - startTime
-
-    if (isPipeline) {
-      updatePipelineStep('facts', {
-        status: 'completed',
-        progress: 100,
-        results: {
-          rules_updated: result.rules_updated || result.rules_total || 0,
-          rules_total: result.rules_total || 0,
-          self_flow_count: result.self_flow_count || 0,
-          duration_ms: result.duration_ms || duration,
-        },
-      })
-      // Auto-start hybrid facts
-      if (pipelineSteps.value.find((s) => s.key === 'hybrid')?.status === 'pending') {
-        await handleComputeHybrid(true)
-      } else {
-        // Pipeline complete
-        isProcessingPipeline.value = false
-        stopPolling()
-        success('Processing pipeline completed successfully!')
-      }
-    } else {
-      success('Facts computation completed successfully')
-    }
-
-    await fetchRequest()
-  } catch (err) {
-    if (isPipeline) {
-      updatePipelineStep('facts', {
-        status: 'error',
-        error: err.message || 'Failed to compute facts',
-      })
-      isProcessingPipeline.value = false
-      stopPolling()
-    } else {
-      error(err.message || 'Failed to compute facts')
-    }
-  } finally {
-    if (!isPipeline) {
-      processing.value = false
-    }
-  }
-}
-
-const handleRetryStep = async (stepKey) => {
-  // Reset step status
-  const step = pipelineSteps.value.find((s) => s.key === stepKey)
-  if (step) {
-    step.status = 'pending'
-    step.progress = 0
-    step.error = null
-    step.startedAt = null
-    step.completedAt = null
-    step.duration = null
-    step.results = null
-  }
-
-  // Trigger the appropriate handler
-  if (stepKey === 'ingest') {
-    await handleIngest(isProcessingPipeline.value)
-  } else if (stepKey === 'facts') {
-    await handleComputeFacts(isProcessingPipeline.value)
-  } else if (stepKey === 'hybrid') {
-    await handleComputeHybrid(isProcessingPipeline.value)
-  }
-}
-
-const handleComputeHybrid = async (isPipeline = false) => {
-  if (!isPipeline) {
-    processing.value = true
-  } else {
-    updatePipelineStep('hybrid', {
-      status: 'processing',
-      progress: 0,
-      description: 'Computing hybrid facts with selective tuple storage...',
-    })
-  }
-
-  try {
-    const startTime = Date.now()
-    const response = await requestsService.computeHybridFacts(route.params.id)
-    const result = response.data || response
-    const duration = Date.now() - startTime
-
-    if (isPipeline) {
-      updatePipelineStep('hybrid', {
-        status: 'completed',
-        progress: 100,
-        results: {
-          rules_processed: result.rules_processed || 0,
-          tuples_created: result.tuples_created || result.tuples_stored || 0,
-          duration_ms: result.duration_ms || duration,
-        },
-      })
-      // Pipeline complete
-      isProcessingPipeline.value = false
-      stopPolling()
-      success('Processing pipeline completed successfully!')
-    } else {
-      success('Hybrid facts computation completed successfully')
-    }
-
-    await fetchRequest()
-  } catch (err) {
-    if (isPipeline) {
-      updatePipelineStep('hybrid', {
-        status: 'error',
-        error: err.message || 'Failed to compute hybrid facts',
-      })
-      isProcessingPipeline.value = false
-      stopPolling()
-    } else {
-      error(err.message || 'Failed to compute hybrid facts')
-    }
-  } finally {
-    if (!isPipeline) {
-      processing.value = false
-    }
   }
 }
 
@@ -608,16 +226,6 @@ const confirmDelete = async () => {
 
 const cancelDelete = () => {
   showDeleteModal.value = false
-}
-
-const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
 }
 
 const handleViewRule = async (rule) => {
@@ -672,6 +280,5 @@ const handleVisualizeMultipleRules = (data) => {
 
 onMounted(() => {
   fetchRequest()
-  initializePipelineSteps()
 })
 </script>

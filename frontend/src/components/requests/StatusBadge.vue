@@ -12,7 +12,7 @@ const props = defineProps({
     type: String,
     required: true,
     validator: (value) =>
-      ['submitted', 'processing', 'ingested', 'completed', 'error', 'failed'].includes(
+      ['submitted', 'processing', 'ingested', 'completed', 'error', 'failed', 'pending'].includes(
         value?.toLowerCase()
       ),
   },
@@ -29,6 +29,7 @@ const badgeClasses = computed(() => {
     completed: 'bg-success-100 text-success-800',
     error: 'bg-error-100 text-error-800',
     failed: 'bg-error-100 text-error-800',
+    pending: 'bg-gray-100 text-gray-600',
   }
 
   return [base, variants[statusLower] || variants.submitted].join(' ')
