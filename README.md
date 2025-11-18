@@ -14,20 +14,97 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 
 ## Quick Start
 
-1. **Start all services:**
-   ```bash
-   docker-compose up -d
-   ```
+### 1. Configure Environment Variables
 
-2. **Check service status:**
-   ```bash
-   docker-compose ps
-   ```
+Before starting the services, set up your environment variables:
 
-3. **View logs:**
-   ```bash
-   docker-compose logs -f backend
-   ```
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and update with your actual values
+# At minimum, change the passwords:
+# - POSTGRES_PASSWORD
+# - PGADMIN_PASSWORD
+```
+
+The `.env` file contains all configuration for:
+- PostgreSQL database credentials
+- Service ports
+- Backend settings (upload limits, log levels)
+- pgAdmin credentials
+
+**Important**: Never commit your `.env` file to version control. The `.env.example` file is a template that should be committed.
+
+### 2. Start All Services
+
+```bash
+docker-compose up -d
+```
+
+### 3. Check Service Status
+
+```bash
+docker-compose ps
+```
+
+### 4. View Logs
+
+```bash
+docker-compose logs -f backend
+```
+
+## Environment Variables Reference
+
+### Required Variables
+
+- `POSTGRES_PASSWORD` - PostgreSQL database password (must be set)
+- `PGADMIN_PASSWORD` - pgAdmin web interface password (must be set)
+- `DATABASE_URL` - Full database connection string (auto-constructed from POSTGRES_* vars)
+
+### Optional Variables (with defaults)
+
+- `POSTGRES_DB` - Database name (default: `farsight`)
+- `POSTGRES_USER` - Database user (default: `farsight_user`)
+- `POSTGRES_HOST` - Database host (default: `postgres`)
+- `POSTGRES_PORT` - Database port (default: `5432`)
+- `BACKEND_PORT` - Backend API port (default: `8000`)
+- `FRONTEND_PORT` - Frontend web port (default: `3000`)
+- `PGADMIN_PORT` - pgAdmin port (default: `5050`)
+- `SWAGGER_PORT` - Swagger UI port (default: `8080`)
+- `LOG_LEVEL` - Backend log level (default: `INFO`)
+- `MAX_UPLOAD_MB` - Maximum file upload size in MB (default: `50`)
+
+## Local Development
+
+### Backend Local Development
+
+The backend automatically loads environment variables from the project root `.env` file when running locally:
+
+```bash
+# From project root
+cd backend
+uvicorn app.main:app --reload
+```
+
+The backend will automatically find and load `.env` from the project root, regardless of where you run the command from.
+
+### Frontend Local Development
+
+For local frontend development with Vite:
+
+```bash
+# Copy frontend environment template
+cp frontend/.env.example frontend/.env
+
+# Edit frontend/.env if needed (defaults work for local dev)
+# Then start the dev server
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend uses `VITE_API_BASE_URL` from `frontend/.env` to connect to the backend API.
 
 ## Service URLs
 
@@ -39,8 +116,8 @@ A complete development environment with PostgreSQL database, Python FastAPI back
   - Web-based user interface for Farsight
 
 - **pgAdmin**: http://localhost:5050
-  - Email: admin@farsight.com
-  - Password: admin123
+  - Email: Set via `PGADMIN_EMAIL` in `.env` (default: `admin@farsight.com`)
+  - Password: Set via `PGADMIN_PASSWORD` in `.env`
 
 - **Swagger UI**: http://localhost:8080
   - Interactive API documentation and testing
@@ -51,11 +128,13 @@ A complete development environment with PostgreSQL database, Python FastAPI back
 
 ## Database Connection
 
-- **Host**: localhost (from host machine) or postgres (from containers)
-- **Port**: 5432
-- **Database**: farsight
-- **Username**: farsight_user
-- **Password**: farsight_password
+Connection details are configured in your `.env` file:
+
+- **Host**: `localhost` (from host machine) or `postgres` (from containers)
+- **Port**: Set via `POSTGRES_PORT` in `.env` (default: `5432`)
+- **Database**: Set via `POSTGRES_DB` in `.env` (default: `farsight`)
+- **Username**: Set via `POSTGRES_USER` in `.env` (default: `farsight_user`)
+- **Password**: Set via `POSTGRES_PASSWORD` in `.env` (must be configured)
 
 ## Appsmith Configuration
 
@@ -145,7 +224,8 @@ docker-compose restart appsmith
 ```
 farsight/
 ├── docker-compose.yml      # Docker services configuration
-├── .env                    # Environment variables (if used)
+├── .env                    # Environment variables (create from .env.example)
+├── .env.example            # Environment variables template
 ├── backend/
 │   ├── Dockerfile         # Backend container config
 │   ├── requirements.txt   # Python dependencies
@@ -162,6 +242,8 @@ farsight/
 │   └── alembic/          # Migration files
 ├── frontend/
 │   ├── Dockerfile        # Frontend container config
+│   ├── .env              # Frontend environment variables (create from .env.example)
+│   ├── .env.example      # Frontend environment variables template
 │   ├── index.html        # Main web interface
 │   ├── nginx.conf        # Nginx configuration
 │   └── js/               # JavaScript files
