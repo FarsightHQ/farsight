@@ -5,19 +5,19 @@ services:
     container_name: farsight_postgres
     environment:
       # Single database configuration
-      POSTGRES_DB: farsight
-      POSTGRES_USER: farsight_user
-      POSTGRES_PASSWORD: farsight_password
+      POSTGRES_DB: ${POSTGRES_DB:-farsight}
+      POSTGRES_USER: ${POSTGRES_USER:-farsight_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - farsight_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U farsight_user -d farsight"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-farsight_user} -d ${POSTGRES_DB:-farsight}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,10 +29,13 @@ services:
       dockerfile: Dockerfile
     container_name: farsight_backend
     environment:
-      DATABASE_URL: postgresql://farsight_user:farsight_password@postgres:5432/farsight
-      PYTHONPATH: /app
+      DATABASE_URL: ${DATABASE_URL}
+      PYTHONPATH: ${PYTHONPATH:-/app}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
@@ -44,18 +47,34 @@ services:
     restart: unless-stopped
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
+  # # Frontend Web Interface
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: farsight_frontend
+  #   ports:
+  #     - "${FRONTEND_PORT:-3000}:80"
+  #   volumes:
+  #     - ./frontend:/usr/share/nginx/html
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - farsight_network
+  #   restart: unless-stopped
+
   # pgAdmin - Database Viewer
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: farsight_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@farsight.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@farsight.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
       PGADMIN_CONFIG_WTF_CSRF_ENABLED: 'False'
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT:-5050}:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     user: root
@@ -70,11 +89,11 @@ services:
     image: swaggerapi/swagger-ui:latest
     container_name: farsight_swagger
     environment:
-      SWAGGER_JSON_URL: http://localhost:8000/openapi.json
-      API_URL: http://localhost:8000/openapi.json
-      BASE_URL: /swagger
+      SWAGGER_JSON_URL: ${SWAGGER_JSON_URL:-http://localhost:8000/openapi.json}
+      API_URL: ${API_URL:-http://localhost:8000/openapi.json}
+      BASE_URL: ${BASE_URL:-/swagger}
     ports:
-      - "8080:8080"
+      - "${SWAGGER_PORT:-8080}:8080"
     depends_on:
       - backend
     networks:

@@ -2,19 +2,36 @@
 Configuration settings for the application
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Find project root (3 levels up from this file: app/core/config.py -> backend/app/core -> backend/app -> backend -> root)
+_current_file = Path(__file__).resolve()
+_project_root = _current_file.parent.parent.parent.parent
+
 # Load environment variables
-load_dotenv()
+# First try project root .env, then fall back to default behavior (current directory)
+_env_path = _project_root / '.env'
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    # Fall back to default behavior (searches current directory and parents)
+    load_dotenv()
 
 class Settings:
     """Application settings from environment variables"""
     
     # Database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql://farsight_user:farsight_password@localhost:5432/farsight"
-    )
+    # Construct DATABASE_URL from individual POSTGRES_* variables if DATABASE_URL not set
+    _db_url = os.getenv("DATABASE_URL")
+    if not _db_url:
+        _db_user = os.getenv("POSTGRES_USER", "farsight_user")
+        _db_password = os.getenv("POSTGRES_PASSWORD", "farsight_password")
+        _db_host = os.getenv("POSTGRES_HOST", "localhost")
+        _db_port = os.getenv("POSTGRES_PORT", "5432")
+        _db_name = os.getenv("POSTGRES_DB", "farsight")
+        _db_url = f"postgresql://{_db_user}:{_db_password}@{_db_host}:{_db_port}/{_db_name}"
+    DATABASE_URL: str = _db_url
     
     # File Upload Settings
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
