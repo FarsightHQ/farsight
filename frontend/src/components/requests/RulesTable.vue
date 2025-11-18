@@ -29,6 +29,12 @@
               <ChevronUpIcon v-else class="h-4 w-4 text-gray-300" />
             </div>
           </th>
+          <th 
+            v-if="showRequestColumn"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Request
+          </th>
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Source Networks
           </th>
@@ -51,6 +57,9 @@
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+          </td>
+          <td v-if="showRequestColumn" class="px-6 py-4">
+            <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
           </td>
           <td class="px-6 py-4">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
@@ -89,6 +98,20 @@
             {{ rule.id }}
           </td>
           <td 
+            v-if="showRequestColumn"
+            class="px-6 py-4 text-sm text-gray-600"
+            @click.stop
+          >
+            <router-link
+              v-if="rule.request"
+              :to="`/requests/${rule.request.id}`"
+              class="text-primary-600 hover:text-primary-800 hover:underline"
+            >
+              {{ rule.request.title || `Request ${rule.request.id}` }}
+            </router-link>
+            <span v-else class="text-gray-400">—</span>
+          </td>
+          <td 
             class="px-6 py-4 text-sm text-gray-600 cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
@@ -96,7 +119,7 @@
               class="max-w-xs truncate" 
               :title="getOriginalCidr(rule.endpoints, 'source')"
             >
-              {{ formatNetworks(rule.endpoints, 'source') || '—' }}
+              {{ getFormattedNetworks(rule.id, 'source') || '—' }}
             </div>
           </td>
           <td 
@@ -107,7 +130,7 @@
               class="max-w-xs truncate" 
               :title="getOriginalCidr(rule.endpoints, 'destination')"
             >
-              {{ formatNetworks(rule.endpoints, 'destination') || '—' }}
+              {{ getFormattedNetworks(rule.id, 'destination') || '—' }}
             </div>
           </td>
           <td 
@@ -120,7 +143,13 @@
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
-              <Button variant="ghost" size="sm" @click.stop="$emit('visualize-rule', rule)">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                :disabled="!hasNetworkData(rule)"
+                :title="!hasNetworkData(rule) ? 'This rule has no network data to visualize' : 'Visualize network topology'"
+                @click.stop="handleVisualize(rule)"
+              >
                 Visualize
               </Button>
               <Button variant="ghost" size="sm" @click.stop="$emit('view-rule', rule)">
@@ -132,7 +161,7 @@
 
         <!-- Empty State -->
         <tr v-if="!loading && rules.length === 0">
-          <td colspan="6" class="px-6 py-12 text-center">
+          <td :colspan="showRequestColumn ? 7 : 6" class="px-6 py-12 text-center">
             <p class="text-gray-500">No rules found</p>
           </td>
         </tr>
@@ -142,11 +171,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ui/Button.vue'
 import { formatCidrToRange } from '@/utils/ipUtils'
 import { formatPortRanges } from '@/utils/portUtils'
+import { useAssetCache } from '@/composables/useAssetCache'
 
 const props = defineProps({
   rules: {
@@ -170,9 +201,16 @@ const props = defineProps({
     default: 'asc',
     validator: (value) => ['asc', 'desc'].includes(value),
   },
+  showRequestColumn: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['sort', 'view-rule', 'select-rule', 'select-all', 'deselect-all'])
+
+// Asset cache for fetching hostnames
+const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache()
 
 const allSelected = computed(() => {
   return props.rules.length > 0 && props.rules.every(rule => props.selectedRules.includes(rule.id))
@@ -198,15 +236,72 @@ const handleSort = (key) => {
   emit('sort', key)
 }
 
+// Check if rule has network data for visualization
+const hasNetworkData = (rule) => {
+  if (!rule) return false
+  
+  // Check if rule has endpoints array with source or destination entries
+  const hasEndpoints = rule.endpoints && Array.isArray(rule.endpoints) && rule.endpoints.length > 0
+  
+  // Check if rule has services array
+  const hasServices = rule.services && Array.isArray(rule.services) && rule.services.length > 0
+  
+  // Rule needs at least endpoints to visualize
+  return hasEndpoints
+}
+
+// Handle visualize button click with validation
+const handleVisualize = (rule) => {
+  if (!hasNetworkData(rule)) {
+    console.warn('[RulesTable] Rule has no network data for visualization:', rule.id)
+    // Still emit the event - let the modal handle showing appropriate message
+  }
+  emit('visualize-rule', rule)
+}
+
+// Helper function to format networks (used by computed properties)
 const formatNetworks = (endpoints, type) => {
   if (!endpoints || !Array.isArray(endpoints)) return ''
   const networks = endpoints
     .filter((ep) => ep.endpoint_type === type || ep.type === type)
     .map((ep) => {
       const cidr = ep.network_cidr || ep.cidr
-      return formatCidrToRange(cidr)
+      const ipRange = formatCidrToRange(cidr)
+      
+      // Try to get hostname from asset cache
+      // Access cacheVersion to make this reactive
+      const _ = cacheVersion.value
+      const asset = getAssetForCidr(cidr)
+      const hostname = asset?.hostname
+      
+      // Display format: "192.168.1.0 - 192.168.1.255 (hostname)" or just IP range if no hostname
+      return hostname ? `${ipRange} (${hostname})` : ipRange
     })
   return networks.length > 0 ? networks.join(', ') : ''
+}
+
+// Create computed properties for each rule's formatted networks
+// These will reactively update when cacheVersion changes
+const formattedNetworksByRule = computed(() => {
+  // Access cacheVersion to track changes
+  const _ = cacheVersion.value
+  
+  const result = new Map()
+  props.rules.forEach((rule) => {
+    if (rule.endpoints) {
+      result.set(rule.id, {
+        source: formatNetworks(rule.endpoints, 'source'),
+        destination: formatNetworks(rule.endpoints, 'destination'),
+      })
+    }
+  })
+  return result
+})
+
+// Helper to get formatted networks for a rule
+const getFormattedNetworks = (ruleId, type) => {
+  const networks = formattedNetworksByRule.value.get(ruleId)
+  return networks ? networks[type] : ''
 }
 
 // Helper to get original CIDR for tooltip
@@ -229,5 +324,38 @@ const formatServices = (services) => {
     })
     .join(', ')
 }
+
+// Fetch asset info for all unique IPs when rules change
+watch(
+  () => props.rules,
+  async (newRules) => {
+    if (!newRules || newRules.length === 0) return
+    
+    // Collect all endpoints from all rules
+    const allEndpoints = []
+    newRules.forEach((rule) => {
+      if (rule.endpoints && Array.isArray(rule.endpoints)) {
+        allEndpoints.push(...rule.endpoints)
+      }
+    })
+    
+    // Fetch asset info for all unique IPs
+    await fetchAssetsForEndpoints(allEndpoints)
+  },
+  { immediate: true }
+)
+
+// Also fetch on mount
+onMounted(async () => {
+  if (props.rules && props.rules.length > 0) {
+    const allEndpoints = []
+    props.rules.forEach((rule) => {
+      if (rule.endpoints && Array.isArray(rule.endpoints)) {
+        allEndpoints.push(...rule.endpoints)
+      }
+    })
+    await fetchAssetsForEndpoints(allEndpoints)
+  }
+})
 </script>
 

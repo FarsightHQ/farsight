@@ -122,3 +122,91 @@ export function isValidCidr(cidr) {
   }
 }
 
+/**
+ * Validate IPv4 address format
+ * @param {string} ip - IP address to validate
+ * @returns {boolean} - True if valid IPv4 format
+ */
+function isValidIPv4(ip) {
+  if (!ip || typeof ip !== 'string') return false
+  
+  // Regex pattern for IPv4: 4 octets separated by dots, each 0-255
+  const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+  const match = ip.trim().match(ipv4Pattern)
+  
+  if (!match) return false
+  
+  // Validate each octet is 0-255
+  for (let i = 1; i <= 4; i++) {
+    const octet = parseInt(match[i], 10)
+    if (octet < 0 || octet > 255) {
+      return false
+    }
+  }
+  
+  return true
+}
+
+/**
+ * Extract base IP address from CIDR notation
+ * 
+ * @param {string} cidr - CIDR notation (e.g., "192.168.1.0/24") or IP with unexpected characters
+ * @returns {string} - Base IP address (e.g., "192.168.1.0") or empty string if invalid
+ * 
+ * Examples:
+ * - "192.168.1.0/24" → "192.168.1.0"
+ * - "10.0.0.1/32" → "10.0.0.1"
+ * - "172.16.0.0/16" → "172.16.0.0"
+ * - "192.168.1.5" → "192.168.1.5" (no CIDR notation, return as-is)
+ * - "10.177.56.206:1" → "10.177.56.206" (strip trailing colon and characters)
+ * - "10.177.56.206:1/24" → "10.177.56.206" (extract IP before colon, then validate)
+ */
+export function extractBaseIpFromCidr(cidr) {
+  if (!cidr || typeof cidr !== 'string') {
+    return ''
+  }
+
+  try {
+    let cleaned = cidr.trim()
+    
+    // If it contains '/', extract IP part before the '/'
+    if (cleaned.includes('/')) {
+      cleaned = cleaned.split('/')[0].trim()
+    }
+    
+    // If it contains ':', extract IP part before the ':' (handles cases like "10.177.56.206:1")
+    if (cleaned.includes(':')) {
+      // Check if it's IPv4 format (contains dots) - if so, split on colon
+      if (cleaned.includes('.')) {
+        cleaned = cleaned.split(':')[0].trim()
+      }
+      // For IPv6, we'd need more complex logic, but for now just take first part
+      // This handles edge cases where colon might be part of the data
+    }
+    
+    // Extract IP using regex pattern (4 octets separated by dots)
+    const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}/
+    const match = cleaned.match(ipv4Pattern)
+    
+    if (match) {
+      const extractedIp = match[0]
+      // Validate the extracted IP
+      if (isValidIPv4(extractedIp)) {
+        return extractedIp
+      }
+    }
+    
+    // If no pattern match or invalid, try validating the cleaned string directly
+    if (isValidIPv4(cleaned)) {
+      return cleaned
+    }
+    
+    // If all else fails, return empty string (invalid IP)
+    console.warn('Invalid IP format extracted from CIDR:', cidr, '→', cleaned)
+    return ''
+  } catch (error) {
+    console.warn('Error extracting base IP from CIDR:', error, cidr)
+    return ''
+  }
+}
+

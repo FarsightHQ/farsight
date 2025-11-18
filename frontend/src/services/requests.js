@@ -60,5 +60,18 @@ export const requestsService = {
       params: { include: 'graph' }
     })
   },
+
+  // Get all rules across all requests (or filtered by request_id)
+  getAllRules(params = {}) {
+    return apiClient.get('/api/v1/rules', {
+      params: {
+        skip: params.skip || 0,
+        limit: params.limit || 100,
+        request_id: params.request_id || undefined,
+        action: params.action || undefined,
+        include_summary: params.include_summary !== false,
+      },
+    })
+  },
 }
 

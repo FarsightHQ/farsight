@@ -89,6 +89,26 @@
                 </option>
               </select>
             </div>
+
+            <!-- Request Filter (for global view) -->
+            <div v-if="showRequestFilter">
+              <label class="block text-xs font-medium text-gray-700 mb-2">Request</label>
+              <select
+                v-model="localFilters.requestId"
+                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                @change="updateFilters"
+              >
+                <option :value="null">All Requests</option>
+                <option
+                  v-for="request in availableRequests"
+                  :key="request.id"
+                  :value="request.id"
+                >
+                  {{ request.title || `Request ${request.id}` }}
+                  <span v-if="request.external_id"> ({{ request.external_id }})</span>
+                </option>
+              </select>
+            </div>
           </div>
         </Transition>
       </div>
@@ -268,11 +288,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import { useRuleFilters } from '@/composables/useRuleFilters'
+import { requestsService } from '@/services/requests'
 
 const props = defineProps({
   filters: {
@@ -282,6 +303,10 @@ const props = defineProps({
   rules: {
     type: Array,
     default: () => [],
+  },
+  showRequestFilter: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -307,6 +332,39 @@ const localFilters = ref({
   anyAny: props.filters.anyAny || '',
   publicIP: props.filters.publicIP || '',
   hasIssues: props.filters.hasIssues || '',
+  requestId: props.filters.requestId || null,
+})
+
+// Available requests for dropdown (only fetch if showRequestFilter is true)
+const availableRequests = ref([])
+const loadingRequests = ref(false)
+
+const fetchRequests = async () => {
+  if (!props.showRequestFilter) return
+  
+  loadingRequests.value = true
+  try {
+    const response = await requestsService.list(0, 1000) // Fetch all requests
+    const responseData = response.data || response
+    availableRequests.value = Array.isArray(responseData) ? responseData : (responseData.data || [])
+  } catch (err) {
+    console.error('Failed to fetch requests:', err)
+    availableRequests.value = []
+  } finally {
+    loadingRequests.value = false
+  }
+}
+
+onMounted(() => {
+  if (props.showRequestFilter) {
+    fetchRequests()
+  }
+})
+
+watch(() => props.showRequestFilter, (newVal) => {
+  if (newVal && availableRequests.value.length === 0) {
+    fetchRequests()
+  }
 })
 
 watch(
@@ -321,6 +379,7 @@ watch(
       anyAny: newFilters.anyAny || '',
       publicIP: newFilters.publicIP || '',
       hasIssues: newFilters.hasIssues || '',
+      requestId: newFilters.requestId || null,
     }
   },
   { deep: true }
@@ -340,16 +399,17 @@ const clearFilters = () => {
     anyAny: '',
     publicIP: '',
     hasIssues: '',
+    requestId: null,
   }
   updateFilters()
 }
 
 const hasActiveFilters = computed(() => {
-  return Object.values(localFilters.value).some((value) => value !== '')
+  return Object.values(localFilters.value).some((value) => value !== '' && value !== null)
 })
 
 const activeFilterCount = computed(() => {
-  return Object.values(localFilters.value).filter((value) => value !== '').length
+  return Object.values(localFilters.value).filter((value) => value !== '' && value !== null).length
 })
 </script>
 

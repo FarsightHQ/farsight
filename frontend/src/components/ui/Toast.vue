@@ -1,5 +1,6 @@
 <template>
   <TransitionGroup
+    v-if="toasts && toasts.length > 0"
     name="toast"
     tag="div"
     class="fixed top-4 right-4 z-50 space-y-2"
@@ -45,14 +46,15 @@ const toastClasses = (type) => {
   return classes[type] || classes.info
 }
 
+const iconMap = {
+  success: CheckCircleIcon,
+  error: XCircleIcon,
+  warning: ExclamationTriangleIcon,
+  info: InformationCircleIcon,
+}
+
 const iconComponent = (type) => {
-  const icons = {
-    success: CheckCircleIcon,
-    error: XCircleIcon,
-    warning: ExclamationTriangleIcon,
-    info: InformationCircleIcon,
-  }
-  return icons[type] || InformationCircleIcon
+  return iconMap[type] || InformationCircleIcon
 }
 </script>
 

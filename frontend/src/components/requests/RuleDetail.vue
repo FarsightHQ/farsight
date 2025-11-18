@@ -37,9 +37,17 @@
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
               :title="endpoint.network_cidr || endpoint.cidr"
             >
-              <code class="text-sm font-mono text-gray-900">
-                {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
-              </code>
+              <div class="flex flex-col">
+                <code class="text-sm font-mono text-gray-900">
+                  {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+                </code>
+                <span 
+                  v-if="endpoint.hostname"
+                  class="text-xs text-gray-500 mt-1"
+                >
+                  {{ endpoint.hostname }}
+                </span>
+              </div>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
@@ -65,9 +73,17 @@
               class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
               :title="endpoint.network_cidr || endpoint.cidr"
             >
-              <code class="text-sm font-mono text-gray-900">
-                {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
-              </code>
+              <div class="flex flex-col">
+                <code class="text-sm font-mono text-gray-900">
+                  {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+                </code>
+                <span 
+                  v-if="endpoint.hostname"
+                  class="text-xs text-gray-500 mt-1"
+                >
+                  {{ endpoint.hostname }}
+                </span>
+              </div>
               <button
                 @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                 class="text-gray-400 hover:text-gray-600"
@@ -152,7 +168,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -165,6 +181,7 @@ import RuleFacts from './RuleFacts.vue'
 import { useToast } from '@/composables/useToast'
 import { formatCidrToRange } from '@/utils/ipUtils'
 import { formatPortRanges } from '@/utils/portUtils'
+import { useAssetCache } from '@/composables/useAssetCache'
 
 const props = defineProps({
   rule: {
@@ -185,18 +202,59 @@ const emit = defineEmits(['back'])
 
 const { success } = useToast()
 
-const sourceEndpoints = computed(() => {
+// Asset cache for fetching hostnames
+const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache()
+
+// Base endpoint filters (not reactive to cache)
+const sourceEndpointsBase = computed(() => {
   if (!props.rule?.endpoints) return []
   return props.rule.endpoints.filter(
     (ep) => ep.endpoint_type === 'source' || ep.type === 'source'
   )
 })
 
-const destinationEndpoints = computed(() => {
+const destinationEndpointsBase = computed(() => {
   if (!props.rule?.endpoints) return []
   return props.rule.endpoints.filter(
     (ep) => ep.endpoint_type === 'destination' || ep.type === 'destination'
   )
+})
+
+// Computed properties with asset information that reactively update when cache changes
+const sourceEndpoints = computed(() => {
+  // Access cacheVersion to track changes
+  const _ = cacheVersion.value
+  
+  return sourceEndpointsBase.value.map((ep) => {
+    const cidr = ep.network_cidr || ep.cidr
+    const asset = getAssetForCidr(cidr)
+    return {
+      ...ep,
+      asset: asset || null,
+      hostname: asset?.hostname || null,
+      segment: asset?.segment || null,
+      vlan: asset?.vlan || null,
+      os_name: asset?.os_name || null,
+    }
+  })
+})
+
+const destinationEndpoints = computed(() => {
+  // Access cacheVersion to track changes
+  const _ = cacheVersion.value
+  
+  return destinationEndpointsBase.value.map((ep) => {
+    const cidr = ep.network_cidr || ep.cidr
+    const asset = getAssetForCidr(cidr)
+    return {
+      ...ep,
+      asset: asset || null,
+      hostname: asset?.hostname || null,
+      segment: asset?.segment || null,
+      vlan: asset?.vlan || null,
+      os_name: asset?.os_name || null,
+    }
+  })
 })
 
 const formatDate = (dateString) => {
@@ -219,5 +277,23 @@ const copyToClipboard = async (text) => {
     console.error('Failed to copy:', err)
   }
 }
+
+// Fetch asset info when rule changes
+watch(
+  () => props.rule,
+  async (newRule) => {
+    if (!newRule || !newRule.endpoints) return
+    
+    await fetchAssetsForEndpoints(newRule.endpoints)
+  },
+  { immediate: true }
+)
+
+// Also fetch on mount
+onMounted(async () => {
+  if (props.rule && props.rule.endpoints) {
+    await fetchAssetsForEndpoints(props.rule.endpoints)
+  }
+})
 </script>
 

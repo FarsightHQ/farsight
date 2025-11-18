@@ -33,6 +33,16 @@
         </li>
         <li>
           <router-link
+            to="/rules"
+            class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100"
+            active-class="bg-primary-50 text-primary-700"
+          >
+            <ShieldCheckIcon class="h-5 w-5 mr-3" />
+            <span>All Rules</span>
+          </router-link>
+        </li>
+        <li>
+          <router-link
             to="/assets"
             class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100"
             active-class="bg-primary-50 text-primary-700"
@@ -50,6 +60,7 @@
 import {
   HomeIcon,
   DocumentTextIcon,
+  ShieldCheckIcon,
   ServerIcon,
 } from '@heroicons/vue/24/outline'
 </script>

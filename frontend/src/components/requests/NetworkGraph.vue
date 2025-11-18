@@ -21,6 +21,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useAssetCache } from '@/composables/useAssetCache'
+import { extractBaseIpFromCidr } from '@/utils/ipUtils'
 
 const props = defineProps({
   graphData: {
@@ -54,6 +56,9 @@ const tooltip = ref({
 // Selection state
 const selectedIP = ref(null)
 
+// Asset cache for fetching asset information
+const { fetchAsset, getAssetForCidr } = useAssetCache()
+
 // Constants
 const RECT_WIDTH = 120
 const RECT_HEIGHT = 40
@@ -63,12 +68,65 @@ const RIGHT_X = 0.7 // 70% from left
 const START_Y = 0.1 // 10% from top
 const VERTICAL_SPACING = 80
 
+// Fetch assets for all IPs in the graph
+const fetchAssetsForGraph = async () => {
+  if (!props.graphData) return
+  
+  const sources = props.graphData.sources || []
+  const destinations = props.graphData.destinations || []
+  
+  // Collect all unique IPs
+  const uniqueIPs = new Set()
+  sources.forEach(src => {
+    if (src.network_cidr) {
+      const baseIp = extractBaseIpFromCidr(src.network_cidr)
+      if (baseIp) uniqueIPs.add(baseIp)
+    }
+  })
+  destinations.forEach(dest => {
+    if (dest.network_cidr) {
+      const baseIp = extractBaseIpFromCidr(dest.network_cidr)
+      if (baseIp) uniqueIPs.add(baseIp)
+    }
+  })
+  
+  // Fetch assets for all unique IPs (in parallel)
+  await Promise.all(Array.from(uniqueIPs).map(ip => fetchAsset(ip)))
+}
+
+// Build enhanced tooltip text with asset information
+const buildTooltipText = (nodeData) => {
+  const baseTooltip = nodeData.tooltip || nodeData.formatted_label || nodeData.label || ''
+  const cidr = nodeData.network_cidr
+  
+  if (!cidr) return baseTooltip
+  
+  const baseIp = extractBaseIpFromCidr(cidr)
+  const asset = baseIp ? getAssetForCidr(cidr) : null
+  
+  if (!asset) return baseTooltip
+  
+  // Build asset info lines
+  const assetLines = []
+  if (asset.hostname) assetLines.push(`Hostname: ${asset.hostname}`)
+  if (asset.segment) assetLines.push(`Segment: ${asset.segment}`)
+  if (asset.vlan) assetLines.push(`VLAN: ${asset.vlan}`)
+  if (asset.os_name) assetLines.push(`OS: ${asset.os_name}`)
+  
+  if (assetLines.length === 0) return baseTooltip
+  
+  return `${baseTooltip}\n\n${assetLines.join('\n')}`
+}
+
 // Initialize graph
-const initializeGraph = () => {
+const initializeGraph = async () => {
   if (!svgRef.value || !props.graphData) return
 
   // Reset selection when graph is reinitialized
   selectedIP.value = null
+
+  // Fetch assets for all IPs in the graph
+  await fetchAssetsForGraph()
 
   // Clear existing content - remove all SVG elements including any lingering port circles
   const svgSelection = d3.select(svgRef.value)
@@ -206,7 +264,7 @@ const initializeGraph = () => {
       selectedIP.value = selectedIP.value === d.id ? null : d.id
       updateHighlighting()
     })
-    .on('mouseover', (event, d) => showTooltip(event, d.tooltip || d.formatted_label))
+    .on('mouseover', (event, d) => showTooltip(event, buildTooltipText(d)))
     .on('mouseout', hideTooltip)
 
   // Draw destination rectangles
@@ -232,7 +290,7 @@ const initializeGraph = () => {
       selectedIP.value = selectedIP.value === d.id ? null : d.id
       updateHighlighting()
     })
-    .on('mouseover', (event, d) => showTooltip(event, d.tooltip || d.formatted_label))
+    .on('mouseover', (event, d) => showTooltip(event, buildTooltipText(d)))
     .on('mouseout', hideTooltip)
 
   // Draw port count badges on connection lines

@@ -43,6 +43,7 @@
         :sort-key="sortKey"
         :sort-direction="sortDirection"
         :selected-rules="selectedRules"
+        :show-request-column="showRequestColumn"
         @sort="handleSort"
         @view-rule="$emit('view-rule', $event)"
         @visualize-rule="handleVisualizeRule"
@@ -114,7 +115,8 @@ import { useToast } from '@/composables/useToast'
 const props = defineProps({
   requestId: {
     type: [String, Number],
-    required: true,
+    required: false,
+    default: null,
   },
   filters: {
     type: Object,
@@ -124,7 +126,12 @@ const props = defineProps({
       hasFacts: '',
       selfFlow: '',
       anyAny: '',
+      requestId: null,
     }),
+  },
+  showRequestColumn: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -146,6 +153,7 @@ const localFilters = ref({
   anyAny: props.filters.anyAny || '',
   publicIP: props.filters.publicIP || '',
   hasIssues: props.filters.hasIssues || '',
+  requestId: props.filters.requestId || null,
 })
 const sortKey = ref('id')
 const sortDirection = ref('asc')
@@ -181,6 +189,7 @@ watch(
       anyAny: newFilters.anyAny || '',
       publicIP: newFilters.publicIP || '',
       hasIssues: newFilters.hasIssues || '',
+      requestId: newFilters.requestId || null,
     }
     currentPage.value = 1
     selectedRules.value = [] // Clear selection when filters change
@@ -212,6 +221,7 @@ const clearAll = () => {
     anyAny: '',
     publicIP: '',
     hasIssues: '',
+    requestId: null,
   }
   currentPage.value = 1
 }
@@ -454,6 +464,14 @@ const filteredRules = computed(() => {
     })
   }
 
+  // Request ID filter (for global view)
+  if (localFilters.value.requestId) {
+    filtered = filtered.filter((rule) => {
+      const ruleRequestId = rule.request?.id || rule.request_id
+      return ruleRequestId === parseInt(localFilters.value.requestId)
+    })
+  }
+
   // Sort
   filtered.sort((a, b) => {
     let aVal = a[sortKey.value]
@@ -483,15 +501,79 @@ const paginatedRules = computed(() => {
   return filteredRules.value.slice(start, end)
 })
 
+// Transform rules from getAllRules format to expected format
+const transformRuleForDisplay = (rule) => {
+  // If rule already has endpoints and services, return as-is (backward compatibility)
+  if (rule.endpoints && rule.services) {
+    return rule
+  }
+  
+  // Transform from new format (source_networks, destination_networks, protocols, port_ranges)
+  // to expected format (endpoints, services)
+  const transformed = { ...rule }
+  
+  // Build endpoints array
+  const endpoints = []
+  if (rule.source_networks && Array.isArray(rule.source_networks)) {
+    rule.source_networks.forEach(network => {
+      endpoints.push({
+        endpoint_type: 'source',
+        network_cidr: network,
+        cidr: network
+      })
+    })
+  }
+  if (rule.destination_networks && Array.isArray(rule.destination_networks)) {
+    rule.destination_networks.forEach(network => {
+      endpoints.push({
+        endpoint_type: 'destination',
+        network_cidr: network,
+        cidr: network
+      })
+    })
+  }
+  transformed.endpoints = endpoints
+  
+  // Build services array
+  const services = []
+  if (rule.protocols && Array.isArray(rule.protocols) && rule.port_ranges && Array.isArray(rule.port_ranges)) {
+    // Match protocols with port_ranges by index
+    const maxLength = Math.max(rule.protocols.length, rule.port_ranges.length)
+    for (let i = 0; i < maxLength; i++) {
+      services.push({
+        protocol: rule.protocols[i] || '',
+        port_ranges: rule.port_ranges[i] || '',
+        ports: rule.port_ranges[i] || ''
+      })
+    }
+  }
+  transformed.services = services
+  
+  return transformed
+}
+
 // Fetch rules
 const fetchRules = async () => {
   loading.value = true
   try {
-    const response = await rulesService.getRules(props.requestId, {
-      skip: 0,
-      limit: 1000, // Fetch all for client-side filtering
-      include_summary: true,
-    })
+    let response
+    if (props.requestId) {
+      // Request-specific mode: use rulesService.getRules
+      response = await rulesService.getRules(props.requestId, {
+        skip: 0,
+        limit: 1000, // Fetch all for client-side filtering
+        include_summary: true,
+      })
+    } else {
+      // Global mode: use requestsService.getAllRules
+      response = await requestsService.getAllRules({
+        skip: 0,
+        limit: 1000, // Fetch all for client-side filtering
+        include_summary: true,
+        request_id: localFilters.value.requestId || undefined,
+        action: localFilters.value.action || undefined,
+      })
+    }
 
     // Handle standardized response format
     const responseData = response.data || response
@@ -499,8 +581,9 @@ const fetchRules = async () => {
     
     if (data) {
       if (data.rules) {
-        rules.value = data.rules
-        emit('rules-loaded', data.rules)
+        // Transform rules to expected format
+        rules.value = data.rules.map(transformRuleForDisplay)
+        emit('rules-loaded', rules.value)
       }
       if (data.summary) {
         stats.value = data.summary
@@ -518,20 +601,17 @@ const fetchRules = async () => {
   }
 }
 
+// Watch for changes that should trigger refetch
 watch(
-  () => props.requestId,
+  () => [props.requestId, localFilters.value.requestId, localFilters.value.action],
   () => {
-    if (props.requestId) {
-      fetchRules()
-    }
+    fetchRules()
   },
   { immediate: true }
 )
 
 onMounted(() => {
-  if (props.requestId) {
-    fetchRules()
-  }
+  fetchRules()
 })
 </script>
 

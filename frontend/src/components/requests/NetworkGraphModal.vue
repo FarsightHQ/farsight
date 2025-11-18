@@ -41,7 +41,8 @@
       <div class="text-center max-w-md">
         <ExclamationTriangleIcon class="h-12 w-12 text-error-500 mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-gray-900 mb-2">Failed to Load Topology</h4>
-        <p class="text-gray-600 mb-4">{{ error }}</p>
+        <p class="text-gray-600 mb-2">{{ error }}</p>
+        <p v-if="ruleId" class="text-sm text-gray-500 mb-4">Rule ID: {{ ruleId }}</p>
         <Button variant="primary" @click="fetchTopology">Retry</Button>
       </div>
     </div>
@@ -51,7 +52,8 @@
       <div class="text-center max-w-md">
         <InformationCircleIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-gray-900 mb-2">No Network Data</h4>
-        <p class="text-gray-600">This rule has no network topology data to visualize.</p>
+        <p class="text-gray-600 mb-2">{{ emptyStateMessage }}</p>
+        <p v-if="ruleId" class="text-sm text-gray-500">Rule ID: {{ ruleId }}</p>
       </div>
     </div>
 
@@ -117,6 +119,7 @@ const loading = ref(false)
 const error = ref(null)
 const graphData = ref(null)
 const summary = ref(null)
+const emptyStateMessage = ref('This rule has no network topology data to visualize.')
 
 const fetchTopology = async () => {
   // If graphData is provided directly, use it
@@ -144,20 +147,94 @@ const fetchTopology = async () => {
     let responseData
 
     if (props.ruleId) {
+      // Debug logging
+      console.log('[NetworkGraphModal] Fetching graph for rule:', props.ruleId)
+      
       // Fetch rule-specific graph data
       response = await requestsService.getRuleGraph(props.ruleId)
-      const data = response.data || response
-      responseData = data.data || data
-
+      
+      // Debug logging - log full response structure
+      console.log('[NetworkGraphModal] Full API response:', response)
+      
+      // Extract response data - handle multiple wrapper formats
+      let data = response
+      if (response.data) {
+        data = response.data
+        // Check if there's another nested data layer
+        if (data.data) {
+          data = data.data
+        }
+      }
+      responseData = data
+      
+      // Debug logging - log extracted responseData
+      console.log('[NetworkGraphModal] Extracted responseData:', responseData)
+      console.log('[NetworkGraphModal] responseData.graph:', responseData.graph)
+      
       // Graph data is nested in responseData.graph when include=graph
       if (responseData.graph) {
-        // New flow-style format: sources, destinations, connections
-        graphData.value = responseData.graph
-        summary.value = {
-          source_count: responseData.graph.metadata?.source_count || responseData.endpoints?.source_count || 0,
-          destination_count: responseData.graph.metadata?.destination_count || responseData.endpoints?.destination_count || 0,
-          service_count: responseData.graph.metadata?.service_count || responseData.service_count || 0,
+        const graph = responseData.graph
+        
+        // Validate graph structure
+        if (!graph.sources || !Array.isArray(graph.sources)) {
+          console.error('[NetworkGraphModal] Graph missing sources array:', graph)
+          error.value = `Invalid graph data: missing sources array for rule ${props.ruleId}`
+          graphData.value = null
+          summary.value = null
+          emptyStateMessage.value = 'Graph data structure is invalid (missing sources).'
+          return
         }
+        
+        if (!graph.destinations || !Array.isArray(graph.destinations)) {
+          console.error('[NetworkGraphModal] Graph missing destinations array:', graph)
+          error.value = `Invalid graph data: missing destinations array for rule ${props.ruleId}`
+          graphData.value = null
+          summary.value = null
+          emptyStateMessage.value = 'Graph data structure is invalid (missing destinations).'
+          return
+        }
+        
+        // Check if arrays are empty
+        if (graph.sources.length === 0) {
+          console.warn('[NetworkGraphModal] Graph has empty sources array')
+          emptyStateMessage.value = 'This rule has no source networks to visualize.'
+          graphData.value = graph
+          summary.value = {
+            rule_count: 1,
+            source_count: 0,
+            destination_count: graph.destinations.length || 0,
+            service_count: graph.metadata?.service_count || graph.connections?.length || 0,
+          }
+          return
+        }
+        
+        if (graph.destinations.length === 0) {
+          console.warn('[NetworkGraphModal] Graph has empty destinations array')
+          emptyStateMessage.value = 'This rule has no destination networks to visualize.'
+          graphData.value = graph
+          summary.value = {
+            rule_count: 1,
+            source_count: graph.sources.length || 0,
+            destination_count: 0,
+            service_count: graph.metadata?.service_count || graph.connections?.length || 0,
+          }
+          return
+        }
+        
+        // New flow-style format: sources, destinations, connections
+        graphData.value = graph
+        summary.value = {
+          rule_count: 1,
+          source_count: graph.metadata?.source_count || graph.sources.length || 0,
+          destination_count: graph.metadata?.destination_count || graph.destinations.length || 0,
+          service_count: graph.metadata?.service_count || graph.connections?.reduce((sum, conn) => sum + (conn.port_count || 0), 0) || 0,
+        }
+        
+        console.log('[NetworkGraphModal] Successfully loaded graph data:', {
+          sources: graph.sources.length,
+          destinations: graph.destinations.length,
+          connections: graph.connections?.length || 0
+        })
       } else if (responseData.topology) {
         // Fallback for request-level topology format (old format)
         graphData.value = responseData
@@ -167,9 +244,24 @@ const fetchTopology = async () => {
           service_count: responseData.service_count || 0,
         }
       } else {
-        error.value = 'No graph data available for this rule'
-        graphData.value = null
-        summary.value = null
+        // Check if responseData itself has the graph structure (direct format)
+        if (responseData.sources && Array.isArray(responseData.sources) && 
+            responseData.destinations && Array.isArray(responseData.destinations)) {
+          console.log('[NetworkGraphModal] Found graph data in direct format')
+          graphData.value = responseData
+          summary.value = {
+            rule_count: 1,
+            source_count: responseData.sources.length || 0,
+            destination_count: responseData.destinations.length || 0,
+            service_count: responseData.metadata?.service_count || responseData.connections?.length || 0,
+          }
+        } else {
+          console.error('[NetworkGraphModal] No graph data found in response:', responseData)
+          error.value = `No graph data available for rule ${props.ruleId}. The rule may not have any endpoints or services.`
+          graphData.value = null
+          summary.value = null
+          emptyStateMessage.value = 'This rule has no source or destination networks to visualize.'
+        }
       }
     } else {
       // Fallback to request-level topology
