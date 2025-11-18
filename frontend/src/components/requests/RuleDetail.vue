@@ -14,9 +14,20 @@
             <span>Created: {{ formatDate(rule.created_at) }}</span>
           </div>
         </div>
-        <Button v-if="requestId" variant="outline" @click="$emit('back')">
-          Back to Rules
-        </Button>
+        <div class="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            :disabled="!hasNetworkData"
+            :title="!hasNetworkData ? 'This rule has no network data to visualize' : 'Visualize network topology'"
+            @click="handleVisualize"
+          >
+            Visualize
+          </Button>
+          <Button variant="outline" size="sm" @click="handleBack">
+            Back to Rules
+          </Button>
+        </div>
       </div>
     </Card>
 
@@ -169,6 +180,7 @@
 
 <script setup>
 import { computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -198,8 +210,9 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'visualize'])
 
+const router = useRouter()
 const { success } = useToast()
 
 // Asset cache for fetching hostnames
@@ -275,6 +288,37 @@ const copyToClipboard = async (text) => {
     success('Copied to clipboard')
   } catch (err) {
     console.error('Failed to copy:', err)
+  }
+}
+
+// Check if rule has network data for visualization
+const hasNetworkData = computed(() => {
+  if (!props.rule) return false
+  
+  // Check if rule has endpoints array with source or destination entries
+  const hasEndpoints = props.rule.endpoints && Array.isArray(props.rule.endpoints) && props.rule.endpoints.length > 0
+  
+  // Rule needs at least endpoints to visualize
+  return hasEndpoints
+})
+
+// Handle visualize button click
+const handleVisualize = () => {
+  if (!hasNetworkData.value) {
+    console.warn('[RuleDetail] Rule has no network data for visualization:', props.rule?.id)
+    // Still emit the event - let the modal handle showing appropriate message
+  }
+  emit('visualize', props.rule)
+}
+
+// Handle back button click - context-aware navigation
+const handleBack = () => {
+  if (props.requestId) {
+    // From specific FAR page: emit back event
+    emit('back')
+  } else {
+    // From All Rules page: navigate to /rules
+    router.push('/rules')
   }
 }
 

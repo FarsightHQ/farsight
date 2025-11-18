@@ -98,6 +98,7 @@
             :rule="selectedRule"
             :request-id="request.id"
             @back="handleBackToRules"
+            @visualize="handleVisualizeRule"
           />
           <RulesList
             v-else

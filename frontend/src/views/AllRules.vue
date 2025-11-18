@@ -26,6 +26,7 @@
           v-if="showRuleDetail && selectedRule"
           :rule="selectedRule"
           @back="handleBackToRules"
+          @visualize="handleVisualizeRule"
         />
         <RulesList
           v-else
