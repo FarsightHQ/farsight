@@ -68,6 +68,27 @@ const RIGHT_X = 0.7 // 70% from left
 const START_Y = 0.1 // 10% from top
 const VERTICAL_SPACING = 80
 
+// Grouping constants
+const GROUP_PADDING = 20 // Padding around VLAN groups
+const SEGMENT_PADDING = 12 // Padding around segments within VLAN
+const NODE_SPACING = 60 // Spacing between nodes within segment
+const GROUP_SPACING = 40 // Spacing between VLAN groups
+
+// Color scheme - light pastel shades
+const VLAN_COLORS = {
+  default: '#e8f4f8', // Light blue
+  border: '#b8d4e0', // Medium blue border
+  text: '#5a7a8a' // Darker blue text
+}
+
+const SEGMENT_COLORS = {
+  default: '#f0f8f4', // Light green
+  border: '#c8e0d4', // Medium green border
+  text: '#5a8a7a' // Darker green text
+}
+
+const UNCategorized_COLOR = '#f5f5f5' // Light gray for uncategorized
+
 // Fetch assets for all IPs in the graph
 const fetchAssetsForGraph = async () => {
   if (!props.graphData) return
@@ -92,6 +113,89 @@ const fetchAssetsForGraph = async () => {
   
   // Fetch assets for all unique IPs (in parallel)
   await Promise.all(Array.from(uniqueIPs).map(ip => fetchAsset(ip)))
+}
+
+// Group nodes by VLAN first, then by Segment
+const groupNodesByVlanAndSegment = (nodes, nodeType) => {
+  const groups = {}
+  
+  nodes.forEach(node => {
+    const cidr = node.network_cidr
+    const baseIp = extractBaseIpFromCidr(cidr)
+    const asset = baseIp ? getAssetForCidr(cidr) : null
+    
+    const vlan = asset?.vlan || 'Uncategorized'
+    const segment = asset?.segment || 'Uncategorized'
+    
+    if (!groups[vlan]) {
+      groups[vlan] = {}
+    }
+    if (!groups[vlan][segment]) {
+      groups[vlan][segment] = []
+    }
+    
+    // Store grouping metadata on node
+    node.vlan = vlan
+    node.segment = segment
+    node.asset = asset
+    
+    groups[vlan][segment].push(node)
+  })
+  
+  return groups
+}
+
+// Calculate positions for grouped nodes
+const calculateGroupPositions = (groupedNodes, startX, startY) => {
+  let currentY = startY
+  const groupBounds = []
+  
+  Object.entries(groupedNodes).forEach(([vlan, segments]) => {
+    const vlanNodes = []
+    const segmentBounds = []
+    let vlanStartY = currentY
+    let vlanCurrentY = currentY + GROUP_PADDING
+    
+    Object.entries(segments).forEach(([segment, nodes]) => {
+      const segmentStartY = vlanCurrentY
+      let segmentCurrentY = vlanCurrentY + SEGMENT_PADDING
+      
+      // Position nodes within segment
+      nodes.forEach((node, i) => {
+        node.x = startX
+        node.y = segmentCurrentY
+        node.width = RECT_WIDTH
+        node.height = RECT_HEIGHT
+        segmentCurrentY += NODE_SPACING
+      })
+      
+      const segmentEndY = segmentCurrentY - NODE_SPACING + RECT_HEIGHT
+      segmentBounds.push({
+        segment,
+        startY: segmentStartY,
+        endY: segmentEndY,
+        nodes: nodes,
+        height: segmentEndY - segmentStartY
+      })
+      
+      vlanNodes.push(...nodes)
+      vlanCurrentY = segmentEndY + SEGMENT_PADDING + GROUP_SPACING
+    })
+    
+    const vlanEndY = vlanCurrentY - GROUP_SPACING
+    groupBounds.push({
+      vlan,
+      startY: vlanStartY,
+      endY: vlanEndY,
+      segments: segmentBounds,
+      nodes: vlanNodes,
+      height: vlanEndY - vlanStartY
+    })
+    
+    currentY = vlanEndY + GROUP_SPACING
+  })
+  
+  return groupBounds
 }
 
 // Build enhanced tooltip text with asset information
@@ -149,10 +253,30 @@ const initializeGraph = async () => {
     width = container.clientWidth || 800
   }
 
-  // Calculate height based on content
-  const maxItems = Math.max(sources.length, destinations.length)
+  // Calculate positions
+  const leftX = width * LEFT_X
+  const rightX = width * RIGHT_X
+  const startY = 50 // Fixed top padding instead of percentage
+
+  // Group sources and destinations by VLAN and Segment
+  const groupedSources = groupNodesByVlanAndSegment(sources, 'source')
+  const groupedDestinations = groupNodesByVlanAndSegment(destinations, 'destination')
+  
+  // Calculate positions for grouped sources
+  const sourceGroupBounds = calculateGroupPositions(groupedSources, leftX, startY)
+  
+  // Calculate positions for grouped destinations
+  const destinationGroupBounds = calculateGroupPositions(groupedDestinations, rightX, startY)
+  
+  // Calculate height based on actual grouped content
+  const maxSourceHeight = sourceGroupBounds.length > 0 
+    ? Math.max(...sourceGroupBounds.map(g => g.endY))
+    : startY
+  const maxDestHeight = destinationGroupBounds.length > 0
+    ? Math.max(...destinationGroupBounds.map(g => g.endY))
+    : startY
   const padding = 100 // Top and bottom padding
-  height = Math.max(600, padding + maxItems * VERTICAL_SPACING + RECT_HEIGHT)
+  height = Math.max(600, Math.max(maxSourceHeight, maxDestHeight) + padding)
 
   // Create SVG
   svg = d3
@@ -166,27 +290,6 @@ const initializeGraph = async () => {
         updateHighlighting()
       }
     })
-
-  // Calculate positions
-  const leftX = width * LEFT_X
-  const rightX = width * RIGHT_X
-  const startY = 50 // Fixed top padding instead of percentage
-
-  // Position source rectangles
-  sources.forEach((src, i) => {
-    src.x = leftX
-    src.y = startY + i * VERTICAL_SPACING
-    src.width = RECT_WIDTH
-    src.height = RECT_HEIGHT
-  })
-
-  // Position destination rectangles
-  destinations.forEach((dst, i) => {
-    dst.x = rightX
-    dst.y = startY + i * VERTICAL_SPACING
-    dst.width = RECT_WIDTH
-    dst.height = RECT_HEIGHT
-  })
 
   // Calculate connection line positions
   connections.forEach((conn) => {
@@ -205,11 +308,124 @@ const initializeGraph = async () => {
     }
   })
 
-  // Create groups for layering
+  // Create groups for layering (order matters - bottom to top)
+  const backgroundsGroup = svg.append('g').attr('class', 'backgrounds')
   const linksGroup = svg.append('g').attr('class', 'links')
   const rectsGroup = svg.append('g').attr('class', 'rectangles')
   const badgesGroup = svg.append('g').attr('class', 'badges')
   const labelsGroup = svg.append('g').attr('class', 'labels')
+  const vlanLabelsGroup = svg.append('g').attr('class', 'vlan-labels')
+  const segmentLabelsGroup = svg.append('g').attr('class', 'segment-labels')
+  
+  // Draw VLAN and Segment background rectangles for sources
+  sourceGroupBounds.forEach(vlanGroup => {
+    // Draw VLAN background (outer rectangle)
+    backgroundsGroup
+      .append('rect')
+      .attr('class', 'vlan-group source-vlan')
+      .attr('x', leftX - GROUP_PADDING)
+      .attr('y', vlanGroup.startY)
+      .attr('width', RECT_WIDTH + (GROUP_PADDING * 2))
+      .attr('height', vlanGroup.height)
+      .attr('fill', vlanGroup.vlan === 'Uncategorized' ? UNCategorized_COLOR : VLAN_COLORS.default)
+      .attr('stroke', vlanGroup.vlan === 'Uncategorized' ? '#d0d0d0' : VLAN_COLORS.border)
+      .attr('stroke-width', 2)
+      .attr('rx', 6)
+      .attr('opacity', 0.6)
+    
+    // Draw VLAN label
+    vlanLabelsGroup
+      .append('text')
+      .attr('class', 'vlan-label')
+      .attr('x', leftX - GROUP_PADDING + 8)
+      .attr('y', vlanGroup.startY + 18)
+      .attr('font-size', '12px')
+      .attr('font-weight', '600')
+      .attr('fill', vlanGroup.vlan === 'Uncategorized' ? '#888' : VLAN_COLORS.text)
+      .text(`VLAN: ${vlanGroup.vlan}`)
+    
+    // Draw Segment backgrounds (inner rectangles)
+    vlanGroup.segments.forEach(segmentGroup => {
+      backgroundsGroup
+        .append('rect')
+        .attr('class', 'segment-group source-segment')
+        .attr('x', leftX - SEGMENT_PADDING)
+        .attr('y', segmentGroup.startY)
+        .attr('width', RECT_WIDTH + (SEGMENT_PADDING * 2))
+        .attr('height', segmentGroup.height)
+        .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#fafafa' : SEGMENT_COLORS.default)
+        .attr('stroke', segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border)
+        .attr('stroke-width', 1.5)
+        .attr('rx', 4)
+        .attr('opacity', 0.5)
+      
+      // Draw Segment label
+      segmentLabelsGroup
+        .append('text')
+        .attr('class', 'segment-label')
+        .attr('x', leftX - SEGMENT_PADDING + 6)
+        .attr('y', segmentGroup.startY + 16)
+        .attr('font-size', '11px')
+        .attr('font-weight', '500')
+        .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#aaa' : SEGMENT_COLORS.text)
+        .text(`Segment: ${segmentGroup.segment}`)
+    })
+  })
+  
+  // Draw VLAN and Segment background rectangles for destinations
+  destinationGroupBounds.forEach(vlanGroup => {
+    // Draw VLAN background (outer rectangle)
+    backgroundsGroup
+      .append('rect')
+      .attr('class', 'vlan-group destination-vlan')
+      .attr('x', rightX - GROUP_PADDING)
+      .attr('y', vlanGroup.startY)
+      .attr('width', RECT_WIDTH + (GROUP_PADDING * 2))
+      .attr('height', vlanGroup.height)
+      .attr('fill', vlanGroup.vlan === 'Uncategorized' ? UNCategorized_COLOR : VLAN_COLORS.default)
+      .attr('stroke', vlanGroup.vlan === 'Uncategorized' ? '#d0d0d0' : VLAN_COLORS.border)
+      .attr('stroke-width', 2)
+      .attr('rx', 6)
+      .attr('opacity', 0.6)
+    
+    // Draw VLAN label
+    vlanLabelsGroup
+      .append('text')
+      .attr('class', 'vlan-label')
+      .attr('x', rightX - GROUP_PADDING + 8)
+      .attr('y', vlanGroup.startY + 18)
+      .attr('font-size', '12px')
+      .attr('font-weight', '600')
+      .attr('fill', vlanGroup.vlan === 'Uncategorized' ? '#888' : VLAN_COLORS.text)
+      .text(`VLAN: ${vlanGroup.vlan}`)
+    
+    // Draw Segment backgrounds (inner rectangles)
+    vlanGroup.segments.forEach(segmentGroup => {
+      backgroundsGroup
+        .append('rect')
+        .attr('class', 'segment-group destination-segment')
+        .attr('x', rightX - SEGMENT_PADDING)
+        .attr('y', segmentGroup.startY)
+        .attr('width', RECT_WIDTH + (SEGMENT_PADDING * 2))
+        .attr('height', segmentGroup.height)
+        .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#fafafa' : SEGMENT_COLORS.default)
+        .attr('stroke', segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border)
+        .attr('stroke-width', 1.5)
+        .attr('rx', 4)
+        .attr('opacity', 0.5)
+      
+      // Draw Segment label
+      segmentLabelsGroup
+        .append('text')
+        .attr('class', 'segment-label')
+        .attr('x', rightX - SEGMENT_PADDING + 6)
+        .attr('y', segmentGroup.startY + 16)
+        .attr('font-size', '11px')
+        .attr('font-weight', '500')
+        .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#aaa' : SEGMENT_COLORS.text)
+        .text(`Segment: ${segmentGroup.segment}`)
+    })
+  })
 
   // Draw connection lines (curved)
   const lineGenerator = d3
