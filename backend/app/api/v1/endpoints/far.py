@@ -20,6 +20,9 @@ from app.services.csv_ingestion_service import CsvIngestionService
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -209,6 +212,24 @@ def get_far_rules(
             str(rule.action), source_networks, destination_networks, protocols, port_ranges
         )
         
+        # Compute assessment data from facts
+        facts = rule.facts if rule.facts is not None else None
+        assessment = _compute_rule_assessment(facts)
+        
+        # Temporary print to verify code execution (remove after debugging)
+        print(f"DEBUG: Rule {rule.id} - assessment computed: {assessment}")
+        
+        # Info logging to verify assessment computation
+        logger.info(
+            f"Rule {rule.id} assessment: health_status={assessment['health_status']}, "
+            f"problem_count={assessment['problem_count']}, "
+            f"criticality_score={assessment['criticality_score']}, "
+            f"facts_present={facts is not None}"
+        )
+        if facts:
+            logger.info(f"Rule {rule.id} facts keys: {list(facts.keys()) if isinstance(facts, dict) else 'not a dict'}")
+            logger.info(f"Rule {rule.id} is_self_flow={facts.get('is_self_flow')}, src_is_any={facts.get('src_is_any')}, dst_is_any={facts.get('dst_is_any')}")
+        
         # Create enhanced rule model
         enhanced_rule = RuleDetailModel(
             id=rule.id,
@@ -224,7 +245,10 @@ def get_far_rules(
             created_at=rule.created_at.isoformat(),
             rule_hash=rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
             tuple_estimate=tuple_estimate,
-            rule_summary=rule_summary
+            rule_summary=rule_summary,
+            health_status=assessment["health_status"],
+            problem_count=assessment["problem_count"],
+            criticality_score=assessment["criticality_score"]
         )
         enhanced_rules.append(enhanced_rule)
     
@@ -814,6 +838,73 @@ def _extract_ips_from_cidr(network_cidr: str) -> List[str]:
         except ipaddress.AddressValueError:
             # If all else fails, return as-is (might be hostname or other format)
             return [network_cidr]
+
+
+def _compute_rule_assessment(facts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Compute assessment data from rule facts.
+    
+    Returns dict with health_status, problem_count, and criticality_score.
+    """
+    if not facts or not isinstance(facts, dict):
+        return {
+            "health_status": None,
+            "problem_count": 0,
+            "criticality_score": 0
+        }
+    
+    # Check for tuple_summary from hybrid facts (if available)
+    tuple_summary = facts.get("tuple_summary", {})
+    if isinstance(tuple_summary, dict) and "problem_count" in tuple_summary:
+        problem_count = tuple_summary.get("problem_count", 0)
+        total_count = tuple_summary.get("total_count", 0)
+        
+        # Use hybrid facts health_status if available
+        health_status = facts.get("health_status")
+        if health_status:
+            criticality_map = {"critical": 3, "warning": 2, "clean": 1}
+            return {
+                "health_status": health_status,
+                "problem_count": problem_count,
+                "criticality_score": criticality_map.get(health_status, 0)
+            }
+    
+    # Fall back to basic facts computation
+    src_is_any = facts.get("src_is_any", False)
+    dst_is_any = facts.get("dst_is_any", False)
+    is_self_flow = facts.get("is_self_flow", False)
+    src_has_public = facts.get("src_has_public", False)
+    dst_has_public = facts.get("dst_has_public", False)
+    
+    # Count problems
+    problem_count = sum([
+        src_is_any,
+        dst_is_any,
+        is_self_flow,
+        src_has_public,
+        dst_has_public
+    ])
+    
+    # Determine health status
+    if src_is_any or dst_is_any or (is_self_flow and (src_has_public or dst_has_public)):
+        health_status = "critical"
+        criticality_score = 3
+    elif is_self_flow or src_has_public or dst_has_public:
+        health_status = "warning"
+        criticality_score = 2
+    elif problem_count == 0:
+        health_status = "clean"
+        criticality_score = 1
+    else:
+        # Has some issues but not categorized above
+        health_status = "warning"
+        criticality_score = 2
+    
+    return {
+        "health_status": health_status,
+        "problem_count": problem_count,
+        "criticality_score": criticality_score
+    }
 
 
 def _generate_rule_summary(action: str, sources: List[str], destinations: List[str], 

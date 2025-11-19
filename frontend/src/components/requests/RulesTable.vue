@@ -44,6 +44,9 @@
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Services
           </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Assessment
+          </th>
           <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
             Actions
           </th>
@@ -70,6 +73,9 @@
           <td class="px-6 py-4">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
           </td>
+          <td class="px-6 py-4">
+            <div class="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+          </td>
           <td class="px-6 py-4 whitespace-nowrap text-right">
             <div class="h-8 bg-gray-200 rounded animate-pulse w-16"></div>
           </td>
@@ -81,7 +87,11 @@
           v-for="rule in rules"
           :key="rule.id"
           class="hover:bg-gray-50 transition-colors"
-          :class="{ 'bg-primary-50': selectedRules.includes(rule.id) }"
+          :class="{
+            'bg-primary-50': selectedRules.includes(rule.id),
+            'bg-red-50': rule.health_status === 'critical' && !selectedRules.includes(rule.id),
+            'bg-yellow-50': rule.health_status === 'warning' && !selectedRules.includes(rule.id)
+          }"
         >
           <td class="px-6 py-4 whitespace-nowrap" @click.stop>
             <input
@@ -141,6 +151,27 @@
               {{ formatServices(rule.services) || '—' }}
             </div>
           </td>
+          <td 
+            class="px-6 py-4 text-sm cursor-pointer"
+            @click="$emit('view-rule', rule)"
+          >
+            <div class="flex items-center space-x-2">
+              <span 
+                v-if="rule.health_status"
+                :class="getAssessmentBadgeClass(rule.health_status)"
+                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+              >
+                {{ getAssessmentBadgeText(rule.health_status) }}
+              </span>
+              <span 
+                v-if="rule.problem_count && rule.problem_count > 0"
+                class="text-gray-600"
+              >
+                {{ rule.problem_count }} {{ rule.problem_count === 1 ? 'problem' : 'problems' }}
+              </span>
+              <span v-if="!rule.health_status" class="text-gray-400">—</span>
+            </div>
+          </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
               <Button 
@@ -161,7 +192,7 @@
 
         <!-- Empty State -->
         <tr v-if="!loading && rules.length === 0">
-          <td :colspan="showRequestColumn ? 7 : 6" class="px-6 py-12 text-center">
+          <td :colspan="showRequestColumn ? 8 : 7" class="px-6 py-12 text-center">
             <p class="text-gray-500">No rules found</p>
           </td>
         </tr>
@@ -323,6 +354,25 @@ const formatServices = (services) => {
       return formattedPorts ? `${protocol}: ${formattedPorts}` : protocol
     })
     .join(', ')
+}
+
+// Assessment helper functions
+const getAssessmentBadgeClass = (healthStatus) => {
+  const classes = {
+    'critical': 'bg-red-100 text-red-800',
+    'warning': 'bg-yellow-100 text-yellow-800',
+    'clean': 'bg-green-100 text-green-800'
+  }
+  return classes[healthStatus] || 'bg-gray-100 text-gray-800'
+}
+
+const getAssessmentBadgeText = (healthStatus) => {
+  const texts = {
+    'critical': 'Critical',
+    'warning': 'Warning',
+    'clean': 'Clean'
+  }
+  return texts[healthStatus] || healthStatus
 }
 
 // Fetch asset info for all unique IPs when rules change

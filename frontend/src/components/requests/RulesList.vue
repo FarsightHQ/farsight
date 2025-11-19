@@ -484,6 +484,14 @@ const filteredRules = computed(() => {
 
     if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1
+    
+    // Secondary sort by criticality (critical first, then warning, then clean, then no data)
+    const aCriticality = a.criticality_score ?? 0
+    const bCriticality = b.criticality_score ?? 0
+    if (aCriticality !== bCriticality) {
+      return bCriticality - aCriticality // Descending: higher criticality first
+    }
+    
     return 0
   })
 

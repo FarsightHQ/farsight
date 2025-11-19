@@ -277,6 +277,16 @@ class RuleDetailModel(BaseModel):
     
     # Human-readable summary
     rule_summary: str = Field(..., description="Human-readable rule description")
+    
+    # Assessment information
+    health_status: Optional[str] = Field(None, description="Health status: 'critical', 'warning', 'clean', or None")
+    problem_count: Optional[int] = Field(None, description="Count of problems/issues")
+    criticality_score: Optional[int] = Field(None, description="Numeric score for sorting (0=no data, 1=clean, 2=warning, 3=critical)")
+
+    class Config:
+        """Pydantic model configuration"""
+        # Include None values in serialization so assessment fields always appear in API response
+        exclude_none = False
 
 
 class FarRulesSummaryModel(BaseModel):
