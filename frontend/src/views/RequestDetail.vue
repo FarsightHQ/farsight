@@ -10,62 +10,42 @@
 
     <!-- Request Details -->
     <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 12rem);">
-      <!-- Header: 3-Column Layout -->
+      <!-- Header -->
       <div class="mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
-        <div class="grid grid-cols-3 gap-6 items-start">
-          <!-- Column 1: Title and Basic Info -->
-          <div>
+        <div class="flex items-start justify-between">
+          <!-- Left Side: Title and Info -->
+          <div class="flex-1">
             <h1 class="text-3xl font-bold mb-2">{{ request.title }}</h1>
-            <div class="flex flex-col space-y-1 text-sm text-gray-600">
-              <div class="flex items-center space-x-2">
-                <span>ID: {{ request.id }}</span>
-                <StatusBadge :status="request.status" />
-              </div>
+            <div class="flex items-center flex-wrap gap-2 text-sm text-gray-600">
+              <span>ID: {{ request.id }}</span>
+              <StatusBadge :status="request.status" />
               <span v-if="request.external_id">External ID: {{ request.external_id }}</span>
+              <span class="text-gray-400">•</span>
+              <span>{{ formatDate(request.created_at) }}</span>
+              <span class="text-gray-400">•</span>
+              <span :title="request.source_filename">{{ request.source_filename }}</span>
+              <span class="text-gray-400">•</span>
+              <span>{{ formatFileSize(request.source_size_bytes) }}</span>
+              <span class="text-gray-400">•</span>
+              <span>{{ request.created_by || 'system' }}</span>
+              <span class="text-gray-400">•</span>
+              <span class="font-mono text-xs">{{ request.source_sha256 }}</span>
             </div>
           </div>
 
-          <!-- Column 2: Request Information -->
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Created:</span>
-              <span class="text-gray-900">{{ formatDate(request.created_at) }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">File Name:</span>
-              <span class="text-gray-900 truncate ml-2" :title="request.source_filename">
-                {{ request.source_filename }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">File Size:</span>
-              <span class="text-gray-900">{{ formatFileSize(request.source_size_bytes) }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Created By:</span>
-              <span class="text-gray-900">{{ request.created_by || 'system' }}</span>
-            </div>
-            <div class="flex flex-col">
-              <span class="font-medium text-gray-600 mb-1">SHA256:</span>
-              <span class="font-mono text-xs text-gray-900 break-all">{{ request.source_sha256 }}</span>
-            </div>
-          </div>
-
-          <!-- Column 3: Action Buttons -->
-          <div class="flex items-start justify-end">
-            <div class="flex flex-col items-end space-y-2">
-              <Button
-                variant="outline"
-                size="sm"
-                class="text-error-600 border-error-300 hover:bg-error-50"
-                @click="handleDeleteClick"
-              >
-                Delete
-              </Button>
-              <Button variant="outline" size="sm" @click="$router.push('/requests')">
-                Back to List
-              </Button>
-            </div>
+          <!-- Right Side: Action Buttons -->
+          <div class="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              class="text-error-600 border-error-300 hover:bg-error-50"
+              @click="handleDeleteClick"
+            >
+              Delete
+            </Button>
+            <Button variant="outline" size="sm" @click="$router.push('/requests')">
+              Back to List
+            </Button>
           </div>
         </div>
       </div>
