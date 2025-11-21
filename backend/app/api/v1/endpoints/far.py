@@ -3,7 +3,7 @@ FAR (Federated Access Request) API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 import aiofiles
 import os
 import ipaddress
@@ -101,11 +101,12 @@ async def ingest_far_csv(
     
     try:
         # Update status to processing
-        far_request.status = 'processing'
+        far_request.status = 'processing'  # type: ignore[assignment]
         db.commit()
         
         # Read the uploaded CSV file
-        full_path = os.path.join("uploads", far_request.storage_path)
+        storage_path_str = cast(str, far_request.storage_path)
+        full_path = os.path.join("uploads", storage_path_str)
         if not os.path.exists(full_path):
             raise HTTPException(status_code=404, detail="Uploaded file not found")
         
@@ -124,7 +125,7 @@ async def ingest_far_csv(
         
     except Exception as e:
         # Reset status on error
-        far_request.status = 'submitted'
+        far_request.status = 'submitted'  # type: ignore[assignment]
         db.commit()
         raise HTTPException(status_code=400, detail=f"CSV ingestion failed: {str(e)}")
 
@@ -137,6 +138,8 @@ def get_far_rules(
     include_summary: bool = True,
     db: Session = Depends(get_db)
 ) -> StandardResponse[FarRulesResponse]:
+    logger.info(f"DEBUG: get_far_rules called with request_id={request_id}")
+    # Verify the request exists 
     """
     Get enhanced, human-readable FAR rules for a request
     
@@ -175,6 +178,7 @@ def get_far_rules(
     total_tuple_estimate = 0
     
     for rule in rules:
+        logger.info(f"DEBUG: Processing rule {rule.id}")
         # Extract source networks
         source_networks = [
             ep.network_cidr for ep in rule.endpoints 
@@ -213,11 +217,19 @@ def get_far_rules(
         )
         
         # Compute assessment data from facts
-        facts = rule.facts if rule.facts is not None else None
+        # Compute assessment data from facts
+        logger.info(f"DEBUG: About to compute assessment for rule {rule.id}, facts type: {type(rule.facts)}")
+        # Ensure facts is a dict (SQLAlchemy ORM should return the value, but verify)
+        facts_raw = rule.facts
+        logger.info(f"DEBUG: Facts raw type: {type(facts_raw)}")
+        if facts_raw is not None and isinstance(facts_raw, dict):
+            facts: Optional[Dict[str, Any]] = cast(Dict[str, Any], facts_raw)
+        else:
+            facts = None
         assessment = _compute_rule_assessment(facts)
         
         # Temporary print to verify code execution (remove after debugging)
-        print(f"DEBUG: Rule {rule.id} - assessment computed: {assessment}")
+        logger.info(f"DEBUG: Rule {rule.id} - assessment computed: {assessment}")
         
         # Info logging to verify assessment computation
         logger.info(
@@ -232,9 +244,9 @@ def get_far_rules(
         
         # Create enhanced rule model
         enhanced_rule = RuleDetailModel(
-            id=rule.id,
-            action=rule.action,
-            direction=rule.direction,
+            id=cast(int, rule.id),
+            action=cast(str, rule.action),
+            direction=cast(Optional[str], rule.direction),
             source_networks=source_networks,
             source_count=len(source_networks),
             destination_networks=destination_networks,

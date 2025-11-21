@@ -102,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
@@ -617,9 +617,5 @@ watch(
   },
   { immediate: true }
 )
-
-onMounted(() => {
-  fetchRules()
-})
 </script>
 

@@ -3,7 +3,7 @@ Standardized response schemas for FAR API endpoints
 Provides consistent response formats and proper OpenAPI documentation
 """
 from typing import Dict, List, Any, Optional, Union, Generic, TypeVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 from datetime import datetime
 from enum import Enum
 
@@ -282,11 +282,16 @@ class RuleDetailModel(BaseModel):
     health_status: Optional[str] = Field(None, description="Health status: 'critical', 'warning', 'clean', or None")
     problem_count: Optional[int] = Field(None, description="Count of problems/issues")
     criticality_score: Optional[int] = Field(None, description="Numeric score for sorting (0=no data, 1=clean, 2=warning, 3=critical)")
-
-    class Config:
-        """Pydantic model configuration"""
-        # Include None values in serialization so assessment fields always appear in API response
-        exclude_none = False
+    
+    @model_serializer
+    def serialize_model(self):
+        """Custom serializer to ensure assessment fields are always included"""
+        data = self.model_dump(exclude_none=False)
+        # Explicitly force assessment fields to always be present (even if None)
+        data["health_status"] = self.health_status
+        data["problem_count"] = self.problem_count
+        data["criticality_score"] = self.criticality_score
+        return data
 
 
 class FarRulesSummaryModel(BaseModel):

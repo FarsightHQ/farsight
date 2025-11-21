@@ -5,7 +5,7 @@ Handles CRUD operations for FAR requests and file ingestion
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 import aiofiles
 import os
 from app.core.database import get_db
@@ -20,6 +20,9 @@ from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
 from app.utils.error_handlers import success_response, paginated_response
 from datetime import datetime
+
+# Import assessment computation function from far.py
+from app.api.v1.endpoints.far import _compute_rule_assessment
 
 router = APIRouter(prefix="/far", tags=["FAR Requests"])
 
@@ -334,6 +337,15 @@ def get_far_rules(
             str(rule.action), source_networks, destination_networks, protocols, port_ranges
         )
         
+        # Compute assessment data from facts
+        # Ensure facts is a dict (SQLAlchemy ORM should return the value, but verify)
+        facts_raw = rule.facts
+        if facts_raw is not None and isinstance(facts_raw, dict):
+            facts: Optional[Dict[str, Any]] = cast(Dict[str, Any], facts_raw)
+        else:
+            facts = None
+        assessment = _compute_rule_assessment(facts)
+        
         # Create enhanced rule data in the format expected by frontend
         enhanced_rule_dict = {
             'id': rule.id,
@@ -350,6 +362,9 @@ def get_far_rules(
             'rule_hash': rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
             'tuple_estimate': tuple_estimate,
             'rule_summary': rule_summary,
+            'health_status': assessment["health_status"],
+            'problem_count': assessment["problem_count"],
+            'criticality_score': assessment["criticality_score"],
             # Add endpoints array with proper structure for frontend
             'endpoints': [
                 {
