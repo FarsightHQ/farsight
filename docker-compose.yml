@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: farsight_postgres
     environment:
       # Single database configuration
@@ -65,7 +65,7 @@ services:
 
   # pgAdmin - Database Viewer
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8
     container_name: farsight_pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@farsight.com}
@@ -86,7 +86,7 @@ services:
 
   # Swagger UI - API Documentation
   swagger-ui:
-    image: swaggerapi/swagger-ui:latest
+    image: swaggerapi/swagger-ui
     container_name: farsight_swagger
     environment:
       SWAGGER_JSON_URL: ${SWAGGER_JSON_URL:-http://localhost:8000/openapi.json}
