@@ -1,5 +1,186 @@
 /** @type {import('tailwindcss').Config} */
 
+// ============================================================================
+// Color Utility Functions
+// ============================================================================
+
+/**
+ * Convert hex color to HSL format
+ * @param {string} hex - Hex color (e.g., '#21295C' or '21295C')
+ * @returns {object} - { h, s, l } values (0-360 for h, 0-100 for s and l)
+ */
+function hexToHsl(hex) {
+  // Remove # if present
+  hex = hex.replace('#', '')
+  
+  // Parse RGB values
+  const r = parseInt(hex.substring(0, 2), 16) / 255
+  const g = parseInt(hex.substring(2, 4), 16) / 255
+  const b = parseInt(hex.substring(4, 6), 16) / 255
+
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h, s, l = (max + min) / 2
+
+  if (max === min) {
+    h = s = 0 // achromatic
+  } else {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+      case g: h = ((b - r) / d + 2) / 6; break
+      case b: h = ((r - g) / d + 4) / 6; break
+    }
+  }
+
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100)
+  }
+}
+
+/**
+ * Adjust lightness of HSL color
+ * @param {object} hsl - { h, s, l } object
+ * @param {number} delta - Percentage change in lightness (-100 to 100)
+ * @returns {object} - New HSL object with adjusted lightness
+ */
+function adjustLightness(hsl, delta) {
+  return {
+    h: hsl.h,
+    s: hsl.s,
+    l: Math.max(0, Math.min(100, hsl.l + delta))
+  }
+}
+
+/**
+ * Determine appropriate text color based on background lightness
+ * @param {object} bgHsl - Background HSL color
+ * @returns {string} - HSL string for text color (white for dark, dark for light)
+ */
+function getContrastText(bgHsl) {
+  // Use white text for dark backgrounds (lightness < 50%)
+  if (bgHsl.l < 50) {
+    return 'hsl(0, 0%, 100%)'
+  }
+  // For light backgrounds, return null to derive from neutral color
+  return null
+}
+
+/**
+ * Generate border color from base color
+ * @param {object} baseHsl - Base HSL color
+ * @param {boolean} isDark - Whether the base color is dark
+ * @returns {object} - HSL object for border color
+ */
+function deriveBorderColor(baseHsl, isDark) {
+  if (isDark) {
+    // For dark backgrounds, make border slightly lighter
+    return adjustLightness(baseHsl, 6)
+  } else {
+    // For light backgrounds, make border slightly darker
+    return adjustLightness(baseHsl, -7)
+  }
+}
+
+/**
+ * Format HSL object to CSS string
+ * @param {object} hsl - { h, s, l } object
+ * @returns {string} - CSS HSL string (e.g., 'hsl(217, 91%, 12%)')
+ */
+function hslToString(hsl) {
+  return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`
+}
+
+// ============================================================================
+// Theme Generation from Palette
+// ============================================================================
+
+/**
+ * Generate complete theme from 5-color palette
+ * @param {string[]} palette - Array of 5 hex colors (darkest to lightest)
+ * @returns {object} - Complete theme object with all colors
+ */
+function generateThemeFromPalette(palette) {
+  if (!palette || palette.length !== 5) {
+    throw new Error('Palette must contain exactly 5 colors')
+  }
+
+  // Convert all colors to HSL and store with original index
+  const colorsWithHsl = palette.map((hex, index) => ({
+    hex,
+    hsl: hexToHsl(hex),
+    originalIndex: index
+  }))
+
+  // Sort by lightness (darkest to lightest)
+  const sortedColors = [...colorsWithHsl].sort((a, b) => a.hsl.l - b.hsl.l)
+
+  // Map to semantic roles
+  const header = sortedColors[0].hsl      // Darkest
+  const active = sortedColors[1].hsl    // 2nd darkest
+  const sidebar = sortedColors[2].hsl  // Middle
+  const footer = sortedColors[3].hsl    // 2nd lightest
+  const content = sortedColors[4].hsl  // Lightest
+
+  // Derive card color (slightly darker than content, ~4% less lightness)
+  const card = adjustLightness(content, -2)
+
+  // Get neutral color from lightest palette color (for text on light backgrounds)
+  // Reduce saturation significantly for neutral tones
+  const neutralHsl = {
+    h: content.h,
+    s: Math.max(5, Math.min(15, content.s * 0.2)), // Reduce saturation to 5-15%
+    l: content.l
+  }
+
+  // Generate text colors
+  const textHeader = getContrastText(header) || hslToString(adjustLightness(neutralHsl, -75))
+  const textSidebar = getContrastText(sidebar) || hslToString(adjustLightness(neutralHsl, -60))
+  const textFooter = getContrastText(footer) || hslToString(adjustLightness(neutralHsl, -55))
+  const textContent = getContrastText(content) || hslToString(adjustLightness(neutralHsl, -70))
+  const textMuted = hslToString(adjustLightness(neutralHsl, -30))
+
+  // Generate border colors
+  const borderHeader = hslToString(deriveBorderColor(header, header.l < 50))
+  const borderSidebar = hslToString(deriveBorderColor(sidebar, sidebar.l < 50))
+  const borderFooter = hslToString(deriveBorderColor(footer, footer.l < 50))
+  const borderDefault = hslToString(adjustLightness(neutralHsl, -10))
+  const borderCard = hslToString(adjustLightness(neutralHsl, -7))
+
+  // Return complete theme object
+  return {
+    // Base theme colors
+    header: hslToString(header),
+    sidebar: hslToString(sidebar),
+    footer: hslToString(footer),
+    content: hslToString(content),
+    active: hslToString(active),
+    card: hslToString(card),
+    
+    // Text colors
+    'text-header': textHeader,
+    'text-sidebar': textSidebar,
+    'text-footer': textFooter,
+    'text-content': textContent,
+    'text-muted': textMuted,
+    
+    // Border colors
+    'border-header': borderHeader,
+    'border-sidebar': borderSidebar,
+    'border-footer': borderFooter,
+    'border-default': borderDefault,
+    'border-card': borderCard,
+  }
+}
+
+// ============================================================================
+// Color Scale Generation
+// ============================================================================
+
 // Helper function to generate color scale from HSL values
 // Creates a consistent 50-950 scale with uniform lightness progression
 function createColorScale(hue, saturation = 91) {
@@ -17,6 +198,27 @@ function createColorScale(hue, saturation = 91) {
     950: `hsl(${hue}, ${saturation}%, 10%)`,
   }
 }
+
+// ============================================================================
+// Theme Palette Configuration
+// ============================================================================
+// Define your 5-color palette here. Colors will be automatically sorted by
+// lightness and mapped to semantic roles:
+// - Darkest → header (dark top bar)
+// - 2nd darkest → active (active states, buttons)
+// - Middle → sidebar (side navigation)
+// - 2nd lightest → footer (bottom bar)
+// - Lightest → content (main content background)
+const themePalette = [
+  '#21295C', // Space Indigo (darkest)
+  '#1B3B6F', // Regal Navy
+  '#065A82', // Baltic Blue
+  '#1C7293', // Cerulean
+  '#9EB3C2'  // Powder Blue (lightest)
+]
+
+// Generate theme from palette
+const generatedTheme = generateThemeFromPalette(themePalette)
 
 export default {
   content: [
@@ -53,31 +255,9 @@ export default {
         // Info - Blue (same as primary for consistency)
         info: createColorScale(217, 91),
         
-        // Semantic Theme Colors - Change these 4-5 colors to change entire theme
-        // Flattened structure for Tailwind compatibility
-        theme: {
-          // Base theme colors (4-5 colors to change entire theme)
-          header: 'hsl(217, 91%, 12%)',      // Darker, more visible
-          sidebar: 'hsl(217, 91%, 88%)',     // Noticeably light blue (was 97% - too light)
-          footer: 'hsl(217, 91%, 92%)',     // Slightly lighter than sidebar
-          content: 'hsl(220, 13%, 98%)',     // Very light grey
-          active: 'hsl(217, 91%, 82%)',      // Clearly visible active state (was 94% - too light)
-          card: 'hsl(220, 13%, 96%)',        // Slightly darker than content for contrast
-          
-          // Text colors for different areas (flattened from theme.text.*)
-          'text-header': 'hsl(0, 0%, 100%)',      // White text for dark header
-          'text-sidebar': 'hsl(220, 13%, 25%)',   // Dark grey for light sidebar
-          'text-footer': 'hsl(220, 13%, 30%)',   // Slightly darker for footer
-          'text-content': 'hsl(220, 13%, 15%)',   // Dark for content area
-          'text-muted': 'hsl(220, 13%, 45%)',     // Muted/secondary text
-          
-          // Border colors for different areas (flattened from theme.border.*)
-          'border-header': 'hsl(217, 91%, 18%)',   // Slightly lighter than header
-          'border-sidebar': 'hsl(217, 91%, 80%)',   // More visible border (was 87%)
-          'border-footer': 'hsl(217, 91%, 85%)',   // Lighter border
-          'border-default': 'hsl(220, 13%, 85%)',   // Default border color
-          'border-card': 'hsl(220, 13%, 88%)',     // Card border color
-        },
+        // Semantic Theme Colors - Generated from 5-color palette
+        // To change the theme, update the themePalette array above
+        theme: generatedTheme,
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'sans-serif'],
