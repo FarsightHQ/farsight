@@ -1,53 +1,48 @@
 <template>
   <header class="h-16 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
     <div class="h-full flex items-center justify-between px-6">
-      <!-- Left: Page Title or Breadcrumb -->
-      <div class="flex items-center">
-        <h2 class="text-lg font-semibold text-gray-900">{{ pageTitle }}</h2>
+      <!-- Left: App Icon + Name -->
+      <div class="flex items-center space-x-3">
+        <router-link to="/" class="flex items-center space-x-2">
+          <EyeIcon class="h-8 w-8 text-primary-600" />
+          <h1 class="text-xl font-bold text-primary-600">Farsight</h1>
+        </router-link>
       </div>
 
-      <!-- Right: Navigation and User Menu -->
+      <!-- Right: User Details + Logout -->
       <div class="flex items-center space-x-4">
-        <!-- Additional navigation items can go here -->
-        <div class="flex items-center space-x-2">
-          <!-- User menu placeholder -->
-          <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+        <!-- User Info -->
+        <div class="flex items-center space-x-3">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-900">User Name</p>
+            <p class="text-xs text-gray-500">user@example.com</p>
+          </div>
+          <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
             <span class="text-sm font-medium text-primary-700">U</span>
           </div>
         </div>
+        
+        <!-- Logout Button -->
+        <button
+          @click="handleLogout"
+          class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowRightOnRectangleIcon class="h-5 w-5" />
+          <span>Logout</span>
+        </button>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { EyeIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 
-const route = useRoute()
-
-const pageTitle = computed(() => {
-  if (!route || !route.path) {
-    return 'Farsight'
-  }
-  
-  const titles = {
-    '/': 'Dashboard',
-    '/requests': 'FAR Requests',
-    '/requests/new': 'Create Request',
-    '/assets': 'Asset Registry',
-    '/assets/upload': 'Upload Assets',
-    '/rules': 'All Rules',
-  }
-  // For dynamic routes like /assets/:id, check if path starts with /assets/
-  if (route.path.startsWith('/assets/') && route.path !== '/assets/upload') {
-    return 'Asset Details'
-  }
-  // For dynamic routes like /requests/:id
-  if (route.path.startsWith('/requests/') && route.path !== '/requests/new') {
-    return 'FAR Request Details'
-  }
-  return titles[route.path] || 'Farsight'
-})
+const handleLogout = () => {
+  // TODO: Implement logout logic
+  // Clear auth tokens, user session, etc.
+  console.log('Logout clicked')
+  // router.push('/login')
+}
 </script>
 

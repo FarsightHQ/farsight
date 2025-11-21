@@ -1,12 +1,5 @@
 <template>
   <aside class="w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col h-full">
-    <!-- Logo/Branding -->
-    <div class="h-16 flex items-center px-6 border-b border-gray-200">
-      <router-link to="/" class="flex items-center space-x-2">
-        <h1 class="text-xl font-bold text-primary-600">Farsight</h1>
-      </router-link>
-    </div>
-
     <!-- Navigation Menu -->
     <nav class="flex-1 overflow-y-auto py-4">
       <ul class="space-y-1 px-3">
