@@ -1,10 +1,10 @@
 <template>
   <div class="flex flex-col min-h-0" style="height: 100%;">
     <!-- Compact Header -->
-    <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+    <div class="flex items-center justify-between mb-3 pb-3 border-b border-theme-border-default">
       <div>
-        <h1 class="text-xl font-bold text-gray-900">Asset Registry</h1>
-        <p class="text-sm text-gray-600 mt-0.5">Manage and explore network assets</p>
+        <h1 class="text-xl font-bold text-theme-text-content">Asset Registry</h1>
+        <p class="text-sm text-theme-text-content mt-0.5">Manage and explore network assets</p>
       </div>
       <Button variant="primary" size="sm" @click="$router.push('/assets/upload')">
         Upload CSV
@@ -28,7 +28,7 @@
         >
           Cards
         </Button>
-        <div class="text-sm text-gray-600 ml-4">
+        <div class="text-sm text-theme-text-content ml-4">
           Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
         </div>
       </div>
@@ -53,7 +53,7 @@
           >
             Previous
           </Button>
-          <span class="text-sm text-gray-600">Page {{ currentPage }} of {{ totalPages }}</span>
+          <span class="text-sm text-theme-text-content">Page {{ currentPage }} of {{ totalPages }}</span>
           <Button
             variant="outline"
             size="sm"
@@ -78,7 +78,7 @@
         <!-- Loading State -->
         <div v-if="loading" class="flex-1 overflow-y-auto">
           <div class="space-y-2">
-            <div v-for="i in 10" :key="i" class="h-12 bg-gray-200 rounded animate-pulse"></div>
+            <div v-for="i in 10" :key="i" class="h-12 bg-theme-active/30 rounded animate-pulse"></div>
           </div>
         </div>
 
@@ -86,7 +86,7 @@
         <Card v-else-if="!loading && assets.length === 0" class="flex-1 flex items-center justify-center">
           <div class="text-center py-12">
             <svg
-              class="mx-auto h-12 w-12 text-gray-400"
+              class="mx-auto h-12 w-12 text-theme-text-muted"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -98,8 +98,8 @@
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No assets found</h3>
-            <p class="mt-1 text-sm text-gray-500">
+            <h3 class="mt-2 text-sm font-medium text-theme-text-content">No assets found</h3>
+            <p class="mt-1 text-sm text-theme-text-muted">
               {{ hasActiveFilters ? 'Try adjusting your filters.' : 'Get started by uploading a CSV file.' }}
             </p>
             <div class="mt-6">

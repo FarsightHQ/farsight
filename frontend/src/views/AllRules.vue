@@ -1,10 +1,10 @@
 <template>
   <div class="flex flex-col" style="height: calc(100vh - 12rem);">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
+    <div class="flex items-center justify-between mb-6 pb-4 border-b border-theme-border-default flex-shrink-0">
       <div>
         <h1 class="text-3xl font-bold mb-2">All Rules</h1>
-        <p class="text-sm text-gray-600">View and analyze firewall rules across all FAR requests</p>
+        <p class="text-sm text-theme-text-content">View and analyze firewall rules across all FAR requests</p>
       </div>
     </div>
 
@@ -47,36 +47,36 @@
           <h2 class="text-lg font-semibold mb-4">Summary Statistics</h2>
           <div class="space-y-3 text-sm">
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Total Rules:</span>
-              <span class="text-gray-900 font-semibold">{{ summary.total_rules || 0 }}</span>
+              <span class="font-medium text-theme-text-content">Total Rules:</span>
+              <span class="text-theme-text-content font-semibold">{{ summary.total_rules || 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Allow Rules:</span>
+              <span class="font-medium text-theme-text-content">Allow Rules:</span>
               <span class="text-green-600 font-semibold">{{ summary.allow_rules || 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Deny Rules:</span>
+              <span class="font-medium text-theme-text-content">Deny Rules:</span>
               <span class="text-red-600 font-semibold">{{ summary.deny_rules || 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Unique Sources:</span>
-              <span class="text-gray-900 font-semibold">{{ summary.unique_sources || 0 }}</span>
+              <span class="font-medium text-theme-text-content">Unique Sources:</span>
+              <span class="text-theme-text-content font-semibold">{{ summary.unique_sources || 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Unique Destinations:</span>
-              <span class="text-gray-900 font-semibold">{{ summary.unique_destinations || 0 }}</span>
+              <span class="font-medium text-theme-text-content">Unique Destinations:</span>
+              <span class="text-theme-text-content font-semibold">{{ summary.unique_destinations || 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-medium text-gray-600">Protocols:</span>
-              <span class="text-gray-900 font-semibold">{{ summary.protocols_used?.length || 0 }}</span>
+              <span class="font-medium text-theme-text-content">Protocols:</span>
+              <span class="text-theme-text-content font-semibold">{{ summary.protocols_used?.length || 0 }}</span>
             </div>
-            <div v-if="summary.protocols_used && summary.protocols_used.length > 0" class="mt-4 pt-4 border-t">
-              <span class="font-medium text-gray-600 block mb-2">Protocols Used:</span>
+            <div v-if="summary.protocols_used && summary.protocols_used.length > 0" class="mt-4 pt-4 border-t border-theme-border-card">
+              <span class="font-medium text-theme-text-content block mb-2">Protocols Used:</span>
               <div class="flex flex-wrap gap-2">
                 <span
                   v-for="protocol in summary.protocols_used"
                   :key="protocol"
-                  class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                  class="px-2 py-1 bg-theme-active text-theme-text-content rounded text-xs"
                 >
                   {{ protocol }}
                 </span>
@@ -87,7 +87,7 @@
 
         <!-- Empty State -->
         <Card v-else>
-          <p class="text-gray-500 text-sm">No summary data available</p>
+          <p class="text-theme-text-muted text-sm">No summary data available</p>
         </Card>
       </aside>
     </div>

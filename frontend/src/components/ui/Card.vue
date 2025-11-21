@@ -1,10 +1,10 @@
 <template>
   <div :class="cardClasses">
-    <div v-if="$slots.header" class="mb-4 border-b border-gray-200 pb-4">
+    <div v-if="$slots.header" class="mb-4 border-b border-theme-border-card pb-4">
       <slot name="header" />
     </div>
     <slot />
-    <div v-if="$slots.footer" class="mt-4 border-t border-gray-200 pt-4">
+    <div v-if="$slots.footer" class="mt-4 border-t border-theme-border-card pt-4">
       <slot name="footer" />
     </div>
   </div>
@@ -26,7 +26,7 @@ const props = defineProps({
 })
 
 const cardClasses = computed(() => {
-  const base = 'card rounded-lg bg-white border border-gray-200'
+  const base = 'card rounded-lg bg-theme-card border border-theme-border-card'
   const paddingClasses = {
     none: '',
     sm: 'p-4',

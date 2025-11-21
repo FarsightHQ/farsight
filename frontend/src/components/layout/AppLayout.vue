@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full flex flex-col overflow-hidden bg-gray-50">
+  <div class="h-full flex flex-col overflow-hidden bg-theme-content">
     <!-- Top Bar Header (Full Width) -->
     <AppHeader />
 
@@ -11,7 +11,7 @@
       <!-- Content Area (Scrollable) -->
       <div class="flex-1 flex flex-col overflow-hidden">
         <!-- Main Content Area (Scrollable) -->
-        <main class="flex-1 overflow-y-auto bg-gray-50">
+        <main class="flex-1 overflow-y-auto bg-theme-content">
           <div class="p-6">
             <slot />
           </div>
