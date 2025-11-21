@@ -1,7 +1,7 @@
 <template>
   <aside
     :class="[
-      'bg-white border-r border-gray-200 flex-shrink-0 flex flex-col h-full transition-all duration-300 ease-in-out relative',
+      'bg-theme-sidebar border-r border-theme-border-sidebar flex-shrink-0 flex flex-col h-full transition-all duration-300 ease-in-out relative',
       isCollapsed ? 'w-16' : 'w-64'
     ]"
   >
@@ -9,14 +9,14 @@
     <button
       @click="toggleSidebar"
       :class="[
-        'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-300 ease-in-out',
+        'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-theme-sidebar border border-theme-border-sidebar rounded-full shadow-sm hover:shadow-md hover:bg-theme-active/50 transition-all duration-300 ease-in-out',
         isCollapsed ? 'right-2' : '-right-3'
       ]"
       aria-label="Toggle sidebar"
       :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
     >
-      <ChevronLeftIcon v-if="!isCollapsed" class="h-4 w-4 text-gray-600" />
-      <ChevronRightIcon v-else class="h-4 w-4 text-gray-600" />
+      <ChevronLeftIcon v-if="!isCollapsed" class="h-4 w-4 text-theme-text-sidebar" />
+      <ChevronRightIcon v-else class="h-4 w-4 text-theme-text-sidebar" />
     </button>
 
     <!-- Navigation Menu -->
@@ -28,10 +28,10 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-gray-700 hover:bg-gray-100'
+              'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-primary-50 text-primary-700"
-            exact-active-class="bg-primary-50 text-primary-700"
+            active-class="bg-theme-active text-theme-text-sidebar"
+            exact-active-class="bg-theme-active text-theme-text-sidebar"
             :title="isCollapsed ? 'Home' : ''"
           >
             <HomeIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -51,9 +51,9 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-gray-700 hover:bg-gray-100'
+              'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-primary-50 text-primary-700"
+            active-class="bg-theme-active text-theme-text-sidebar"
             :title="isCollapsed ? 'Requests' : ''"
           >
             <DocumentTextIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -73,9 +73,9 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-gray-700 hover:bg-gray-100'
+              'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-primary-50 text-primary-700"
+            active-class="bg-theme-active text-theme-text-sidebar"
             :title="isCollapsed ? 'All Rules' : ''"
           >
             <ShieldCheckIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -95,9 +95,9 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-gray-700 hover:bg-gray-100'
+              'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-primary-50 text-primary-700"
+            active-class="bg-theme-active text-theme-text-sidebar"
             :title="isCollapsed ? 'Assets' : ''"
           >
             <ServerIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />

@@ -5,17 +5,17 @@
     <Card class="p-4">
       <div class="flex items-center space-x-4">
         <div class="flex-1 relative">
-          <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
+          <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-theme-text-muted pointer-events-none z-10" />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Search by ID, CIDR, or port..."
-            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="w-full pl-10 pr-4 py-2 border border-theme-border-default rounded-md shadow-sm focus:outline-none focus:ring-theme-active focus:border-theme-active"
             @input="handleSearch"
           />
         </div>
         <div v-if="searchQuery" class="flex items-center space-x-2">
-          <span class="text-sm text-gray-600">{{ filteredRules.length }} results</span>
+          <span class="text-sm text-theme-text-content">{{ filteredRules.length }} results</span>
           <Button variant="ghost" size="sm" @click="clearSearch">Clear</Button>
         </div>
       </div>
@@ -23,9 +23,9 @@
 
     <!-- Rules Table -->
     <Card>
-      <div v-if="selectedRules.length > 0" class="p-4 border-b border-gray-200 bg-gray-50">
+      <div v-if="selectedRules.length > 0" class="p-4 border-b border-theme-border-card bg-theme-content">
         <div class="flex items-center justify-between">
-          <span class="text-sm text-gray-700">
+          <span class="text-sm text-theme-text-content">
             {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
           </span>
           <Button 
@@ -56,10 +56,10 @@
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
-        <span class="text-sm text-gray-700">Page size:</span>
+        <span class="text-sm text-theme-text-content">Page size:</span>
         <select
           v-model="pageSize"
-          class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+          class="rounded-md border-theme-border-default shadow-sm focus:border-theme-active focus:ring-theme-active text-sm"
           @change="handlePageSizeChange"
         >
           <option :value="10">10</option>
@@ -73,7 +73,7 @@
         <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
           Previous
         </Button>
-        <span class="text-sm text-gray-700">
+        <span class="text-sm text-theme-text-content">
           Page {{ currentPage }} of {{ totalPages }} ({{ totalRules }} total)
         </span>
         <Button
@@ -90,7 +90,7 @@
     <!-- Empty State -->
     <Card v-if="!loading && filteredRules.length === 0">
       <div class="text-center py-12">
-        <p class="text-gray-600 mb-2">
+        <p class="text-theme-text-content mb-2">
           {{ searchQuery || hasActiveFilters ? 'No rules match your filters' : 'No rules found' }}
         </p>
         <Button v-if="searchQuery || hasActiveFilters" variant="outline" @click="clearAll">

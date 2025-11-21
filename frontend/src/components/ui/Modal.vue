@@ -10,17 +10,17 @@
         <div
           :class="[
             sizeClasses,
-            'bg-white rounded-lg shadow-xl',
+            'bg-theme-card rounded-lg shadow-xl',
             size === 'full' ? 'flex flex-col h-[calc(100vh-2rem)]' : 'max-h-[90vh] overflow-y-auto'
           ]"
           @click.stop
         >
-          <div v-if="title || $slots.header" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-between p-6 border-b">
-            <h3 v-if="title" class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+          <div v-if="title || $slots.header" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-between p-6 border-b border-theme-border-card">
+            <h3 v-if="title" class="text-lg font-semibold text-theme-text-content">{{ title }}</h3>
             <slot name="header" />
             <button
               @click="$emit('update:modelValue', false)"
-              class="text-gray-400 hover:text-gray-600"
+              class="text-theme-text-muted hover:text-theme-text-content"
             >
               <XMarkIcon class="h-6 w-6" />
             </button>
@@ -28,7 +28,7 @@
           <div :class="{ 'flex-1 overflow-auto': size === 'full', 'p-6': size !== 'full' }">
             <slot />
           </div>
-          <div v-if="$slots.footer" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-end gap-3 p-6 border-t">
+          <div v-if="$slots.footer" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-end gap-3 p-6 border-t border-theme-border-card">
             <slot name="footer" />
           </div>
         </div>
@@ -82,13 +82,13 @@ const sizeClasses = computed(() => {
   opacity: 0;
 }
 
-.modal-enter-active .bg-white,
-.modal-leave-active .bg-white {
+.modal-enter-active .bg-theme-card,
+.modal-leave-active .bg-theme-card {
   transition: transform 0.3s ease;
 }
 
-.modal-enter-from .bg-white,
-.modal-leave-to .bg-white {
+.modal-enter-from .bg-theme-card,
+.modal-leave-to .bg-theme-card {
   transform: scale(0.95);
 }
 </style>

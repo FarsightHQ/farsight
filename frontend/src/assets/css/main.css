@@ -4,23 +4,23 @@
 
 @layer base {
   body {
-    @apply text-gray-900 antialiased;
+    @apply text-theme-text-content antialiased;
   }
 
   h1 {
-    @apply text-3xl font-semibold text-gray-900;
+    @apply text-3xl font-semibold text-theme-text-content;
   }
 
   h2 {
-    @apply text-2xl font-semibold text-gray-900;
+    @apply text-2xl font-semibold text-theme-text-content;
   }
 
   h3 {
-    @apply text-xl font-semibold text-gray-900;
+    @apply text-xl font-semibold text-theme-text-content;
   }
 
   h4 {
-    @apply text-lg font-semibold text-gray-900;
+    @apply text-lg font-semibold text-theme-text-content;
   }
 }
 
@@ -30,7 +30,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    @apply btn bg-theme-active text-theme-text-sidebar hover:bg-theme-active/90 focus:ring-theme-active;
   }
 
   .btn-secondary {
@@ -38,19 +38,19 @@
   }
 
   .btn-outline {
-    @apply btn border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary-500;
+    @apply btn border-2 border-theme-border-default bg-theme-card text-theme-text-content hover:bg-theme-content focus:ring-theme-active;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-primary-500;
+    @apply btn bg-transparent text-theme-text-content hover:bg-theme-active/50 focus:ring-theme-active;
   }
 
   .input {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500;
+    @apply block w-full rounded-lg border border-theme-border-default px-3 py-2 text-sm placeholder-theme-text-muted focus:border-theme-active focus:outline-none focus:ring-1 focus:ring-theme-active;
   }
 
   .card {
-    @apply rounded-lg bg-white p-6 shadow-sm border border-gray-200;
+    @apply rounded-lg bg-theme-card p-6 shadow-sm border border-theme-border-card;
   }
 }
 

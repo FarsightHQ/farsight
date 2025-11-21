@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="inputId" class="block text-sm font-medium text-gray-700 mb-1">
+    <label v-if="label" :for="inputId" class="block text-sm font-medium text-theme-text-content mb-1">
       {{ label }}
       <span v-if="required" class="text-error-500">*</span>
     </label>
@@ -17,7 +17,7 @@
       @blur="$emit('blur', $event)"
     />
     <p v-if="error" class="mt-1 text-sm text-error-600">{{ error }}</p>
-    <p v-if="hint && !error" class="mt-1 text-sm text-gray-500">{{ hint }}</p>
+    <p v-if="hint && !error" class="mt-1 text-sm text-theme-text-muted">{{ hint }}</p>
   </div>
 </template>
 

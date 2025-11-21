@@ -1,58 +1,58 @@
 <template>
   <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
+    <table class="min-w-full divide-y divide-theme-border-default">
+      <thead class="bg-theme-content">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider w-12">
             <input
               type="checkbox"
               :checked="allSelected"
               :indeterminate="someSelected"
-              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="rounded border-theme-border-default text-theme-active focus:ring-theme-active"
               @change="toggleSelectAll"
             />
           </th>
           <th
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider cursor-pointer hover:bg-theme-active/50"
             @click="handleSort('id')"
           >
             <div class="flex items-center space-x-1">
               <span>ID</span>
               <ChevronUpIcon
                 v-if="sortKey === 'id' && sortDirection === 'asc'"
-                class="h-4 w-4 text-primary-600"
+                class="h-4 w-4 text-theme-active"
               />
               <ChevronDownIcon
                 v-else-if="sortKey === 'id' && sortDirection === 'desc'"
-                class="h-4 w-4 text-primary-600"
+                class="h-4 w-4 text-theme-active"
               />
-              <ChevronUpIcon v-else class="h-4 w-4 text-gray-300" />
+              <ChevronUpIcon v-else class="h-4 w-4 text-theme-text-muted" />
             </div>
           </th>
           <th 
             v-if="showRequestColumn"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
           >
             Request
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Source Networks
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Dest Networks
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Services
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Assessment
           </th>
-          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Actions
           </th>
         </tr>
       </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
+      <tbody class="bg-theme-card divide-y divide-theme-border-default">
         <!-- Loading Skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
           <td class="px-6 py-4 whitespace-nowrap">
@@ -86,9 +86,9 @@
           v-else
           v-for="rule in rules"
           :key="rule.id"
-          class="hover:bg-gray-50 transition-colors"
+          class="hover:bg-theme-active/30 transition-colors"
           :class="{
-            'bg-primary-50': selectedRules.includes(rule.id),
+            'bg-theme-active': selectedRules.includes(rule.id),
             'bg-red-50': rule.health_status === 'critical' && !selectedRules.includes(rule.id),
             'bg-yellow-50': rule.health_status === 'warning' && !selectedRules.includes(rule.id)
           }"
@@ -97,32 +97,32 @@
             <input
               type="checkbox"
               :checked="selectedRules.includes(rule.id)"
-              class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="rounded border-theme-border-default text-theme-active focus:ring-theme-active"
               @change="toggleRule(rule.id)"
             />
           </td>
           <td 
-            class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 cursor-pointer"
+            class="px-6 py-4 whitespace-nowrap text-sm font-medium text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             {{ rule.id }}
           </td>
           <td 
             v-if="showRequestColumn"
-            class="px-6 py-4 text-sm text-gray-600"
+            class="px-6 py-4 text-sm text-theme-text-content"
             @click.stop
           >
             <router-link
               v-if="rule.request"
               :to="`/requests/${rule.request.id}`"
-              class="text-primary-600 hover:text-primary-800 hover:underline"
+              class="text-theme-active hover:text-theme-active/80 hover:underline"
             >
               {{ rule.request.title || `Request ${rule.request.id}` }}
             </router-link>
-            <span v-else class="text-gray-400">—</span>
+            <span v-else class="text-theme-text-muted">—</span>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-gray-600 cursor-pointer"
+            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div 
@@ -133,7 +133,7 @@
             </div>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-gray-600 cursor-pointer"
+            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div 
@@ -144,7 +144,7 @@
             </div>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-gray-600 cursor-pointer"
+            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div class="max-w-xs truncate" :title="formatServices(rule.services)">
@@ -165,11 +165,11 @@
               </span>
               <span 
                 v-if="rule.problem_count && rule.problem_count > 0"
-                class="text-gray-600"
+                class="text-theme-text-content"
               >
                 {{ rule.problem_count }} {{ rule.problem_count === 1 ? 'problem' : 'problems' }}
               </span>
-              <span v-if="!rule.health_status" class="text-gray-400">—</span>
+              <span v-if="!rule.health_status" class="text-theme-text-muted">—</span>
             </div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -193,7 +193,7 @@
         <!-- Empty State -->
         <tr v-if="!loading && rules.length === 0">
           <td :colspan="showRequestColumn ? 8 : 7" class="px-6 py-12 text-center">
-            <p class="text-gray-500">No rules found</p>
+            <p class="text-theme-text-muted">No rules found</p>
           </td>
         </tr>
       </tbody>
@@ -363,7 +363,7 @@ const getAssessmentBadgeClass = (healthStatus) => {
     'warning': 'bg-yellow-100 text-yellow-800',
     'clean': 'bg-green-100 text-green-800'
   }
-  return classes[healthStatus] || 'bg-gray-100 text-gray-800'
+  return classes[healthStatus] || 'bg-theme-active text-theme-text-content'
 }
 
 const getAssessmentBadgeText = (healthStatus) => {

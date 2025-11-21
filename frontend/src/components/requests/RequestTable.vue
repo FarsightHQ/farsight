@@ -1,14 +1,14 @@
 <template>
   <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
+    <table class="min-w-full divide-y divide-theme-border-default">
+      <thead class="bg-theme-content">
         <tr>
           <th
             v-for="column in columns"
             :key="column.key"
             :class="[
-              'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
-              column.sortable ? 'cursor-pointer hover:bg-gray-100' : '',
+              'px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider',
+              column.sortable ? 'cursor-pointer hover:bg-theme-active/50' : '',
             ]"
             @click="column.sortable && handleSort(column.key)"
           >
@@ -19,8 +19,8 @@
                   :class="[
                     'h-3 w-3',
                     sortKey === column.key && sortDirection === 'asc'
-                      ? 'text-primary-600'
-                      : 'text-gray-400',
+                      ? 'text-theme-active'
+                      : 'text-theme-text-muted',
                   ]"
                   fill="currentColor"
                   viewBox="0 0 20 20"
@@ -35,8 +35,8 @@
                   :class="[
                     'h-3 w-3 -mt-1',
                     sortKey === column.key && sortDirection === 'desc'
-                      ? 'text-primary-600'
-                      : 'text-gray-400',
+                      ? 'text-theme-active'
+                      : 'text-theme-text-muted',
                   ]"
                   fill="currentColor"
                   viewBox="0 0 20 20"
@@ -50,12 +50,12 @@
               </span>
             </div>
           </th>
-          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th class="px-6 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Actions
           </th>
         </tr>
       </thead>
-      <tbody v-if="loading" class="bg-white divide-y divide-gray-200">
+      <tbody v-if="loading" class="bg-theme-card divide-y divide-theme-border-default">
         <tr v-for="i in 5" :key="i">
           <td v-for="column in columns" :key="column.key" class="px-6 py-4 whitespace-nowrap">
             <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
@@ -65,32 +65,32 @@
           </td>
         </tr>
       </tbody>
-      <tbody v-else-if="requests.length === 0" class="bg-white">
+      <tbody v-else-if="requests.length === 0" class="bg-theme-card">
         <tr>
-          <td :colspan="columns.length + 1" class="px-6 py-12 text-center text-gray-500">
+          <td :colspan="columns.length + 1" class="px-6 py-12 text-center text-theme-text-muted">
             No requests found
           </td>
         </tr>
       </tbody>
-      <tbody v-else class="bg-white divide-y divide-gray-200">
+      <tbody v-else class="bg-theme-card divide-y divide-theme-border-default">
         <tr
           v-for="request in requests"
           :key="request.id"
-          class="hover:bg-gray-50 transition-colors"
+          class="hover:bg-theme-active/30 transition-colors"
         >
-          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-theme-text-content">
             {{ request.id }}
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-text-content">
             {{ request.title }}
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
             <StatusBadge :status="request.status" />
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-text-muted">
             {{ request.external_id || '—' }}
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-text-muted">
             {{ formatDate(request.created_at) }}
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
