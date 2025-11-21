@@ -30,8 +30,8 @@
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
               'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-theme-active text-theme-text-sidebar"
-            exact-active-class="bg-theme-active text-theme-text-sidebar"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            exact-active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Home' : ''"
           >
             <HomeIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -53,7 +53,7 @@
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
               'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-theme-active text-theme-text-sidebar"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Requests' : ''"
           >
             <DocumentTextIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -75,7 +75,7 @@
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
               'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-theme-active text-theme-text-sidebar"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'All Rules' : ''"
           >
             <ShieldCheckIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -97,7 +97,7 @@
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
               'text-theme-text-sidebar hover:bg-theme-active/50'
             ]"
-            active-class="bg-theme-active text-theme-text-sidebar"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Assets' : ''"
           >
             <ServerIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />

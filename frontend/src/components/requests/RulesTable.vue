@@ -3,7 +3,7 @@
     <table class="min-w-full divide-y divide-theme-border-default">
       <thead class="bg-theme-content">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider w-12">
+          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider w-12">
             <input
               type="checkbox"
               :checked="allSelected"
@@ -13,7 +13,7 @@
             />
           </th>
           <th
-            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider cursor-pointer hover:bg-theme-active/50"
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider cursor-pointer hover:bg-theme-hover"
             @click="handleSort('id')"
           >
             <div class="flex items-center space-x-1">
@@ -31,23 +31,23 @@
           </th>
           <th 
             v-if="showRequestColumn"
-            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
           >
             Request
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Source Networks
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Dest Networks
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Services
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Assessment
           </th>
-          <th class="px-6 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th class="px-4 py-2 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Actions
           </th>
         </tr>
@@ -55,25 +55,25 @@
       <tbody class="bg-theme-card divide-y divide-theme-border-default">
         <!-- Loading Skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
-          <td class="px-6 py-4 whitespace-nowrap">
+          <td class="px-4 py-2 whitespace-nowrap">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-4"></div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap">
+          <td class="px-4 py-2 whitespace-nowrap">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
           </td>
-          <td v-if="showRequestColumn" class="px-6 py-4">
+          <td v-if="showRequestColumn" class="px-4 py-2">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-4 py-2">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-4 py-2">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-4 py-2">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-4 py-2">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right">
@@ -86,14 +86,14 @@
           v-else
           v-for="rule in rules"
           :key="rule.id"
-          class="hover:bg-theme-active/30 transition-colors"
+          class="hover:bg-theme-hover transition-colors"
           :class="{
-            'bg-theme-active': selectedRules.includes(rule.id),
+            'bg-theme-selected': selectedRules.includes(rule.id),
             'bg-red-50': rule.health_status === 'critical' && !selectedRules.includes(rule.id),
             'bg-yellow-50': rule.health_status === 'warning' && !selectedRules.includes(rule.id)
           }"
         >
-          <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+          <td class="px-4 py-2 whitespace-nowrap" @click.stop>
             <input
               type="checkbox"
               :checked="selectedRules.includes(rule.id)"
@@ -102,14 +102,14 @@
             />
           </td>
           <td 
-            class="px-6 py-4 whitespace-nowrap text-sm font-medium text-theme-text-content cursor-pointer"
+            class="px-4 py-2 whitespace-nowrap text-sm font-medium text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             {{ rule.id }}
           </td>
           <td 
             v-if="showRequestColumn"
-            class="px-6 py-4 text-sm text-theme-text-content"
+            class="px-4 py-2 text-sm text-theme-text-content"
             @click.stop
           >
             <router-link
@@ -122,7 +122,7 @@
             <span v-else class="text-theme-text-muted">—</span>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
+            class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div 
@@ -133,7 +133,7 @@
             </div>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
+            class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div 
@@ -144,7 +144,7 @@
             </div>
           </td>
           <td 
-            class="px-6 py-4 text-sm text-theme-text-content cursor-pointer"
+            class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div class="max-w-xs truncate" :title="formatServices(rule.services)">
@@ -152,7 +152,7 @@
             </div>
           </td>
           <td 
-            class="px-6 py-4 text-sm cursor-pointer"
+            class="px-4 py-2 text-sm cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div class="flex items-center space-x-2">
@@ -172,7 +172,7 @@
               <span v-if="!rule.health_status" class="text-theme-text-muted">—</span>
             </div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+          <td class="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
               <Button 
                 variant="ghost" 
@@ -192,7 +192,7 @@
 
         <!-- Empty State -->
         <tr v-if="!loading && rules.length === 0">
-          <td :colspan="showRequestColumn ? 8 : 7" class="px-6 py-12 text-center">
+          <td :colspan="showRequestColumn ? 8 : 7" class="px-4 py-8 text-center">
             <p class="text-theme-text-muted">No rules found</p>
           </td>
         </tr>
