@@ -3,22 +3,16 @@
     <!-- Breadcrumb Navigation -->
     <nav class="flex items-center space-x-2 text-sm text-gray-600">
       <router-link to="/requests" class="hover:text-primary-600">Requests</router-link>
-      <ChevronRightIcon class="h-4 w-4" />
+      <ChevronRightIcon v-if="requestId || rule?.request?.id" class="h-4 w-4" />
       <router-link
-        v-if="rule?.request"
-        :to="`/requests/${rule.request.id}`"
+        v-if="requestId || rule?.request?.id"
+        :to="`/requests/${requestId || rule.request.id}`"
         class="hover:text-primary-600"
       >
-        Request {{ rule.request.id }}
+        Request {{ requestId || rule.request.id }}
       </router-link>
-      <ChevronRightIcon v-if="rule?.request" class="h-4 w-4" />
-      <router-link
-        v-if="rule?.request"
-        :to="`/requests/${rule.request.id}/rules`"
-        class="hover:text-primary-600"
-      >
-        Rules
-      </router-link>
+      <ChevronRightIcon v-if="requestId || rule?.request?.id" class="h-4 w-4" />
+      <span v-if="requestId || rule?.request?.id" class="text-gray-600">Rules</span>
       <ChevronRightIcon class="h-4 w-4" />
       <span class="text-gray-900 font-medium">Rule {{ ruleId }}</span>
     </nav>
@@ -27,18 +21,28 @@
     <RuleDetail
       v-if="rule"
       :rule="rule"
-      :request-id="rule.request?.id"
+      :request-id="requestId || rule.request?.id"
       :loading="loading"
       @back="handleBack"
+      @visualize="handleVisualizeRule"
+    />
+
+    <!-- Network Graph Modal -->
+    <NetworkGraphModal
+      v-model="showGraphModal"
+      :rule-id="selectedRuleForVisualization?.id"
+      :rule-title="selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`"
+      :graph-data="mergedGraphData"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
+import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
 
@@ -46,16 +50,29 @@ const route = useRoute()
 const router = useRouter()
 const { error: showError } = useToast()
 
-const ruleId = computed(() => route.params.id)
+const ruleId = computed(() => route.params.ruleId || route.params.id)
+const requestId = computed(() => route.params.requestId || null)
 const rule = ref(null)
 const loading = ref(true)
+const showGraphModal = ref(false)
+const selectedRuleForVisualization = ref(null)
+const mergedGraphData = ref(null)
 
 const handleBack = () => {
-  if (rule.value?.request?.id) {
-    router.push(`/requests/${rule.value.request.id}/rules`)
+  const currentRequestId = requestId.value || rule.value?.request?.id
+  if (currentRequestId) {
+    // From nested route: go back to request detail page
+    router.push(`/requests/${currentRequestId}`)
   } else {
-    router.push('/requests')
+    // From standalone route: go back to all rules
+    router.push('/rules')
   }
+}
+
+const handleVisualizeRule = (rule) => {
+  selectedRuleForVisualization.value = rule
+  mergedGraphData.value = null // Clear merged data for single rule
+  showGraphModal.value = true
 }
 
 const fetchRule = async () => {
@@ -103,6 +120,12 @@ const fetchRule = async () => {
 }
 
 onMounted(() => {
+  if (ruleId.value) {
+    fetchRule()
+  }
+})
+
+watch([() => route.params.ruleId, () => route.params.id, () => route.params.requestId], () => {
   if (ruleId.value) {
     fetchRule()
   }

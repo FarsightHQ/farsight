@@ -13,6 +13,11 @@ const routes = [
     component: () => import('../views/AllRules.vue'),
   },
   {
+    path: '/rules/:id',
+    name: 'RuleDetail',
+    component: () => import('../views/RuleDetail.vue'),
+  },
+  {
     path: '/requests',
     name: 'Requests',
     component: () => import('../views/RequestsList.vue'),
@@ -26,6 +31,11 @@ const routes = [
     path: '/requests/:id',
     name: 'RequestDetail',
     component: () => import('../views/RequestDetail.vue'),
+  },
+  {
+    path: '/requests/:requestId/rules/:ruleId',
+    name: 'RequestRuleDetail',
+    component: () => import('../views/RuleDetail.vue'),
   },
   {
     path: '/assets',

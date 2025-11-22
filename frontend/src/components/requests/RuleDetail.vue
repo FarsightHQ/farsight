@@ -180,7 +180,7 @@
 
 <script setup>
 import { computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -213,6 +213,7 @@ const props = defineProps({
 const emit = defineEmits(['back', 'visualize'])
 
 const router = useRouter()
+const route = useRoute()
 const { success } = useToast()
 
 // Asset cache for fetching hostnames
@@ -313,12 +314,19 @@ const handleVisualize = () => {
 
 // Handle back button click - context-aware navigation
 const handleBack = () => {
-  if (props.requestId) {
-    // From specific FAR page: emit back event
-    emit('back')
+  // If in a route context (not inline), use router navigation
+  if (route?.params?.ruleId || route?.params?.id) {
+    const requestId = route.params.requestId || props.requestId
+    if (requestId) {
+      // From nested route: go back to request detail page
+      router.push(`/requests/${requestId}`)
+    } else {
+      // From standalone route: go back to all rules
+      router.push('/rules')
+    }
   } else {
-    // From All Rules page: navigate to /rules
-    router.push('/rules')
+    // Fallback for inline usage (shouldn't happen after this change)
+    emit('back')
   }
 }
 

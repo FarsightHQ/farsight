@@ -22,14 +22,7 @@
 
       <!-- Middle Column: Rules List -->
       <main class="flex-1 overflow-y-auto min-w-0">
-        <RuleDetail
-          v-if="showRuleDetail && selectedRule"
-          :rule="selectedRule"
-          @back="handleBackToRules"
-          @visualize="handleVisualizeRule"
-        />
         <RulesList
-          v-else
           :filters="filters"
           :show-request-column="true"
           @view-rule="handleViewRule"
@@ -104,11 +97,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '@/components/ui/Card.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'
-import RuleDetail from '@/components/requests/RuleDetail.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
+
+const router = useRouter()
 
 const filters = ref({
   action: '',
@@ -124,8 +119,6 @@ const filters = ref({
 
 const rulesData = ref([])
 const summary = ref(null)
-const showRuleDetail = ref(false)
-const selectedRule = ref(null)
 const showGraphModal = ref(false)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
@@ -135,13 +128,8 @@ const handleFilterUpdate = (newFilters) => {
 }
 
 const handleViewRule = (rule) => {
-  selectedRule.value = rule
-  showRuleDetail.value = true
-}
-
-const handleBackToRules = () => {
-  showRuleDetail.value = false
-  selectedRule.value = null
+  // Navigate to standalone route for rule detail
+  router.push(`/rules/${rule.id}`)
 }
 
 const handleStatsUpdated = (stats) => {

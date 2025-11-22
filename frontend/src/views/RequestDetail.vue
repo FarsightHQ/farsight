@@ -59,15 +59,7 @@
 
         <!-- Right Column: Rules List (Expanded) -->
         <main class="flex-1 overflow-y-auto min-w-0">
-          <RuleDetail
-            v-if="showRuleDetail && selectedRule"
-            :rule="selectedRule"
-            :request-id="request.id"
-            @back="handleBackToRules"
-            @visualize="handleVisualizeRule"
-          />
           <RulesList
-            v-else
             :request-id="request.id"
             :filters="filters"
             @view-rule="handleViewRule"
@@ -120,7 +112,6 @@ import StatusBadge from '@/components/requests/StatusBadge.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
-import RuleDetail from '@/components/requests/RuleDetail.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 
 const route = useRoute()
@@ -132,10 +123,8 @@ const request = ref(null)
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const showGraphModal = ref(false)
-const selectedRule = ref(null)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
-const showRuleDetail = ref(false)
 const rulesStats = ref({})
 const rulesData = ref([])
 const filters = ref({
@@ -207,26 +196,8 @@ const cancelDelete = () => {
 }
 
 const handleViewRule = async (rule) => {
-  // If rule already has full details, show it
-  if (rule.endpoints && rule.services) {
-    selectedRule.value = rule
-    showRuleDetail.value = true
-  } else {
-    // Fetch full rule details
-    try {
-      const { rulesService } = await import('@/services/rules')
-      const response = await rulesService.getRule(rule.id)
-      selectedRule.value = response.data || response
-      showRuleDetail.value = true
-    } catch (err) {
-      error(err.message || 'Failed to load rule details')
-    }
-  }
-}
-
-const handleBackToRules = () => {
-  showRuleDetail.value = false
-  selectedRule.value = null
+  // Navigate to nested route for rule detail
+  router.push(`/requests/${route.params.id}/rules/${rule.id}`)
 }
 
 const handleFilterUpdate = (newFilters) => {
