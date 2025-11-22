@@ -177,7 +177,7 @@ def get_all_far_rules(
     # Format rules for response (include request info)
     rules_for_response = []
     for item in enhanced_rules:
-        rule_dict = item["rule"].dict()
+        rule_dict = item["rule"].model_dump(exclude_none=False)
         rule_dict["request"] = item["request"]
         rules_for_response.append(rule_dict)
     

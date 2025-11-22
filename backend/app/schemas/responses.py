@@ -284,9 +284,12 @@ class RuleDetailModel(BaseModel):
     criticality_score: Optional[int] = Field(None, description="Numeric score for sorting (0=no data, 1=clean, 2=warning, 3=critical)")
     
     @model_serializer
-    def serialize_model(self):
+    def serialize_model(self, mode='python'):
         """Custom serializer to ensure assessment fields are always included"""
-        data = self.model_dump(exclude_none=False)
+        # Build dict directly from field values to avoid recursion
+        # Use model_fields to get all field names and access values via getattr
+        data = {field_name: getattr(self, field_name, None) for field_name in self.model_fields.keys()}
+        
         # Explicitly force assessment fields to always be present (even if None)
         data["health_status"] = self.health_status
         data["problem_count"] = self.problem_count

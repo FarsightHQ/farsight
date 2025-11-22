@@ -16,55 +16,6 @@ from app.utils.error_handlers import success_response, paginated_response
 router = APIRouter(prefix="/far", tags=["FAR Analysis"])
 
 
-@router.get("/{request_id}/rules")
-def list_request_rules(
-    request_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    include_facts: bool = False,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """
-    List all rules for a specific FAR request with optional facts
-    """
-    # Verify request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
-    # Get rules for this request
-    rules_query = db.query(FarRule).filter(FarRule.request_id == request_id)
-    total_rules = rules_query.count()
-    rules = rules_query.offset(skip).limit(limit).all()
-    
-    # Format rules data
-    formatted_rules = []
-    for rule in rules:
-        rule_data = {
-            "id": str(rule.id),
-            "action": str(rule.action or ""),
-            "direction": str(rule.direction or ""),
-            "created_at": str(rule.created_at),
-            "canonical_hash": rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
-            "endpoint_count": len(rule.endpoints),
-            "service_count": len(rule.services),
-            "request_id": request_id
-        }
-        
-        if include_facts and rule.facts is not None:
-            rule_data["facts"] = rule.facts
-        
-        formatted_rules.append(rule_data)
-    
-    return paginated_response(
-        data=formatted_rules,
-        skip=skip,
-        limit=limit,
-        total=total_rules,
-        message=f"Retrieved {len(formatted_rules)} of {total_rules} rules for request {request_id}"
-    )
-
-
 @router.get("/{request_id}/summary")
 def get_request_summary(
     request_id: int,
