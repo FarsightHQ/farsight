@@ -22,7 +22,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept=".csv"
+        accept=".csv,text/csv,application/csv"
         class="hidden"
         @change="handleFileSelect"
       />
@@ -150,9 +150,28 @@ const triggerFileInput = () => {
 }
 
 const validateFile = (file) => {
-  // Check file type
+  // Check if file is provided
+  if (!file) {
+    emit('error', 'No file selected')
+    return false
+  }
+
+  // Check file type by extension
   if (!file.name.toLowerCase().endsWith('.csv')) {
     emit('error', 'Only CSV files are allowed')
+    return false
+  }
+
+  // Check MIME type (more secure than just extension)
+  const validMimeTypes = ['text/csv', 'application/csv', 'text/plain']
+  if (file.type && !validMimeTypes.includes(file.type)) {
+    emit('error', `Invalid file type: ${file.type}. Please upload a CSV file.`)
+    return false
+  }
+
+  // Check if file is empty
+  if (file.size === 0) {
+    emit('error', 'File is empty. Please upload a valid CSV file.')
     return false
   }
 

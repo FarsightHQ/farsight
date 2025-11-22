@@ -6,8 +6,10 @@ import logging
 from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 from app.models.asset_registry import AssetRegistry
+from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +43,15 @@ class AssetService:
                     "integrity": asset.integrity
                 }
             return None
+        except OperationalError as e:
+            logger.error(f"Database connection error retrieving asset for IP {ip_address}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when retrieving asset information",
+                details={"error": str(e), "ip_address": ip_address}
+            )
         except Exception as e:
-            logger.error(f"Error retrieving asset for IP {ip_address}: {e}")
-            return None
+            logger.error(f"Error retrieving asset for IP {ip_address}: {e}", exc_info=True)
+            return None  # Graceful degradation for non-critical errors
     
     def get_assets_for_rule_endpoints(
         self, 
@@ -88,32 +96,48 @@ class AssetService:
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Get assets by various criteria"""
-        query = self.db.query(AssetRegistry)
-        
-        if environment:
-            query = query.filter(AssetRegistry.environment == environment)
-        if segment:
-            query = query.filter(AssetRegistry.segment == segment)
-        if os_name:
-            query = query.filter(AssetRegistry.os_name == os_name)
-        if location:
-            query = query.filter(AssetRegistry.location == location)
-        
-        assets = query.limit(limit).all()
-        
-        return [
-            {
-                "ip_address": asset.ip_address,
-                "hostname": asset.hostname,
-                "environment": asset.environment,
-                "os_name": asset.os_name,
-                "location": asset.location,
-                "segment": asset.segment,
-                "vlan": asset.vlan,
-                "availability": asset.availability
-            }
-            for asset in assets
-        ]
+        try:
+            query = self.db.query(AssetRegistry)
+            
+            if environment:
+                query = query.filter(AssetRegistry.environment == environment)
+            if segment:
+                query = query.filter(AssetRegistry.segment == segment)
+            if os_name:
+                query = query.filter(AssetRegistry.os_name == os_name)
+            if location:
+                query = query.filter(AssetRegistry.location == location)
+            
+            assets = query.limit(limit).all()
+            
+            return [
+                {
+                    "ip_address": asset.ip_address,
+                    "hostname": asset.hostname,
+                    "environment": asset.environment,
+                    "os_name": asset.os_name,
+                    "location": asset.location,
+                    "segment": asset.segment,
+                    "vlan": asset.vlan,
+                    "availability": asset.availability
+                }
+                for asset in assets
+            ]
+        except OperationalError as e:
+            logger.error(f"Database connection error getting assets by criteria: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when retrieving assets by criteria",
+                details={
+                    "error": str(e),
+                    "environment": environment,
+                    "segment": segment,
+                    "os_name": os_name,
+                    "location": location
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error getting assets by criteria: {str(e)}", exc_info=True)
+            raise
     
     def create_node_tooltip(self, cidr: str, asset_info: Optional[Dict[str, Any]], node_type: str) -> str:
         """Create a tooltip string for a graph node"""
@@ -157,6 +181,12 @@ class AssetService:
                 "by_environment": {env: count for env, count in env_stats},
                 "by_segment": {segment: count for segment, count in segment_stats}
             }
+        except OperationalError as e:
+            logger.error(f"Database connection error getting asset statistics: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when retrieving asset statistics",
+                details={"error": str(e)}
+            )
         except Exception as e:
-            logger.error(f"Error getting asset statistics: {e}")
-            return {"error": str(e)}
+            logger.error(f"Error getting asset statistics: {e}", exc_info=True)
+            return {"error": str(e)}  # Return error dict for graceful degradation

@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 
 from app.core.database import SessionLocal, Base
 from app.models.far_request import FarRequest
@@ -18,6 +19,7 @@ from app.utils.ip_classification import (
     is_public_ip, is_rfc1918, is_any_network, is_broadcast,
     is_link_local, is_loopback
 )
+from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +71,15 @@ class HybridFactsService:
             
             return result
             
+        except OperationalError as e:
+            logger.error(f"Database connection error during hybrid facts computation: {e}", exc_info=True)
+            db.rollback()
+            raise DatabaseConnectionError(
+                message="Database connection failed during hybrid facts computation",
+                details={"error": str(e)}
+            )
         except Exception as e:
-            logger.error(f"Error computing hybrid facts: {e}")
+            logger.error(f"Error computing hybrid facts: {e}", exc_info=True)
             db.rollback()
             raise
     
@@ -90,9 +99,15 @@ class HybridFactsService:
             
             return matching_rules
             
+        except OperationalError as e:
+            logger.error(f"Database connection error finding matching rules: {e}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when finding matching rules",
+                details={"error": str(e)}
+            )
         except Exception as e:
-            logger.error(f"Error finding matching rules: {e}")
-            return []
+            logger.error(f"Error finding matching rules: {e}", exc_info=True)
+            return []  # Return empty list on other errors (graceful degradation)
     
     def _rule_overlaps_with_request(self, rule: FarRule, source_cidrs: List[str], 
                                   destination_cidrs: List[str], db: Session) -> bool:
@@ -112,9 +127,15 @@ class HybridFactsService:
             
             return source_overlap and dest_overlap
             
+        except OperationalError as e:
+            logger.error(f"Database connection error checking rule overlap: {e}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when checking rule overlap",
+                details={"error": str(e), "rule_id": rule.id}
+            )
         except Exception as e:
-            logger.error(f"Error checking rule overlap: {e}")
-            return False
+            logger.error(f"Error checking rule overlap: {e}", exc_info=True)
+            return False  # Return False on other errors (graceful degradation)
     
     async def _process_rule_hybrid_facts(self, rule: FarRule, source_cidrs: List[str], 
                                        destination_cidrs: List[str], db: Session) -> Dict[str, Any]:

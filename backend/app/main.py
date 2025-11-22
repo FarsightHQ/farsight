@@ -90,7 +90,7 @@ app.add_middleware(
 )
 
 # Setup standardized exception handlers
-# setup_exception_handlers(app)  # Temporarily disabled while debugging
+setup_exception_handlers(app)
 
 # Include API routes
 app.include_router(api_router)

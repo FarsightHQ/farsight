@@ -3,6 +3,7 @@ FAR (Federated Access Request) API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import List, Dict, Any, Optional, cast
 import aiofiles
 import os
@@ -17,9 +18,14 @@ from app.schemas.responses import (
 )
 from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
+from app.services.csv_validation_service import CSVValidationService
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.utils.csv_errors import (
+    CSVFileError, CSVEncodingError, CSVValidationError, CSVColumnError,
+    DatabaseConnectionError, FileSystemError, InsufficientStorageError
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,6 +42,7 @@ async def create_far_request(
 ):
     """
     Create a new FAR request with file upload
+    Enhanced with better error handling
     """
     service = FarIngestionService(db)
     
@@ -46,7 +53,11 @@ async def create_far_request(
             external_id=external_id
         )
         return result
+    except (HTTPException, DatabaseConnectionError, FileSystemError, InsufficientStorageError):
+        # Re-raise known exceptions as-is (they're already properly formatted)
+        raise
     except Exception as e:
+        logger.error(f"Error creating FAR request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -59,8 +70,18 @@ def list_far_requests(
     """
     List all FAR requests
     """
-    requests = db.query(FarRequest).offset(skip).limit(limit).all()
-    return requests
+    try:
+        requests = db.query(FarRequest).offset(skip).limit(limit).all()
+        return requests
+    except OperationalError as e:
+        logger.error(f"Database connection error listing FAR requests: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving FAR requests",
+            details={"error": str(e), "skip": skip, "limit": limit}
+        )
+    except Exception as e:
+        logger.error(f"Error listing FAR requests: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve FAR requests: {str(e)}")
 
 
 @router.get("/requests/{request_id}", response_model=FarRequestResponse)
@@ -71,10 +92,22 @@ def get_far_request(
     """
     Get a specific FAR request by ID
     """
-    request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not request:
-        raise HTTPException(status_code=404, detail="FAR request not found")
-    return request
+    try:
+        request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not request:
+            raise HTTPException(status_code=404, detail="FAR request not found")
+        return request
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting FAR request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving FAR request",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error getting FAR request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve FAR request: {str(e)}")
 
 
 @router.post("/requests/{request_id}/ingest", status_code=status.HTTP_200_OK)
@@ -87,6 +120,7 @@ async def ingest_far_csv(
     
     This endpoint processes the uploaded CSV file, normalizes IP addresses and port ranges,
     and creates FAR rules with endpoint and service normalization.
+    Enhanced with comprehensive error handling.
     """
     # Verify the request exists
     far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
@@ -108,26 +142,78 @@ async def ingest_far_csv(
         storage_path_str = cast(str, far_request.storage_path)
         full_path = os.path.join("uploads", storage_path_str)
         if not os.path.exists(full_path):
+            far_request.status = 'error'  # type: ignore[assignment]
+            db.commit()
             raise HTTPException(status_code=404, detail="Uploaded file not found")
         
-        async with aiofiles.open(full_path, 'r', encoding='utf-8') as f:
-            file_content = await f.read()
+        # Read file as bytes for encoding detection
+        async with aiofiles.open(full_path, 'rb') as f:
+            file_content_bytes = await f.read()
+        
+        # Validate and decode
+        try:
+            file_content, metadata = CSVValidationService.validate_file_structure(
+                file_content_bytes,
+                filename=far_request.source_filename
+            )
+        except CSVFileError as e:
+            far_request.status = 'error'  # type: ignore[assignment]
+            db.commit()
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=e.message
+            )
+        except CSVEncodingError as e:
+            far_request.status = 'error'  # type: ignore[assignment]
+            db.commit()
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=e.message
+            )
         
         # Process the CSV with the ingestion service
         ingestion_service = CsvIngestionService(db)
-        statistics = await ingestion_service.ingest_csv_file(request_id, file_content)
+        
+        try:
+            statistics = await ingestion_service.ingest_csv_file(request_id, file_content)
+        except CSVValidationError as e:
+            far_request.status = 'error'  # type: ignore[assignment]
+            db.commit()
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": e.message,
+                    "details": e.details
+                }
+            )
+        except CSVColumnError as e:
+            far_request.status = 'error'  # type: ignore[assignment]
+            db.commit()
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": e.message,
+                    "missing_columns": e.details.get('missing_columns'),
+                    "found_columns": e.details.get('found_columns')
+                }
+            )
         
         return {
             "message": "CSV ingestion completed",
             "request_id": request_id,
-            "statistics": statistics
+            "statistics": statistics,
+            "status": far_request.status
         }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         # Reset status on error
-        far_request.status = 'submitted'  # type: ignore[assignment]
+        far_request.status = 'error'  # type: ignore[assignment]
         db.commit()
-        raise HTTPException(status_code=400, detail=f"CSV ingestion failed: {str(e)}")
+        logger.error(f"Unexpected error ingesting CSV for request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"CSV ingestion failed: {str(e)}")
 
 
 @router.get("/requests/{request_id}/rules", response_model=StandardResponse[FarRulesResponse])
@@ -154,169 +240,181 @@ def get_far_rules(
     - limit: Maximum rules to return (pagination)
     - include_summary: Include summary statistics
     """
-    # Verify the request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail="FAR request not found")
-    
-    # Import models here to avoid circular imports
-    from app.models.far_rule import FarRule
-    
-    # Get rules with their relationships
-    rules_query = db.query(FarRule).filter(FarRule.request_id == request_id)
-    total_rules = rules_query.count()
-    
-    rules = rules_query.offset(skip).limit(limit).all()
-    
-    # Process rules to extract human-readable information
-    enhanced_rules = []
-    all_sources = set()
-    all_destinations = set()
-    all_protocols = set()
-    allow_rules = 0
-    deny_rules = 0
-    total_tuple_estimate = 0
-    
-    for rule in rules:
-        logger.info(f"DEBUG: Processing rule {rule.id}")
-        # Extract source networks
-        source_networks = [
-            ep.network_cidr for ep in rule.endpoints 
-            if ep.endpoint_type == 'source'
-        ]
-        all_sources.update(source_networks)
+    try:
+        # Verify the request exists
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail="FAR request not found")
         
-        # Extract destination networks
-        destination_networks = [
-            ep.network_cidr for ep in rule.endpoints 
-            if ep.endpoint_type == 'destination'
-        ]
-        all_destinations.update(destination_networks)
+        # Import models here to avoid circular imports
+        from app.models.far_rule import FarRule
         
-        # Extract protocols and ports
-        protocols = []
-        port_ranges = []
-        for service in rule.services:
-            protocols.append(service.protocol)
-            port_ranges.append(str(service.port_ranges))
-            all_protocols.add(service.protocol)
+        # Get rules with their relationships
+        rules_query = db.query(FarRule).filter(FarRule.request_id == request_id)
+        total_rules = rules_query.count()
         
-        # Count rule types
-        if str(rule.action).upper() == 'ALLOW':
-            allow_rules += 1
-        elif str(rule.action).upper() == 'DENY':
-            deny_rules += 1
+        rules = rules_query.offset(skip).limit(limit).all()
         
-        # Calculate tuple estimate for this rule
-        tuple_estimate = len(source_networks) * len(destination_networks) * len(rule.services)
-        total_tuple_estimate += tuple_estimate
+        # Process rules to extract human-readable information
+        enhanced_rules = []
+        all_sources = set()
+        all_destinations = set()
+        all_protocols = set()
+        allow_rules = 0
+        deny_rules = 0
+        total_tuple_estimate = 0
         
-        # Generate human-readable summary
-        rule_summary = _generate_rule_summary(
-            str(rule.action), source_networks, destination_networks, protocols, port_ranges
+        for rule in rules:
+            logger.info(f"DEBUG: Processing rule {rule.id}")
+            # Extract source networks
+            source_networks = [
+                ep.network_cidr for ep in rule.endpoints 
+                if ep.endpoint_type == 'source'
+            ]
+            all_sources.update(source_networks)
+            
+            # Extract destination networks
+            destination_networks = [
+                ep.network_cidr for ep in rule.endpoints 
+                if ep.endpoint_type == 'destination'
+            ]
+            all_destinations.update(destination_networks)
+            
+            # Extract protocols and ports
+            protocols = []
+            port_ranges = []
+            for service in rule.services:
+                protocols.append(service.protocol)
+                port_ranges.append(str(service.port_ranges))
+                all_protocols.add(service.protocol)
+            
+            # Count rule types
+            if str(rule.action).upper() == 'ALLOW':
+                allow_rules += 1
+            elif str(rule.action).upper() == 'DENY':
+                deny_rules += 1
+            
+            # Calculate tuple estimate for this rule
+            tuple_estimate = len(source_networks) * len(destination_networks) * len(rule.services)
+            total_tuple_estimate += tuple_estimate
+            
+            # Generate human-readable summary
+            rule_summary = _generate_rule_summary(
+                str(rule.action), source_networks, destination_networks, protocols, port_ranges
+            )
+            
+            # Compute assessment data from facts
+            # Compute assessment data from facts
+            logger.info(f"DEBUG: About to compute assessment for rule {rule.id}, facts type: {type(rule.facts)}")
+            # Ensure facts is a dict (SQLAlchemy ORM should return the value, but verify)
+            facts_raw = rule.facts
+            logger.info(f"DEBUG: Facts raw type: {type(facts_raw)}")
+            if facts_raw is not None and isinstance(facts_raw, dict):
+                facts: Optional[Dict[str, Any]] = cast(Dict[str, Any], facts_raw)
+            else:
+                facts = None
+            assessment = _compute_rule_assessment(facts)
+            
+            # Temporary print to verify code execution (remove after debugging)
+            logger.info(f"DEBUG: Rule {rule.id} - assessment computed: {assessment}")
+            
+            # Info logging to verify assessment computation
+            logger.info(
+                f"Rule {rule.id} assessment: health_status={assessment['health_status']}, "
+                f"problem_count={assessment['problem_count']}, "
+                f"criticality_score={assessment['criticality_score']}, "
+                f"facts_present={facts is not None}"
+            )
+            if facts:
+                logger.info(f"Rule {rule.id} facts keys: {list(facts.keys()) if isinstance(facts, dict) else 'not a dict'}")
+                logger.info(f"Rule {rule.id} is_self_flow={facts.get('is_self_flow')}, src_is_any={facts.get('src_is_any')}, dst_is_any={facts.get('dst_is_any')}")
+            
+            # Create enhanced rule model
+            enhanced_rule = RuleDetailModel(
+                id=cast(int, rule.id),
+                action=cast(str, rule.action),
+                direction=cast(Optional[str], rule.direction),
+                source_networks=source_networks,
+                source_count=len(source_networks),
+                destination_networks=destination_networks,
+                destination_count=len(destination_networks),
+                protocols=protocols,
+                port_ranges=port_ranges,
+                service_count=len(rule.services),
+                created_at=rule.created_at.isoformat(),
+                rule_hash=rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
+                tuple_estimate=tuple_estimate,
+                rule_summary=rule_summary,
+                health_status=assessment["health_status"],
+                problem_count=assessment["problem_count"],
+                criticality_score=assessment["criticality_score"]
+            )
+            enhanced_rules.append(enhanced_rule)
+        
+        # Create summary if requested
+        summary = FarRulesSummaryModel(
+            total_rules=total_rules,
+            allow_rules=allow_rules,
+            deny_rules=deny_rules,
+            unique_sources=len(all_sources),
+            unique_destinations=len(all_destinations),
+            protocols_used=list(all_protocols),
+            estimated_tuples=total_tuple_estimate
+        ) if include_summary else FarRulesSummaryModel(
+            total_rules=0,
+            allow_rules=0,
+            deny_rules=0,
+            unique_sources=0,
+            unique_destinations=0,
+            protocols_used=[],
+            estimated_tuples=0
         )
         
-        # Compute assessment data from facts
-        # Compute assessment data from facts
-        logger.info(f"DEBUG: About to compute assessment for rule {rule.id}, facts type: {type(rule.facts)}")
-        # Ensure facts is a dict (SQLAlchemy ORM should return the value, but verify)
-        facts_raw = rule.facts
-        logger.info(f"DEBUG: Facts raw type: {type(facts_raw)}")
-        if facts_raw is not None and isinstance(facts_raw, dict):
-            facts: Optional[Dict[str, Any]] = cast(Dict[str, Any], facts_raw)
-        else:
-            facts = None
-        assessment = _compute_rule_assessment(facts)
-        
-        # Temporary print to verify code execution (remove after debugging)
-        logger.info(f"DEBUG: Rule {rule.id} - assessment computed: {assessment}")
-        
-        # Info logging to verify assessment computation
-        logger.info(
-            f"Rule {rule.id} assessment: health_status={assessment['health_status']}, "
-            f"problem_count={assessment['problem_count']}, "
-            f"criticality_score={assessment['criticality_score']}, "
-            f"facts_present={facts is not None}"
-        )
-        if facts:
-            logger.info(f"Rule {rule.id} facts keys: {list(facts.keys()) if isinstance(facts, dict) else 'not a dict'}")
-            logger.info(f"Rule {rule.id} is_self_flow={facts.get('is_self_flow')}, src_is_any={facts.get('src_is_any')}, dst_is_any={facts.get('dst_is_any')}")
-        
-        # Create enhanced rule model
-        enhanced_rule = RuleDetailModel(
-            id=cast(int, rule.id),
-            action=cast(str, rule.action),
-            direction=cast(Optional[str], rule.direction),
-            source_networks=source_networks,
-            source_count=len(source_networks),
-            destination_networks=destination_networks,
-            destination_count=len(destination_networks),
-            protocols=protocols,
-            port_ranges=port_ranges,
-            service_count=len(rule.services),
-            created_at=rule.created_at.isoformat(),
-            rule_hash=rule.canonical_hash.hex() if rule.canonical_hash is not None else None,
-            tuple_estimate=tuple_estimate,
-            rule_summary=rule_summary,
-            health_status=assessment["health_status"],
-            problem_count=assessment["problem_count"],
-            criticality_score=assessment["criticality_score"]
-        )
-        enhanced_rules.append(enhanced_rule)
-    
-    # Create summary if requested
-    summary = FarRulesSummaryModel(
-        total_rules=total_rules,
-        allow_rules=allow_rules,
-        deny_rules=deny_rules,
-        unique_sources=len(all_sources),
-        unique_destinations=len(all_destinations),
-        protocols_used=list(all_protocols),
-        estimated_tuples=total_tuple_estimate
-    ) if include_summary else FarRulesSummaryModel(
-        total_rules=0,
-        allow_rules=0,
-        deny_rules=0,
-        unique_sources=0,
-        unique_destinations=0,
-        protocols_used=[],
-        estimated_tuples=0
-    )
-    
-    # Create pagination info
-    pagination = {
-        "skip": skip,
-        "limit": limit,
-        "total": total_rules,
-        "returned": len(enhanced_rules),
-        "has_next": skip + limit < total_rules,
-        "has_previous": skip > 0
-    }
-    
-    # Create response data
-    response_data = FarRulesResponse(
-        far_request_id=request_id,
-        summary=summary,
-        rules=enhanced_rules,
-        pagination=pagination,
-        metadata={
-            "request_title": far_request.title,
-            "analysis_timestamp": datetime.utcnow().isoformat(),
-            "processing_notes": "Enhanced human-readable rule format"
+        # Create pagination info
+        pagination = {
+            "skip": skip,
+            "limit": limit,
+            "total": total_rules,
+            "returned": len(enhanced_rules),
+            "has_next": skip + limit < total_rules,
+            "has_previous": skip > 0
         }
-    )
-    
-    return StandardResponse(
-        status=StatusEnum.SUCCESS,
-        message=f"Retrieved {len(enhanced_rules)} enhanced rules for FAR request {request_id}",
-        data=response_data,
-        errors=None,
-        metadata={
-            "api_version": "2.0",
-            "enhancement": "human_readable_rules"
-        },
-        request_id=None
-    )
+        
+        # Create response data
+        response_data = FarRulesResponse(
+            far_request_id=request_id,
+            summary=summary,
+            rules=enhanced_rules,
+            pagination=pagination,
+            metadata={
+                "request_title": far_request.title,
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "processing_notes": "Enhanced human-readable rule format"
+            }
+        )
+        
+        return StandardResponse(
+            status=StatusEnum.SUCCESS,
+            message=f"Retrieved {len(enhanced_rules)} enhanced rules for FAR request {request_id}",
+            data=response_data,
+            errors=None,
+            metadata={
+                "api_version": "2.0",
+                "enhancement": "human_readable_rules"
+            },
+            request_id=None
+        )
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting rules for FAR request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving rules for FAR request",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error getting rules for FAR request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve rules: {str(e)}")
 
 
 @router.get("/requests/{request_id}/ips", response_model=StandardResponse[FarIpsResponse])
@@ -337,122 +435,134 @@ def get_far_request_ips(
     Query Parameters:
     - include_assets: Include asset registry information for each IP
     """
-    # Verify the request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail="FAR request not found")
-    
-    # Import models here to avoid circular imports
-    from app.models.far_rule import FarRule, FarRuleEndpoint
-    from app.models.asset_registry import AssetRegistry
-    
-    # Get all endpoints for this request through the rules
-    query = db.query(FarRuleEndpoint, FarRule).join(
-        FarRule, FarRuleEndpoint.rule_id == FarRule.id
-    ).filter(FarRule.request_id == request_id)
-    
-    endpoints = query.all()
-    
-    # Collect and analyze IPs
-    ip_data = {}
-    source_ips = set()
-    destination_ips = set()
-    
-    for endpoint, rule in endpoints:
-        # Extract IPs from CIDR notation
-        network_cidr = endpoint.network_cidr
-        ips_in_network = _extract_ips_from_cidr(network_cidr)
+    try:
+        # Verify the request exists
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail="FAR request not found")
         
-        for ip in ips_in_network:
-            if ip not in ip_data:
-                ip_data[ip] = {
-                    "ip_address": ip,
-                    "networks": set(),
-                    "rule_count": 0,
-                    "is_source": False,
-                    "is_destination": False,
-                    "asset_info": None
-                }
-            
-            # Track networks this IP belongs to
-            ip_data[ip]["networks"].add(network_cidr)
-            ip_data[ip]["rule_count"] += 1
-            
-            # Track IP type based on endpoint type
-            if endpoint.endpoint_type == 'source':
-                ip_data[ip]["is_source"] = True
-                source_ips.add(ip)
-            elif endpoint.endpoint_type == 'destination':
-                ip_data[ip]["is_destination"] = True
-                destination_ips.add(ip)
-    
-    # Get asset information if requested
-    if include_assets:
-        for ip in ip_data.keys():
-            asset = db.query(AssetRegistry).filter(AssetRegistry.ip_address == ip).first()
-            if asset:
-                ip_data[ip]["asset_info"] = {
-                    "hostname": asset.hostname,
-                    "asset_type": asset.asset_type,
-                    "criticality": asset.criticality,
-                    "environment": asset.environment,
-                    "department": asset.department,
-                    "is_active": asset.is_active,
-                    "last_updated": asset.updated_at.isoformat() if asset.updated_at is not None else None
-                }
-    
-    # Convert sets to lists for JSON serialization
-    for ip in ip_data.values():
-        ip["networks"] = list(ip["networks"])
-    
-    # Determine IP type for each IP
-    ip_details = []
-    for ip_info in ip_data.values():
-        ip_type = "both" if (ip_info["is_source"] and ip_info["is_destination"]) else \
-                 "source" if ip_info["is_source"] else "destination"
+        # Import models here to avoid circular imports
+        from app.models.far_rule import FarRule, FarRuleEndpoint
+        from app.models.asset_registry import AssetRegistry
         
-        ip_details.append(IpDetailsModel(
-            ip_address=ip_info["ip_address"],
-            ip_type=ip_type,
-            rule_count=ip_info["rule_count"],
-            asset_info=ip_info["asset_info"],
-            networks=ip_info["networks"]
-        ))
-    
-    # Create summary
-    overlapping_ips = len(source_ips.intersection(destination_ips))
-    
-    summary = FarIpSummaryModel(
-        request_id=request_id,
-        total_ips=len(ip_data),
-        source_ips=len(source_ips),
-        destination_ips=len(destination_ips),
-        overlapping_ips=overlapping_ips
-    )
-    
-    # Create response data
-    response_data = FarIpsResponse(
-        summary=summary,
-        ips=ip_details,
-        metadata={
-            "request_title": far_request.title,
-            "analysis_timestamp": datetime.utcnow().isoformat(),
-            "include_assets": include_assets,
-            "total_rules": len(set(rule.id for _, rule in endpoints))
-        }
-    )
-    
-    return StandardResponse(
-        status=StatusEnum.SUCCESS,
-        message=f"Retrieved {len(ip_data)} IP addresses for FAR request {request_id}",
-        data=response_data,
-        errors=None,
-        metadata={
-            "execution_time_ms": "calculated_at_response_time",
-            "api_version": "1.0"
-        },
-        request_id=None
-    )
+        # Get all endpoints for this request through the rules
+        query = db.query(FarRuleEndpoint, FarRule).join(
+            FarRule, FarRuleEndpoint.rule_id == FarRule.id
+        ).filter(FarRule.request_id == request_id)
+        
+        endpoints = query.all()
+        
+        # Collect and analyze IPs
+        ip_data = {}
+        source_ips = set()
+        destination_ips = set()
+        
+        for endpoint, rule in endpoints:
+            # Extract IPs from CIDR notation
+            network_cidr = endpoint.network_cidr
+            ips_in_network = _extract_ips_from_cidr(network_cidr)
+            
+            for ip in ips_in_network:
+                if ip not in ip_data:
+                    ip_data[ip] = {
+                        "ip_address": ip,
+                        "networks": set(),
+                        "rule_count": 0,
+                        "is_source": False,
+                        "is_destination": False,
+                        "asset_info": None
+                    }
+                
+                # Track networks this IP belongs to
+                ip_data[ip]["networks"].add(network_cidr)
+                ip_data[ip]["rule_count"] += 1
+                
+                # Track IP type based on endpoint type
+                if endpoint.endpoint_type == 'source':
+                    ip_data[ip]["is_source"] = True
+                    source_ips.add(ip)
+                elif endpoint.endpoint_type == 'destination':
+                    ip_data[ip]["is_destination"] = True
+                    destination_ips.add(ip)
+        
+        # Get asset information if requested
+        if include_assets:
+            for ip in ip_data.keys():
+                asset = db.query(AssetRegistry).filter(AssetRegistry.ip_address == ip).first()
+                if asset:
+                    ip_data[ip]["asset_info"] = {
+                        "hostname": asset.hostname,
+                        "asset_type": asset.asset_type,
+                        "criticality": asset.criticality,
+                        "environment": asset.environment,
+                        "department": asset.department,
+                        "is_active": asset.is_active,
+                        "last_updated": asset.updated_at.isoformat() if asset.updated_at is not None else None
+                    }
+        
+        # Convert sets to lists for JSON serialization
+        for ip in ip_data.values():
+            ip["networks"] = list(ip["networks"])
+        
+        # Determine IP type for each IP
+        ip_details = []
+        for ip_info in ip_data.values():
+            ip_type = "both" if (ip_info["is_source"] and ip_info["is_destination"]) else \
+                     "source" if ip_info["is_source"] else "destination"
+            
+            ip_details.append(IpDetailsModel(
+                ip_address=ip_info["ip_address"],
+                ip_type=ip_type,
+                rule_count=ip_info["rule_count"],
+                asset_info=ip_info["asset_info"],
+                networks=ip_info["networks"]
+            ))
+        
+        # Create summary
+        overlapping_ips = len(source_ips.intersection(destination_ips))
+        
+        summary = FarIpSummaryModel(
+            request_id=request_id,
+            total_ips=len(ip_data),
+            source_ips=len(source_ips),
+            destination_ips=len(destination_ips),
+            overlapping_ips=overlapping_ips
+        )
+        
+        # Create response data
+        response_data = FarIpsResponse(
+            summary=summary,
+            ips=ip_details,
+            metadata={
+                "request_title": far_request.title,
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "include_assets": include_assets,
+                "total_rules": len(set(rule.id for _, rule in endpoints))
+            }
+        )
+        
+        return StandardResponse(
+            status=StatusEnum.SUCCESS,
+            message=f"Retrieved {len(ip_data)} IP addresses for FAR request {request_id}",
+            data=response_data,
+            errors=None,
+            metadata={
+                "execution_time_ms": "calculated_at_response_time",
+                "api_version": "1.0"
+            },
+            request_id=None
+        )
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting IPs for FAR request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving IPs for FAR request",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error getting IPs for FAR request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve IPs: {str(e)}")
 
 
 @router.get("/rules/{rule_id}")
@@ -482,97 +592,109 @@ def get_far_rule_details(
     - Related request information
     - Optional: Asset details, graph data, security analysis
     """
-    from app.models.far_rule import FarRule
-    
-    # Get the rule with its relationships
-    rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
-    
-    # Parse include parameter
-    includes = []
-    if include:
-        if include == 'all':
-            includes = ['assets', 'graph', 'tuples', 'analysis']
-        else:
-            includes = [item.strip() for item in include.split(',')]
-    
-    # Get request information
-    request_info = {
-        "id": rule.request.id,
-        "title": rule.request.title,
-        "external_id": rule.request.external_id,
-        "status": rule.request.status
-    }
-    
-    # Organize endpoints by type
-    sources = []
-    destinations = []
-    for endpoint in rule.endpoints:
-        endpoint_data = {"network_cidr": endpoint.network_cidr}
-        if endpoint.endpoint_type == 'source':
-            sources.append(endpoint_data)
-        elif endpoint.endpoint_type == 'destination':
-            destinations.append(endpoint_data)
-    
-    # Format services
-    services = []
-    for service in rule.services:
-        services.append({
-            "protocol": service.protocol,
-            "port_ranges": str(service.port_ranges)  # PostgreSQL multirange format
-        })
-    
-    # Parse facts if available
-    facts = rule.facts if rule.facts is not None else None
-    facts_dict = facts if facts is not None and isinstance(facts, dict) else {}
-    
-    # Calculate tuple estimate using TupleGenerationService
-    tuple_service = TupleGenerationService()
-    tuple_estimate = tuple_service.calculate_tuple_estimate(
-        len(sources), len(destinations), len(services)
-    ) if sources and destinations else 0
-    
-    # Base response
-    response = {
-        "rule_id": rule_id,
-        "request": request_info,
-        "rule_details": {
-            "action": rule.action,
-            "direction": rule.direction,
-            "created_at": rule.created_at.isoformat(),
-            "canonical_hash": rule.canonical_hash.hex() if rule.canonical_hash is not None else None
-        },
-        "endpoints": {
-            "sources": sources,
-            "destinations": destinations,
-            "source_count": len(sources),
-            "destination_count": len(destinations)
-        },
-        "services": services,
-        "service_count": len(services),
-        "facts": facts,
-        "tuple_estimate": tuple_estimate
-    }
-    
-    # Add optional data based on includes
-    if 'assets' in includes:
-        response['assets'] = _get_rule_assets(rule_id, sources, destinations, db)
-    
-    if 'graph' in includes:
-        response['graph'] = _get_rule_graph_data(rule_id, sources, destinations, services)
-    
-    if 'tuples' in includes:
-        response['tuples'] = _get_rule_tuples(sources, destinations, services)
-    
-    if 'analysis' in includes:
-        response['analysis'] = _get_rule_analysis(rule, facts_dict, sources, destinations, services)
-    
-    # Format response based on format parameter
-    if format == 'table':
-        return _format_rule_as_table(response)
-    
-    return response
+    try:
+        from app.models.far_rule import FarRule
+        
+        # Get the rule with its relationships
+        rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
+        if not rule:
+            raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
+        
+        # Parse include parameter
+        includes = []
+        if include:
+            if include == 'all':
+                includes = ['assets', 'graph', 'tuples', 'analysis']
+            else:
+                includes = [item.strip() for item in include.split(',')]
+        
+        # Get request information
+        request_info = {
+            "id": rule.request.id,
+            "title": rule.request.title,
+            "external_id": rule.request.external_id,
+            "status": rule.request.status
+        }
+        
+        # Organize endpoints by type
+        sources = []
+        destinations = []
+        for endpoint in rule.endpoints:
+            endpoint_data = {"network_cidr": endpoint.network_cidr}
+            if endpoint.endpoint_type == 'source':
+                sources.append(endpoint_data)
+            elif endpoint.endpoint_type == 'destination':
+                destinations.append(endpoint_data)
+        
+        # Format services
+        services = []
+        for service in rule.services:
+            services.append({
+                "protocol": service.protocol,
+                "port_ranges": str(service.port_ranges)  # PostgreSQL multirange format
+            })
+        
+        # Parse facts if available
+        facts = rule.facts if rule.facts is not None else None
+        facts_dict = facts if facts is not None and isinstance(facts, dict) else {}
+        
+        # Calculate tuple estimate using TupleGenerationService
+        tuple_service = TupleGenerationService()
+        tuple_estimate = tuple_service.calculate_tuple_estimate(
+            len(sources), len(destinations), len(services)
+        ) if sources and destinations else 0
+        
+        # Base response
+        response = {
+            "rule_id": rule_id,
+            "request": request_info,
+            "rule_details": {
+                "action": rule.action,
+                "direction": rule.direction,
+                "created_at": rule.created_at.isoformat(),
+                "canonical_hash": rule.canonical_hash.hex() if rule.canonical_hash is not None else None
+            },
+            "endpoints": {
+                "sources": sources,
+                "destinations": destinations,
+                "source_count": len(sources),
+                "destination_count": len(destinations)
+            },
+            "services": services,
+            "service_count": len(services),
+            "facts": facts,
+            "tuple_estimate": tuple_estimate
+        }
+        
+        # Add optional data based on includes
+        if 'assets' in includes:
+            response['assets'] = _get_rule_assets(rule_id, sources, destinations, db)
+        
+        if 'graph' in includes:
+            response['graph'] = _get_rule_graph_data(rule_id, sources, destinations, services)
+        
+        if 'tuples' in includes:
+            response['tuples'] = _get_rule_tuples(sources, destinations, services)
+        
+        if 'analysis' in includes:
+            response['analysis'] = _get_rule_analysis(rule, facts_dict, sources, destinations, services)
+        
+        # Format response based on format parameter
+        if format == 'table':
+            return _format_rule_as_table(response)
+        
+        return response
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting rule details for rule {rule_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving rule details",
+            details={"error": str(e), "rule_id": rule_id}
+        )
+    except Exception as e:
+        logger.error(f"Error getting rule details for rule {rule_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve rule details: {str(e)}")
 
 
 def _get_rule_assets(rule_id: int, sources: List[Dict], destinations: List[Dict], db: Session) -> Dict[str, Any]:

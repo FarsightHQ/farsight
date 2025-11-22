@@ -5,11 +5,12 @@ import csv
 import hashlib
 import uuid
 import ipaddress
+import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 import pandas as pd
 import io
 
@@ -18,6 +19,9 @@ from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetSearchFilters,
     AssetAnalyticsResponse, AssetFilterOptionsResponse
 )
+from app.utils.csv_errors import DatabaseConnectionError
+
+logger = logging.getLogger(__name__)
 
 
 class AssetRegistryService:
@@ -78,64 +82,106 @@ class AssetRegistryService:
             
             return asset
             
+        except OperationalError as e:
+            db.rollback()
+            logger.error(f"Database connection error creating asset: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during asset creation",
+                details={"error": str(e), "ip_address": str(asset_data.ip_address)}
+            )
         except IntegrityError as e:
             db.rollback()
             raise ValueError(f"Database integrity error: {str(e)}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unexpected error creating asset: {str(e)}", exc_info=True)
+            raise
 
     @staticmethod
     def update_asset(db: Session, ip_address: str, update_data: AssetRegistryUpdate, 
                     updated_by: str = 'system') -> AssetRegistry:
         """Update an existing asset"""
-        asset = db.query(AssetRegistry).filter(
-            AssetRegistry.ip_address == ip_address
-        ).first()
-        
-        if not asset:
-            raise ValueError(f"Asset with IP {ip_address} not found")
-        
-        # Track changed fields
-        changed_fields = []
-        previous_values = {}
-        
-        # Update fields that have changed
-        update_dict = update_data.dict(exclude_unset=True, exclude={'updated_by'})
-        for field, new_value in update_dict.items():
-            if hasattr(asset, field):
-                old_value = getattr(asset, field)
-                if old_value != new_value:
-                    changed_fields.append(field)
-                    previous_values[field] = old_value
-                    setattr(asset, field, new_value)
-        
-        if changed_fields:
-            asset.version += 1
-            asset.updated_by = updated_by
-            asset.updated_at = datetime.utcnow()
+        try:
+            asset = db.query(AssetRegistry).filter(
+                AssetRegistry.ip_address == ip_address
+            ).first()
             
-            db.commit()
-            db.refresh(asset)
-        
-        return asset
+            if not asset:
+                raise ValueError(f"Asset with IP {ip_address} not found")
+            
+            # Track changed fields
+            changed_fields = []
+            previous_values = {}
+            
+            # Update fields that have changed
+            update_dict = update_data.dict(exclude_unset=True, exclude={'updated_by'})
+            for field, new_value in update_dict.items():
+                if hasattr(asset, field):
+                    old_value = getattr(asset, field)
+                    if old_value != new_value:
+                        changed_fields.append(field)
+                        previous_values[field] = old_value
+                        setattr(asset, field, new_value)
+            
+            if changed_fields:
+                asset.version += 1
+                asset.updated_by = updated_by
+                asset.updated_at = datetime.utcnow()
+                
+                db.commit()
+                db.refresh(asset)
+            
+            return asset
+        except ValueError:
+            raise
+        except OperationalError as e:
+            db.rollback()
+            logger.error(f"Database connection error updating asset {ip_address}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during asset update",
+                details={"error": str(e), "ip_address": ip_address}
+            )
+        except IntegrityError as e:
+            db.rollback()
+            raise ValueError(f"Database integrity error: {str(e)}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unexpected error updating asset {ip_address}: {str(e)}", exc_info=True)
+            raise
 
     @staticmethod
     def deactivate_asset(db: Session, ip_address: str, deactivated_by: str = 'system') -> AssetRegistry:
         """Soft delete an asset (mark as inactive)"""
-        asset = db.query(AssetRegistry).filter(
-            AssetRegistry.ip_address == ip_address,
-            AssetRegistry.is_active == True
-        ).first()
-        
-        if not asset:
-            raise ValueError(f"Active asset with IP {ip_address} not found")
-        
-        asset.is_active = False
-        asset.updated_by = deactivated_by
-        asset.updated_at = datetime.utcnow()
-        
-        db.commit()
-        db.refresh(asset)
-        
-        return asset
+        try:
+            asset = db.query(AssetRegistry).filter(
+                AssetRegistry.ip_address == ip_address,
+                AssetRegistry.is_active == True
+            ).first()
+            
+            if not asset:
+                raise ValueError(f"Active asset with IP {ip_address} not found")
+            
+            asset.is_active = False
+            asset.updated_by = deactivated_by
+            asset.updated_at = datetime.utcnow()
+            
+            db.commit()
+            db.refresh(asset)
+            
+            return asset
+        except ValueError:
+            raise
+        except OperationalError as e:
+            db.rollback()
+            logger.error(f"Database connection error deactivating asset {ip_address}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during asset deactivation",
+                details={"error": str(e), "ip_address": ip_address}
+            )
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unexpected error deactivating asset {ip_address}: {str(e)}", exc_info=True)
+            raise
 
     @staticmethod
     def search_assets(db: Session, filters: AssetSearchFilters) -> Tuple[List[AssetRegistry], int]:
@@ -280,11 +326,30 @@ class AssetRegistryService:
             
             return batch
             
+        except OperationalError as e:
+            db.rollback()
+            batch.status = 'failed'
+            batch.error_details = {'error': f"Database connection failed: {str(e)}"}
+            batch.completed_at = datetime.utcnow()
+            try:
+                db.commit()
+            except Exception:
+                pass  # Ignore commit errors if rollback already happened
+            logger.error(f"Database connection error processing CSV upload: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during CSV upload processing",
+                details={"error": str(e), "filename": filename}
+            )
         except Exception as e:
+            db.rollback()
             batch.status = 'failed'
             batch.error_details = {'error': str(e)}
             batch.completed_at = datetime.utcnow()
-            db.commit()
+            try:
+                db.commit()
+            except Exception:
+                pass  # Ignore commit errors if rollback already happened
+            logger.error(f"Error processing CSV upload: {str(e)}", exc_info=True)
             raise
 
     @staticmethod

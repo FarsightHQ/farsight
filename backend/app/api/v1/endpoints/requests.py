@@ -18,7 +18,13 @@ from app.schemas.responses import (
 )
 from app.services.far_service import FarIngestionService
 from app.services.csv_ingestion_service import CsvIngestionService
+from app.services.csv_validation_service import CSVValidationService
 from app.utils.error_handlers import success_response, paginated_response
+from sqlalchemy.exc import OperationalError
+from app.utils.csv_errors import (
+    CSVFileError, CSVEncodingError, CSVValidationError, CSVColumnError,
+    DatabaseConnectionError, FileSystemError, InsufficientStorageError
+)
 from datetime import datetime
 
 # Import assessment computation function from far.py
@@ -36,6 +42,7 @@ async def create_far_request(
 ):
     """
     Create a new FAR request with file upload
+    Enhanced with better error handling
     """
     service = FarIngestionService(db)
     
@@ -55,7 +62,11 @@ async def create_far_request(
                 "file_size": file.size if hasattr(file, 'size') else None
             }
         )
+    except (HTTPException, DatabaseConnectionError, FileSystemError, InsufficientStorageError):
+        # Re-raise known exceptions as-is (they're already properly formatted)
+        raise
     except Exception as e:
+        logger.error(f"Error creating FAR request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -71,16 +82,32 @@ def list_far_requests(
     total = db.query(FarRequest).count()
     requests = db.query(FarRequest).offset(skip).limit(limit).all()
     
+    # Convert SQLAlchemy models to dictionaries for JSON serialization
+    requests_data = []
+    for req in requests:
+        requests_data.append({
+            "id": str(req.id),
+            "source_sha256": str(req.source_sha256 or ""),
+            "source_size_bytes": req.source_size_bytes,
+            "status": str(req.status or ""),
+            "created_at": req.created_at.isoformat() if req.created_at else None,
+            "source_filename": str(req.source_filename or ""),
+            "title": str(req.title or ""),
+            "external_id": str(req.external_id or "") if req.external_id else None,
+            "storage_path": str(req.storage_path or ""),
+            "created_by": str(req.created_by or "")
+        })
+    
     return success_response(
-        data=requests,  # Return objects directly for now
-        message=f"Retrieved {len(requests)} of {total} FAR requests",
+        data=requests_data,
+        message=f"Retrieved {len(requests_data)} of {total} FAR requests",
         metadata={
             "pagination": {
                 "skip": skip,
                 "limit": limit, 
                 "total": total,
-                "returned": len(requests),
-                "has_next": skip + len(requests) < total,
+                "returned": len(requests_data),
+                "has_next": skip + len(requests_data) < total,
                 "has_previous": skip > 0
             }
         }
@@ -163,9 +190,13 @@ def delete_far_request(
             except FileNotFoundError:
                 # File already deleted, log warning but continue
                 logger.warning(f"File not found for deletion: {file_path} (request {request_id})")
-            except PermissionError as e:
-                # Permission error, log but continue with DB deletion
-                logger.error(f"Permission error deleting file {file_path}: {str(e)}")
+            except (PermissionError, OSError) as e:
+                # Permission or filesystem error, raise FileSystemError
+                logger.error(f"Filesystem error deleting file {file_path}: {str(e)}", exc_info=True)
+                raise FileSystemError(
+                    message=f"Failed to delete file {file_path}: {str(e)}",
+                    details={"filename": far_request.source_filename, "path": file_path}
+                )
             except Exception as e:
                 # Other file errors, log but continue
                 logger.warning(f"Error deleting file {file_path}: {str(e)}")
@@ -182,10 +213,18 @@ def delete_far_request(
             data={"request_id": request_id, "deleted": True},
             message=f"FAR request {request_id} and all associated data deleted successfully"
         )
-        
+    except (HTTPException, FileSystemError):
+        raise
+    except OperationalError as e:
+        db.rollback()
+        logger.error(f"Database connection error deleting FAR request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed during request deletion",
+            details={"error": str(e), "request_id": request_id}
+        )
     except Exception as e:
         db.rollback()
-        logger.error(f"Error deleting FAR request {request_id}: {str(e)}")
+        logger.error(f"Error deleting FAR request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to delete request: {str(e)}")
 
 
@@ -196,16 +235,17 @@ async def ingest_far_request(
 ):
     """
     Process the uploaded file for a FAR request and create firewall rules
+    with comprehensive error handling
     """
     # Get the request
     far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
     if not far_request:
         raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
     
-    if far_request.status != 'submitted':
+    if far_request.status not in ['submitted', 'processing']:
         raise HTTPException(
             status_code=400, 
-            detail=f"Request {request_id} is not in 'submitted' status. Current status: {far_request.status}"
+            detail=f"Request {request_id} is not in 'submitted' or 'processing' status. Current: {far_request.status}"
         )
     
     try:
@@ -217,41 +257,110 @@ async def ingest_far_request(
         full_path = os.path.join("uploads", far_request.storage_path)
         
         if not os.path.exists(full_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {far_request.storage_path}")
+            far_request.status = 'error'
+            db.commit()
+            raise HTTPException(
+                status_code=404, 
+                detail=f"File not found: {far_request.storage_path}"
+            )
         
-        # Read the file content
-        async with aiofiles.open(full_path, 'r', encoding='utf-8') as f:
-            file_content = await f.read()
+        # Read file as bytes for encoding detection
+        async with aiofiles.open(full_path, 'rb') as f:
+            file_content_bytes = await f.read()
         
-        # Use CSV ingestion service
+        # Validate and decode
+        try:
+            file_content, metadata = CSVValidationService.validate_file_structure(
+                file_content_bytes,
+                filename=far_request.source_filename
+            )
+        except CSVFileError as e:
+            far_request.status = 'error'
+            db.commit()
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=e.message
+            )
+        except CSVEncodingError as e:
+            far_request.status = 'error'
+            db.commit()
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=e.message
+            )
+        
+        # Process CSV
         csv_service = CsvIngestionService(db)
         
-        # Ingest the CSV file
-        result = await csv_service.ingest_csv_file(
-            request_id=request_id,
-            file_content=file_content
-        )
+        try:
+            result = await csv_service.ingest_csv_file(
+                request_id=request_id,
+                file_content=file_content
+            )
+        except CSVValidationError as e:
+            far_request.status = 'error'
+            db.commit()
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": e.message,
+                    "details": e.details
+                }
+            )
+        except CSVColumnError as e:
+            far_request.status = 'error'
+            db.commit()
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": e.message,
+                    "missing_columns": e.details.get('missing_columns'),
+                    "found_columns": e.details.get('found_columns')
+                }
+            )
         
-        # Update status to ingested
-        far_request.status = 'ingested'
-        db.commit()
-        
+        # Build response
         ingest_data = {
             "request_id": request_id,
             "rules_created": result.get("created_rules", 0),
-            "ingestion_details": result
+            "total_rows": result.get("total_rows", 0),
+            "processed_rows": result.get("processed_rows", 0),
+            "error_rows": result.get("error_rows", 0),
+            "skipped_rows": result.get("skipped_rows", 0),
+            "duplicate_rules": result.get("duplicate_rules", 0),
+            "ingestion_details": result,
+            "status": far_request.status
         }
+        
+        # Include errors if any (limit to prevent huge responses)
+        if result.get("errors"):
+            ingest_data["errors"] = result["errors"][:50]  # Limit to first 50
+            ingest_data["error_count"] = len(result["errors"])
+        
+        if result.get("row_errors"):
+            ingest_data["row_errors"] = result["row_errors"][:100]  # Limit to first 100
+        
+        if result.get("warnings"):
+            ingest_data["warnings"] = result["warnings"][:50]  # Limit to first 50
         
         return success_response(
             data=ingest_data,
-            message=f"Successfully ingested request {request_id} with {result.get('created_rules', 0)} rules created"
+            message=f"CSV ingestion completed: {result.get('created_rules', 0)} rules created, {result.get('error_rows', 0)} errors"
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        # Rollback on error
+        # Unexpected errors
+        db.rollback()
         far_request.status = 'error'
         db.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error ingesting request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during ingestion: {str(e)}"
+        )
 
 
 @router.get("/{request_id}/rules")

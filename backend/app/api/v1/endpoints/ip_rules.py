@@ -1,9 +1,14 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from typing import List, Dict, Any
 from app.core.database import get_db
 from app.utils.error_handlers import success_response
+from app.utils.csv_errors import DatabaseConnectionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -149,9 +154,17 @@ async def get_rules_for_ip(
             data=ip_rules_data,
             message=f"Retrieved {len(relationships)} rules for IP {ip_address}"
         )
-        
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting rules for IP {ip_address}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving rules for IP address",
+            details={"error": str(e), "ip_address": ip_address}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Error getting rules for IP {ip_address}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve rules for IP: {str(e)}")
 
 @router.get("/ip/{ip_address}/summary")
 async def get_ip_rule_summary(
@@ -161,46 +174,57 @@ async def get_ip_rule_summary(
     """
     Get a concise summary of rules for an IP address.
     """
-    
-    # Get all relationships
-    result_response = await get_rules_for_ip(ip_address, db)
-    result = result_response["data"]  # Extract data from standardized response
-    
-    if result["total_rules"] == 0:
+    try:
+        # Get all relationships
+        result_response = await get_rules_for_ip(ip_address, db)
+        result = result_response["data"]  # Extract data from standardized response
+        
+        if result["total_rules"] == 0:
+            return success_response(
+                data={
+                    "ip_address": ip_address,
+                    "total_rules": 0,
+                    "unique_destinations": 0,
+                    "unique_sources": 0,
+                    "services": [],
+                    "most_common_destination": None,
+                    "most_common_source": None
+                },
+                message=f"No rules found for IP {ip_address}"
+            )
+        
+        # Create summary
+        unique_destinations = set()
+        unique_sources = set()
+        services = set()
+        
+        for rel in result["relationships"]:
+            if rel["ip_role"] == "SOURCE":
+                unique_destinations.add(rel["destination_ip"])
+            else:
+                unique_sources.add(rel["source_ip"])
+            services.add(rel["service"])
+        
+        summary_data = {
+            "ip_address": ip_address,
+            "can_reach": list(unique_destinations),
+            "can_be_reached_by": list(unique_sources),
+            "services": sorted(list(services)),
+            "total_rules": result["total_rules"]
+        }
+        
         return success_response(
-            data={
-                "ip_address": ip_address,
-                "total_rules": 0,
-                "unique_destinations": 0,
-                "unique_sources": 0,
-                "services": [],
-                "most_common_destination": None,
-                "most_common_source": None
-            },
-            message=f"No rules found for IP {ip_address}"
+            data=summary_data,
+            message=f"Retrieved summary for IP {ip_address} with {result['total_rules']} rules"
         )
-    
-    # Create summary
-    unique_destinations = set()
-    unique_sources = set()
-    services = set()
-    
-    for rel in result["relationships"]:
-        if rel["ip_role"] == "SOURCE":
-            unique_destinations.add(rel["destination_ip"])
-        else:
-            unique_sources.add(rel["source_ip"])
-        services.add(rel["service"])
-    
-    summary_data = {
-        "ip_address": ip_address,
-        "can_reach": list(unique_destinations),
-        "can_be_reached_by": list(unique_sources),
-        "services": sorted(list(services)),
-        "total_rules": result["total_rules"]
-    }
-    
-    return success_response(
-        data=summary_data,
-        message=f"Retrieved summary for IP {ip_address} with {result['total_rules']} rules"
-    )
+    except (HTTPException, DatabaseConnectionError):
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting IP rule summary for {ip_address}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving IP rule summary",
+            details={"error": str(e), "ip_address": ip_address}
+        )
+    except Exception as e:
+        logger.error(f"Error getting IP rule summary for {ip_address}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve IP rule summary: {str(e)}")

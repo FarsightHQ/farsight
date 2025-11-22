@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import io
+import logging
 
 from app.core.database import get_db
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
@@ -15,6 +16,8 @@ from app.schemas.asset_registry import (
 )
 from app.services.asset_registry_service import AssetRegistryService
 from app.utils.error_handlers import success_response, paginated_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -124,9 +127,18 @@ async def upload_csv(
 ):
     """Upload and process CSV file for asset creation/updates"""
     
-    # Validate file type
-    if not file.filename or not file.filename.lower().endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be a CSV file")
+    # Enhanced file validation
+    from app.utils.file_utils import validate_csv_file_enhanced
+    from app.utils.csv_errors import (
+        DatabaseConnectionError, FileSystemError, InsufficientStorageError
+    )
+    
+    try:
+        validate_csv_file_enhanced(file)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"File validation failed: {str(e)}")
     
     try:
         # Read file content
@@ -161,7 +173,11 @@ async def upload_csv(
             message=message
         )
         
+    except (HTTPException, DatabaseConnectionError, FileSystemError, InsufficientStorageError):
+        # Re-raise known exceptions as-is
+        raise
     except Exception as e:
+        logger.error(f"Error processing CSV upload: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to process CSV: {str(e)}")
 
 

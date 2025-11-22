@@ -42,6 +42,10 @@ class Settings:
         """Convert MB to bytes"""
         return self.MAX_UPLOAD_MB * 1024 * 1024
     
+    # File Validation Settings
+    MIN_DISK_SPACE_MULTIPLIER: float = float(os.getenv("MIN_DISK_SPACE_MULTIPLIER", "2.0"))
+    CSV_VALIDATION_SAMPLE_SIZE: int = int(os.getenv("CSV_VALIDATION_SAMPLE_SIZE", "8192"))
+    
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 

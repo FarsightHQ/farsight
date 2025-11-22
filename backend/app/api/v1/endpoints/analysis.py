@@ -2,8 +2,10 @@
 FAR Analysis and Reporting API endpoints
 Handles analysis operations and reporting for FAR requests and rules
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import List, Dict, Any, Optional
 from app.core.database import get_db
 from app.models.far_rule import FarRule
@@ -12,6 +14,9 @@ from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
 from app.utils.error_handlers import success_response, paginated_response
+from app.utils.csv_errors import DatabaseConnectionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/far", tags=["FAR Analysis"])
 
@@ -24,16 +29,17 @@ def get_request_summary(
     """
     Get comprehensive summary statistics for a FAR request
     """
-    # Verify request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
-    # Get all rules for this request
-    rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
-    
-    if not rules:
-        no_rules_data = {
+    try:
+        # Verify request exists
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+        
+        # Get all rules for this request
+        rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
+        
+        if not rules:
+            no_rules_data = {
             "request_id": request_id,
             "request_info": {
                 "title": str(far_request.title or ""),
@@ -44,57 +50,57 @@ def get_request_summary(
                 "total_rules": 0,
                 "message": "No rules found for this request"
             }
-        }
-        return success_response(
-            data=no_rules_data,
-            message=f"No rules found for request {request_id}"
-        )
-    
-    # Calculate statistics
-    total_rules = len(rules)
-    total_endpoints = sum(len(rule.endpoints) for rule in rules)
-    total_services = sum(len(rule.services) for rule in rules)
-    
-    # Analyze endpoints by type
-    sources_count = 0
-    destinations_count = 0
-    unique_sources = set()
-    unique_destinations = set()
-    
-    for rule in rules:
-        for endpoint in rule.endpoints:
-            if endpoint.endpoint_type == 'source':
-                sources_count += 1
-                unique_sources.add(endpoint.network_cidr)
-            elif endpoint.endpoint_type == 'destination':
-                destinations_count += 1
-                unique_destinations.add(endpoint.network_cidr)
-    
-    # Protocol analysis
-    protocols = {}
-    for rule in rules:
-        for service in rule.services:
-            protocol = service.protocol
-            protocols[protocol] = protocols.get(protocol, 0) + 1
-    
-    # Calculate tuple estimates
-    tuple_service = TupleGenerationService()
-    total_tuples = 0
-    
-    for rule in rules:
-        sources = [ep for ep in rule.endpoints if ep.endpoint_type == 'source']
-        destinations = [ep for ep in rule.endpoints if ep.endpoint_type == 'destination']
-        services = rule.services
+            }
+            return success_response(
+                data=no_rules_data,
+                message=f"No rules found for request {request_id}"
+            )
         
-        rule_tuples = tuple_service.calculate_tuple_estimate(
-            len(sources), len(destinations), len(services)
-        )
-        total_tuples += rule_tuples
-    
-    # Facts analysis
-    rules_with_facts = sum(1 for rule in rules if rule.facts is not None)
-    
-    summary_data = {
+        # Calculate statistics
+        total_rules = len(rules)
+        total_endpoints = sum(len(rule.endpoints) for rule in rules)
+        total_services = sum(len(rule.services) for rule in rules)
+        
+        # Analyze endpoints by type
+        sources_count = 0
+        destinations_count = 0
+        unique_sources = set()
+        unique_destinations = set()
+        
+        for rule in rules:
+            for endpoint in rule.endpoints:
+                if endpoint.endpoint_type == 'source':
+                    sources_count += 1
+                    unique_sources.add(endpoint.network_cidr)
+                elif endpoint.endpoint_type == 'destination':
+                    destinations_count += 1
+                    unique_destinations.add(endpoint.network_cidr)
+        
+        # Protocol analysis
+        protocols = {}
+        for rule in rules:
+            for service in rule.services:
+                protocol = service.protocol
+                protocols[protocol] = protocols.get(protocol, 0) + 1
+        
+        # Calculate tuple estimates
+        tuple_service = TupleGenerationService()
+        total_tuples = 0
+        
+        for rule in rules:
+            sources = [ep for ep in rule.endpoints if ep.endpoint_type == 'source']
+            destinations = [ep for ep in rule.endpoints if ep.endpoint_type == 'destination']
+            services = rule.services
+            
+            rule_tuples = tuple_service.calculate_tuple_estimate(
+                len(sources), len(destinations), len(services)
+            )
+            total_tuples += rule_tuples
+        
+        # Facts analysis
+        rules_with_facts = sum(1 for rule in rules if rule.facts is not None)
+        
+        summary_data = {
         "request_id": request_id,
         "request_info": {
             "title": str(far_request.title or ""),
@@ -123,13 +129,24 @@ def get_request_summary(
             "avg_endpoints_per_rule": f"{total_endpoints/total_rules:.2f}" if total_rules > 0 else "0",
             "avg_services_per_rule": f"{total_services/total_rules:.2f}" if total_rules > 0 else "0",
             "avg_tuples_per_rule": f"{total_tuples/total_rules:.2f}" if total_rules > 0 else "0"
+            }
         }
-    }
-    
-    return success_response(
-        data=summary_data,
-        message=f"Retrieved comprehensive summary for request {request_id}"
-    )
+        
+        return success_response(
+            data=summary_data,
+            message=f"Retrieved comprehensive summary for request {request_id}"
+        )
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting request summary for {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving request summary",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error getting request summary for {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve request summary: {str(e)}")
 
 
 @router.get("/{request_id}/network-topology")
@@ -140,73 +157,85 @@ def get_request_network_topology(
     """
     Generate network topology visualization data for all rules in a request
     """
-    # Verify request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
-    # Get all rules for this request
-    rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
-    
-    if not rules:
-        no_rules_data = {
+    try:
+        # Verify request exists
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+        
+        # Get all rules for this request
+        rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
+        
+        if not rules:
+            no_rules_data = {
             "request_id": request_id,
             "error": "No rules found for this request"
         }
-        return success_response(
-            data=no_rules_data,
-            message=f"No rules found for request {request_id}"
-        )
-    
-    # Prepare rule data for graph service
-    rule_data = []
-    for rule in rules:
-        sources = []
-        destinations = []
-        services = []
+            return success_response(
+                data=no_rules_data,
+                message=f"No rules found for request {request_id}"
+            )
         
-        for endpoint in rule.endpoints:
-            endpoint_data = {"network_cidr": endpoint.network_cidr}
-            if endpoint.endpoint_type == 'source':
-                sources.append(endpoint_data)
-            elif endpoint.endpoint_type == 'destination':
-                destinations.append(endpoint_data)
-        
-        for service in rule.services:
-            services.append({
-                "protocol": service.protocol,
-                "port_ranges": str(service.port_ranges)
+        # Prepare rule data for graph service
+        rule_data = []
+        for rule in rules:
+            sources = []
+            destinations = []
+            services = []
+            
+            for endpoint in rule.endpoints:
+                endpoint_data = {"network_cidr": endpoint.network_cidr}
+                if endpoint.endpoint_type == 'source':
+                    sources.append(endpoint_data)
+                elif endpoint.endpoint_type == 'destination':
+                    destinations.append(endpoint_data)
+            
+            for service in rule.services:
+                services.append({
+                    "protocol": service.protocol,
+                    "port_ranges": str(service.port_ranges)
+                })
+            
+            rule_data.append({
+                "rule_id": rule.id,
+                "sources": sources,
+                "destinations": destinations,
+                "services": services
             })
         
-        rule_data.append({
-            "rule_id": rule.id,
-            "sources": sources,
-            "destinations": destinations,
-            "services": services
-        })
-    
-    # Create graph service with asset integration
-    asset_service = AssetService(db)
-    graph_service = GraphService(asset_service)
-    
-    # Generate network topology
-    topology = graph_service.create_network_topology_graph(rule_data)
-    
-    topology_data = {
-        "request_id": request_id,
-        "request_title": str(far_request.title or ""),
-        "topology": topology,
-        "summary": {
-            "total_rules": len(rules),
-            "network_nodes": topology["metadata"]["network_count"],
-            "connections": topology["metadata"]["connection_count"]
+        # Create graph service with asset integration
+        asset_service = AssetService(db)
+        graph_service = GraphService(asset_service)
+        
+        # Generate network topology
+        topology = graph_service.create_network_topology_graph(rule_data)
+        
+        topology_data = {
+            "request_id": request_id,
+            "request_title": str(far_request.title or ""),
+            "topology": topology,
+            "summary": {
+                "total_rules": len(rules),
+                "network_nodes": topology["metadata"]["network_count"],
+                "connections": topology["metadata"]["connection_count"]
+            }
         }
-    }
-    
-    return success_response(
-        data=topology_data,
-        message=f"Generated network topology for request {request_id}"
-    )
+        
+        return success_response(
+            data=topology_data,
+            message=f"Generated network topology for request {request_id}"
+        )
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting network topology for {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when generating network topology",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error generating network topology for {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate network topology: {str(e)}")
 
 
 @router.get("/{request_id}/security-analysis")
@@ -217,75 +246,76 @@ def get_request_security_analysis(
     """
     Perform comprehensive security analysis for all rules in a request
     """
-    # Verify request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
-    # Get all rules for this request
-    rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
-    
-    if not rules:
-        no_rules_data = {
+    try:
+        # Verify request exists
+        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
+        if not far_request:
+            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+        
+        # Get all rules for this request
+        rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
+        
+        if not rules:
+            no_rules_data = {
             "request_id": request_id,
             "error": "No rules found for this request"
         }
-        return success_response(
-            data=no_rules_data,
-            message=f"No rules found for request {request_id} security analysis"
-        )
-    
-    # Analyze each rule
-    rule_analyses = []
-    total_issues = 0
-    risk_distribution = {"low": 0, "medium": 0, "high": 0}
-    
-    for rule in rules:
-        # Get rule data
-        sources = []
-        destinations = []
-        services = []
+            return success_response(
+                data=no_rules_data,
+                message=f"No rules found for request {request_id} security analysis"
+            )
         
-        for endpoint in rule.endpoints:
-            endpoint_data = {"network_cidr": endpoint.network_cidr}
-            if endpoint.endpoint_type == 'source':
-                sources.append(endpoint_data)
-            elif endpoint.endpoint_type == 'destination':
-                destinations.append(endpoint_data)
+        # Analyze each rule
+        rule_analyses = []
+        total_issues = 0
+        risk_distribution = {"low": 0, "medium": 0, "high": 0}
         
-        for service in rule.services:
-            services.append({
-                "protocol": service.protocol,
-                "port_ranges": str(service.port_ranges)
+        for rule in rules:
+            # Get rule data
+            sources = []
+            destinations = []
+            services = []
+            
+            for endpoint in rule.endpoints:
+                endpoint_data = {"network_cidr": endpoint.network_cidr}
+                if endpoint.endpoint_type == 'source':
+                    sources.append(endpoint_data)
+                elif endpoint.endpoint_type == 'destination':
+                    destinations.append(endpoint_data)
+            
+            for service in rule.services:
+                services.append({
+                    "protocol": service.protocol,
+                    "port_ranges": str(service.port_ranges)
+                })
+            
+            # Get facts
+            facts_dict = rule.facts if rule.facts is not None and isinstance(rule.facts, dict) else {}
+            
+            # Perform analysis (reuse logic from rules endpoint)
+            analysis = _analyze_rule_security(rule, facts_dict, sources, destinations, services)
+            
+            rule_analyses.append({
+                "rule_id": rule.id,
+                "analysis": analysis
             })
+            
+            total_issues += len(analysis["issues"])
+            risk_distribution[analysis["risk_level"]] += 1
         
-        # Get facts
-        facts_dict = rule.facts if rule.facts is not None and isinstance(rule.facts, dict) else {}
+        # Calculate aggregate statistics
+        avg_security_score = sum(r["analysis"]["security_score"] for r in rule_analyses) / len(rule_analyses)
         
-        # Perform analysis (reuse logic from rules endpoint)
-        analysis = _analyze_rule_security(rule, facts_dict, sources, destinations, services)
+        # Identify common issues
+        issue_types = {}
+        for rule_analysis in rule_analyses:
+            for issue in rule_analysis["analysis"]["issues"]:
+                issue_type = issue["type"]
+                if issue_type not in issue_types:
+                    issue_types[issue_type] = {"count": 0, "severity": issue["severity"]}
+                issue_types[issue_type]["count"] += 1
         
-        rule_analyses.append({
-            "rule_id": rule.id,
-            "analysis": analysis
-        })
-        
-        total_issues += len(analysis["issues"])
-        risk_distribution[analysis["risk_level"]] += 1
-    
-    # Calculate aggregate statistics
-    avg_security_score = sum(r["analysis"]["security_score"] for r in rule_analyses) / len(rule_analyses)
-    
-    # Identify common issues
-    issue_types = {}
-    for rule_analysis in rule_analyses:
-        for issue in rule_analysis["analysis"]["issues"]:
-            issue_type = issue["type"]
-            if issue_type not in issue_types:
-                issue_types[issue_type] = {"count": 0, "severity": issue["severity"]}
-            issue_types[issue_type]["count"] += 1
-    
-    security_analysis_data = {
+        security_analysis_data = {
         "request_id": request_id,
         "request_title": str(far_request.title or ""),
         "overall_analysis": {
@@ -301,13 +331,24 @@ def get_request_security_analysis(
         },
         "common_issues": issue_types,
         "rule_details": rule_analyses,
-        "recommendations": _generate_request_recommendations(issue_types, rule_analyses)
-    }
-    
-    return success_response(
-        data=security_analysis_data,
-        message=f"Generated security analysis for request {request_id}"
-    )
+            "recommendations": _generate_request_recommendations(issue_types, rule_analyses)
+        }
+        
+        return success_response(
+            data=security_analysis_data,
+            message=f"Generated security analysis for request {request_id}"
+        )
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting security analysis for {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when generating security analysis",
+            details={"error": str(e), "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error generating security analysis for {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate security analysis: {str(e)}")
 
 
 def _analyze_rule_security(rule: Any, facts: Dict, sources: List[Dict], destinations: List[Dict], services: List[Dict]) -> Dict[str, Any]:

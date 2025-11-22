@@ -188,6 +188,51 @@ def format_generic_error(
     )
 
 
+def _serialize_data(data: Any) -> Any:
+    """
+    Helper function to serialize data that may contain SQLAlchemy models
+    Converts SQLAlchemy models to dictionaries recursively
+    """
+    from sqlalchemy.orm import InstanceState
+    
+    if data is None:
+        return None
+    
+    # Handle lists
+    if isinstance(data, list):
+        return [_serialize_data(item) for item in data]
+    
+    # Handle dictionaries
+    if isinstance(data, dict):
+        return {key: _serialize_data(value) for key, value in data.items()}
+    
+    # Handle SQLAlchemy models
+    if hasattr(data, '__table__'):  # SQLAlchemy model
+        result = {}
+        for column in data.__table__.columns:
+            value = getattr(data, column.name, None)
+            # Handle datetime objects
+            if hasattr(value, 'isoformat'):
+                result[column.name] = value.isoformat()
+            else:
+                result[column.name] = value
+        return result
+    
+    # Handle objects with __dict__ (but not SQLAlchemy models)
+    if hasattr(data, '__dict__') and not isinstance(data, (str, int, float, bool)):
+        # Check if it's a SQLAlchemy instance state
+        if isinstance(data.__dict__, InstanceState):
+            return str(data)  # Fallback to string representation
+        return {key: _serialize_data(value) for key, value in data.__dict__.items() if not key.startswith('_')}
+    
+    # Handle datetime objects
+    if hasattr(data, 'isoformat'):
+        return data.isoformat()
+    
+    # Return as-is for primitives
+    return data
+
+
 class ResponseFormatter:
     """Utility class for creating standardized responses"""
     
@@ -201,16 +246,29 @@ class ResponseFormatter:
         """Create standardized success response"""
         from ..schemas.responses import StandardResponse, StatusEnum
         
+        # Serialize data to handle SQLAlchemy models
+        serialized_data = _serialize_data(data)
+        serialized_metadata = _serialize_data(metadata) if metadata else None
+        
         response = StandardResponse(
             status=StatusEnum.SUCCESS,
             message=message,
-            data=data,
+            data=serialized_data,
             errors=None,
-            metadata=metadata,
+            metadata=serialized_metadata,
             request_id=request_id
         )
         
-        return response.dict(exclude_none=True)
+        # Use model_dump with mode='json' for Pydantic v2 to properly serialize datetime objects
+        if hasattr(response, 'model_dump'):
+            return response.model_dump(mode='json', exclude_none=True)
+        else:
+            # Fallback for Pydantic v1
+            result = response.dict(exclude_none=True)
+            # Manually serialize datetime objects
+            if 'timestamp' in result and hasattr(result['timestamp'], 'isoformat'):
+                result['timestamp'] = result['timestamp'].isoformat()
+            return result
     
     @staticmethod
     def paginated(
@@ -223,18 +281,31 @@ class ResponseFormatter:
         """Create standardized paginated response"""
         from ..schemas.responses import PaginatedResponse, StatusEnum, PaginationModel
         
+        # Serialize data to handle SQLAlchemy models
+        serialized_data = _serialize_data(data)
+        serialized_metadata = _serialize_data(metadata) if metadata else None
+        
         pagination_model = PaginationModel(**pagination)
         
         response = PaginatedResponse(
             status=StatusEnum.SUCCESS,
             message=message,
-            data=data,
+            data=serialized_data,
             pagination=pagination_model,
-            metadata=metadata,
+            metadata=serialized_metadata,
             request_id=request_id
         )
         
-        return response.dict(exclude_none=True)
+        # Use model_dump with mode='json' for Pydantic v2 to properly serialize datetime objects
+        if hasattr(response, 'model_dump'):
+            return response.model_dump(mode='json', exclude_none=True)
+        else:
+            # Fallback for Pydantic v1
+            result = response.dict(exclude_none=True)
+            # Manually serialize datetime objects
+            if 'timestamp' in result and hasattr(result['timestamp'], 'isoformat'):
+                result['timestamp'] = result['timestamp'].isoformat()
+            return result
     
     @staticmethod
     def error(
@@ -254,9 +325,20 @@ class ResponseFormatter:
             elif first_error.code == "SERVICE_UNAVAILABLE":
                 status_code = 503
         
+        # Use model_dump with mode='json' to properly serialize datetime objects
+        # For Pydantic v2, model_dump() replaces dict() and mode='json' serializes datetimes
+        if hasattr(error_response, 'model_dump'):
+            content = error_response.model_dump(mode='json', exclude_none=True)
+        else:
+            # Fallback for Pydantic v1
+            content = error_response.dict(exclude_none=True)
+            # Manually serialize datetime objects
+            if 'timestamp' in content and hasattr(content['timestamp'], 'isoformat'):
+                content['timestamp'] = content['timestamp'].isoformat()
+        
         return JSONResponse(
             status_code=status_code,
-            content=error_response.dict(exclude_none=True)
+            content=content
         )
 
 

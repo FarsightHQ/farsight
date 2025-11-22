@@ -1,12 +1,17 @@
 """
 Hybrid Facts API Endpoint
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from app.core.database import get_db, SessionLocal
 from app.services.hybrid_facts_service import HybridFactsService
 from app.utils.error_handlers import success_response
+from app.utils.csv_errors import DatabaseConnectionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/far")
 
@@ -81,9 +86,20 @@ async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
             data=result,
             message=f"Successfully computed hybrid facts for request {request_id}"
         )
+    except HTTPException:
+        raise
+    except DatabaseConnectionError:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error computing hybrid facts for request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed during hybrid facts computation",
+            details={"error": str(e), "request_id": request_id}
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error(f"Error computing hybrid facts for request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Facts computation failed: {str(e)}")
 
 @router.get("/{request_id}/facts/hybrid-summary")
@@ -148,8 +164,16 @@ async def get_hybrid_facts_summary(request_id: int, db: Session = Depends(get_db
             data=hybrid_summary_data,
             message=f"Retrieved hybrid facts summary for request {request_id}"
         )
-        
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting hybrid facts summary for request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving hybrid facts summary",
+            details={"error": str(e), "request_id": request_id}
+        )
     except Exception as e:
+        logger.error(f"Error getting hybrid facts summary for request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get hybrid summary: {str(e)}")
 
 @router.get("/{request_id}/tuples/problematic")
@@ -191,6 +215,14 @@ async def get_problematic_tuples(request_id: int, db: Session = Depends(get_db))
             data=problematic_tuples_data,
             message=f"Retrieved {len(result)} problematic tuples for request {request_id}"
         )
-        
+    except HTTPException:
+        raise
+    except OperationalError as e:
+        logger.error(f"Database connection error getting problematic tuples for request {request_id}: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving problematic tuples",
+            details={"error": str(e), "request_id": request_id}
+        )
     except Exception as e:
+        logger.error(f"Error getting problematic tuples for request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get problematic tuples: {str(e)}")
