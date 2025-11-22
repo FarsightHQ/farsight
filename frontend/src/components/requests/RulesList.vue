@@ -155,8 +155,8 @@ const localFilters = ref({
   hasIssues: props.filters.hasIssues || '',
   requestId: props.filters.requestId || null,
 })
-const sortKey = ref('id')
-const sortDirection = ref('asc')
+const sortKey = ref('criticality_score')
+const sortDirection = ref('desc')
 const currentPage = ref(1)
 const pageSize = ref(25)
 const totalRules = ref(0)
@@ -477,6 +477,12 @@ const filteredRules = computed(() => {
     let aVal = a[sortKey.value]
     let bVal = b[sortKey.value]
 
+    // Handle null/undefined values for criticality_score
+    if (sortKey.value === 'criticality_score') {
+      aVal = aVal ?? 0
+      bVal = bVal ?? 0
+    }
+
     if (sortKey.value === 'created_at') {
       aVal = new Date(aVal).getTime()
       bVal = new Date(bVal).getTime()
@@ -486,10 +492,20 @@ const filteredRules = computed(() => {
     if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1
     
     // Secondary sort by criticality (critical first, then warning, then clean, then no data)
-    const aCriticality = a.criticality_score ?? 0
-    const bCriticality = b.criticality_score ?? 0
-    if (aCriticality !== bCriticality) {
-      return bCriticality - aCriticality // Descending: higher criticality first
+    // Only use this if primary sort is not already by criticality
+    if (sortKey.value !== 'criticality_score') {
+      const aCriticality = a.criticality_score ?? 0
+      const bCriticality = b.criticality_score ?? 0
+      if (aCriticality !== bCriticality) {
+        return bCriticality - aCriticality // Descending: higher criticality first
+      }
+    }
+    
+    // Tertiary sort by ID for consistent ordering
+    const aId = a.id ?? 0
+    const bId = b.id ?? 0
+    if (aId !== bId) {
+      return aId - bId // Ascending by ID for consistency
     }
     
     return 0
