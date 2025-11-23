@@ -1,13 +1,18 @@
 """
 Phase 2.3 Facts Computation API endpoint
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import Dict, Any
 
 from app.core.database import get_db
 from app.services.facts_computation_service import FactsComputationService
 from app.utils.error_handlers import success_response
+from app.utils.csv_errors import DatabaseConnectionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/far")
 
@@ -84,7 +89,12 @@ async def compute_facts_for_request(
             data=result,
             message=f"Successfully computed facts for request {request_id}"
         )
-        
+    except DatabaseConnectionError as e:
+        logger.error(f"Database connection error during facts computation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message
+        )
     except ValueError as e:
         error_msg = str(e)
         if "not found" in error_msg:
@@ -102,8 +112,8 @@ async def compute_facts_for_request(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Facts computation failed: {error_msg}"
             )
-    
     except Exception as e:
+        logger.error(f"Unexpected error during facts computation: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error during facts computation: {str(e)}"
@@ -244,10 +254,16 @@ async def get_request_analysis(
             data=analysis,
             message=f"Retrieved comprehensive analysis for request {request_id}"
         )
-        
     except HTTPException:
         raise
+    except OperationalError as e:
+        logger.error(f"Database connection error during request analysis: {str(e)}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed when retrieving request analysis",
+            details={"error": str(e), "request_id": request_id}
+        )
     except Exception as e:
+        logger.error(f"Error getting analysis for request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating analysis: {str(e)}"

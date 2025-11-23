@@ -7,6 +7,7 @@ import logging
 from typing import Dict, List, Any, Tuple, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 
 from app.core.facts_config import facts_config
 from app.models.far_request import FarRequest
@@ -14,6 +15,7 @@ from app.models.far_rule import FarRule
 from app.utils.ip_classification import analyze_cidrs, cidrs_overlap
 from app.services.asset_service import AssetService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -38,105 +40,151 @@ class FactsComputationService:
         """
         start_time = time.time()
         
-        # Verify request exists
-        far_request = self.db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise ValueError(f"Request {request_id} not found")
-        
-        # Check if request has rules
-        rules_count = self.db.query(FarRule).filter(FarRule.request_id == request_id).count()
-        if rules_count == 0:
-            raise ValueError(f"Request {request_id} has no rules - run ingestion first")
-        
-        logger.info(f"Computing facts for request {request_id} with {rules_count} rules")
-        
-        # Initialize statistics
-        stats = {
-            'request_id': request_id,
-            'rules_total': rules_count,
-            'rules_updated': 0,
-            'self_flow_count': 0,
-            'src_any': 0,
-            'dst_any': 0,
-            'public_src': 0,
-            'public_dst': 0,
-            'duration_ms': 0
-        }
-        
-        # Get rule IDs in batches to avoid memory issues
-        rule_ids = self._get_rule_ids_for_request(request_id)
-        
-        # Pre-compute expensive SQL queries
-        self_flow_rule_ids = self._find_self_flow_rules(request_id)
-        src_any_rule_ids = self._find_any_rules(request_id, 'source')
-        dst_any_rule_ids = self._find_any_rules(request_id, 'destination')
-        
-        # Process rules in batches
-        batch_size = facts_config.FACTS_BATCH_SIZE
-        for i in range(0, len(rule_ids), batch_size):
-            batch_rule_ids = rule_ids[i:i + batch_size]
-            try:
-                await self._process_rule_batch(
-                    batch_rule_ids, 
-                    self_flow_rule_ids, 
-                    src_any_rule_ids, 
-                    dst_any_rule_ids, 
-                    stats
-                )
-            except Exception as e:
-                logger.error(f"Error processing batch {i//batch_size + 1}: {e}")
-                # Continue with next batch
-                continue
-        
-        # Update statistics
-        stats['duration_ms'] = int((time.time() - start_time) * 1000)
-        stats['self_flow_count'] = len(self_flow_rule_ids)
-        stats['src_any'] = len(src_any_rule_ids)
-        stats['dst_any'] = len(dst_any_rule_ids)
-        
-        logger.info(f"Facts computation completed for request {request_id}: {stats}")
-        return stats
+        try:
+            # Verify request exists
+            far_request = self.db.query(FarRequest).filter(FarRequest.id == request_id).first()
+            if not far_request:
+                raise ValueError(f"Request {request_id} not found")
+            
+            # Check if request has rules
+            rules_count = self.db.query(FarRule).filter(FarRule.request_id == request_id).count()
+            if rules_count == 0:
+                raise ValueError(f"Request {request_id} has no rules - run ingestion first")
+            
+            logger.info(f"Computing facts for request {request_id} with {rules_count} rules")
+            
+            # Initialize statistics
+            stats = {
+                'request_id': request_id,
+                'rules_total': rules_count,
+                'rules_updated': 0,
+                'self_flow_count': 0,
+                'src_any': 0,
+                'dst_any': 0,
+                'public_src': 0,
+                'public_dst': 0,
+                'duration_ms': 0
+            }
+            
+            # Get rule IDs in batches to avoid memory issues
+            rule_ids = self._get_rule_ids_for_request(request_id)
+            
+            # Pre-compute expensive SQL queries
+            self_flow_rule_ids = self._find_self_flow_rules(request_id)
+            src_any_rule_ids = self._find_any_rules(request_id, 'source')
+            dst_any_rule_ids = self._find_any_rules(request_id, 'destination')
+            
+            # Process rules in batches
+            batch_size = facts_config.FACTS_BATCH_SIZE
+            for i in range(0, len(rule_ids), batch_size):
+                batch_rule_ids = rule_ids[i:i + batch_size]
+                try:
+                    await self._process_rule_batch(
+                        batch_rule_ids, 
+                        self_flow_rule_ids, 
+                        src_any_rule_ids, 
+                        dst_any_rule_ids, 
+                        stats
+                    )
+                except DatabaseConnectionError:
+                    raise  # Re-raise database connection errors immediately
+                except Exception as e:
+                    logger.error(f"Error processing batch {i//batch_size + 1}: {e}", exc_info=True)
+                    # Continue with next batch
+                    continue
+            
+            # Update statistics
+            stats['duration_ms'] = int((time.time() - start_time) * 1000)
+            stats['self_flow_count'] = len(self_flow_rule_ids)
+            stats['src_any'] = len(src_any_rule_ids)
+            stats['dst_any'] = len(dst_any_rule_ids)
+            
+            logger.info(f"Facts computation completed for request {request_id}: {stats}")
+            return stats
+        except (ValueError, DatabaseConnectionError):
+            raise
+        except OperationalError as e:
+            self.db.rollback()
+            logger.error(f"Database connection error during facts computation for request {request_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during facts computation",
+                details={"error": str(e), "request_id": request_id}
+            )
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Unexpected error during facts computation for request {request_id}: {str(e)}", exc_info=True)
+            raise
     
     def _get_rule_ids_for_request(self, request_id: int) -> List[int]:
         """Get all rule IDs for a request"""
-        result = self.db.execute(
-            text("SELECT id FROM far_rules WHERE request_id = :request_id ORDER BY id"),
-            {"request_id": request_id}
-        )
-        return [row[0] for row in result.fetchall()]
+        try:
+            result = self.db.execute(
+                text("SELECT id FROM far_rules WHERE request_id = :request_id ORDER BY id"),
+                {"request_id": request_id}
+            )
+            return [row[0] for row in result.fetchall()]
+        except OperationalError as e:
+            logger.error(f"Database connection error getting rule IDs for request {request_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when fetching rule IDs",
+                details={"error": str(e), "request_id": request_id}
+            )
+        except Exception as e:
+            logger.error(f"Error getting rule IDs for request {request_id}: {str(e)}", exc_info=True)
+            raise
     
     def _find_self_flow_rules(self, request_id: int) -> set:
         """Find rules where source and destination CIDRs overlap (excluding 0.0.0.0/0 false positives)"""
-        query = text("""
-            SELECT DISTINCT r.id
-            FROM far_rules r
-            JOIN far_rule_endpoints s ON s.rule_id = r.id AND s.endpoint_type = 'source'
-            JOIN far_rule_endpoints d ON d.rule_id = r.id AND d.endpoint_type = 'destination'
-            WHERE r.request_id = :request_id
-              AND s.network_cidr::inet && d.network_cidr::inet
-              AND NOT (s.network_cidr = '0.0.0.0/0' AND d.network_cidr != '0.0.0.0/0')
-              AND NOT (s.network_cidr != '0.0.0.0/0' AND d.network_cidr = '0.0.0.0/0')
-        """)
-        
-        result = self.db.execute(query, {"request_id": request_id})
-        return {row[0] for row in result.fetchall()}
+        try:
+            query = text("""
+                SELECT DISTINCT r.id
+                FROM far_rules r
+                JOIN far_rule_endpoints s ON s.rule_id = r.id AND s.endpoint_type = 'source'
+                JOIN far_rule_endpoints d ON d.rule_id = r.id AND d.endpoint_type = 'destination'
+                WHERE r.request_id = :request_id
+                  AND s.network_cidr::inet && d.network_cidr::inet
+                  AND NOT (s.network_cidr = '0.0.0.0/0' AND d.network_cidr != '0.0.0.0/0')
+                  AND NOT (s.network_cidr != '0.0.0.0/0' AND d.network_cidr = '0.0.0.0/0')
+            """)
+            
+            result = self.db.execute(query, {"request_id": request_id})
+            return {row[0] for row in result.fetchall()}
+        except OperationalError as e:
+            logger.error(f"Database connection error finding self-flow rules for request {request_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed when finding self-flow rules",
+                details={"error": str(e), "request_id": request_id}
+            )
+        except Exception as e:
+            logger.error(f"Error finding self-flow rules for request {request_id}: {str(e)}", exc_info=True)
+            raise
     
     def _find_any_rules(self, request_id: int, endpoint_type: str) -> set:
         """Find rules with 0.0.0.0/0 (any) in source or destination"""
-        query = text("""
-            SELECT DISTINCT r.id
-            FROM far_rules r
-            JOIN far_rule_endpoints e ON e.rule_id = r.id
-            WHERE r.request_id = :request_id
-              AND e.endpoint_type = :endpoint_type
-              AND e.network_cidr = '0.0.0.0/0'
-        """)
-        
-        result = self.db.execute(query, {
-            "request_id": request_id,
-            "endpoint_type": endpoint_type
-        })
-        return {row[0] for row in result.fetchall()}
+        try:
+            query = text("""
+                SELECT DISTINCT r.id
+                FROM far_rules r
+                JOIN far_rule_endpoints e ON e.rule_id = r.id
+                WHERE r.request_id = :request_id
+                  AND e.endpoint_type = :endpoint_type
+                  AND e.network_cidr = '0.0.0.0/0'
+            """)
+            
+            result = self.db.execute(query, {
+                "request_id": request_id,
+                "endpoint_type": endpoint_type
+            })
+            return {row[0] for row in result.fetchall()}
+        except OperationalError as e:
+            logger.error(f"Database connection error finding '{endpoint_type}' any rules for request {request_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message=f"Database connection failed when finding '{endpoint_type}' any rules",
+                details={"error": str(e), "request_id": request_id, "endpoint_type": endpoint_type}
+            )
+        except Exception as e:
+            logger.error(f"Error finding '{endpoint_type}' any rules for request {request_id}: {str(e)}", exc_info=True)
+            raise
     
     async def _process_rule_batch(
         self, 
@@ -175,8 +223,15 @@ class FactsComputationService:
                 if facts.get('dst_has_public', False):
                     stats['public_dst'] += 1
                     
+            except OperationalError as e:
+                self.db.rollback()
+                logger.error(f"Database connection error processing rule {rule_id}: {str(e)}", exc_info=True)
+                raise DatabaseConnectionError(
+                    message=f"Database connection failed processing rule {rule_id}",
+                    details={"error": str(e), "rule_id": rule_id}
+                )
             except Exception as e:
-                logger.error(f"Error processing rule {rule_id}: {e}")
+                logger.error(f"Error processing rule {rule_id}: {e}", exc_info=True)
                 # Rollback any failed changes
                 try:
                     self.db.rollback()
@@ -187,49 +242,65 @@ class FactsComputationService:
         # Commit all successful updates at the end
         try:
             self.db.commit()
+        except OperationalError as e:
+            self.db.rollback()
+            logger.error(f"Database connection error committing batch: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during batch commit",
+                details={"error": str(e)}
+            )
         except Exception as e:
-            logger.error(f"Error committing batch: {e}")
+            logger.error(f"Error committing batch: {e}", exc_info=True)
             self.db.rollback()
             raise
     
     def _get_rule_data(self, rule_id: int) -> Optional[Dict[str, Any]]:
         """Get rule endpoints and services"""
-        
-        # Get endpoints
-        endpoints_query = text("""
-            SELECT endpoint_type, network_cidr
-            FROM far_rule_endpoints
-            WHERE rule_id = :rule_id
-        """)
-        endpoints_result = self.db.execute(endpoints_query, {"rule_id": rule_id})
-        
-        sources = []
-        destinations = []
-        for row in endpoints_result:
-            if row[0] == 'source':
-                sources.append(row[1])
-            elif row[0] == 'destination':
-                destinations.append(row[1])
-        
-        # Get services count
-        services_query = text("""
-            SELECT COUNT(s.id) as service_count
-            FROM far_rule_services s
-            WHERE s.rule_id = :rule_id
-        """)
-        services_result = self.db.execute(services_query, {"rule_id": rule_id}).fetchone()
-        service_count = services_result[0] if services_result else 0
-        
-        # Calculate tuple estimate
-        tuple_estimate = len(sources) * len(destinations) * max(service_count, 1)
-        
-        return {
-            'sources': sources,
-            'destinations': destinations,
-            'service_count': service_count,
-            'max_port_span': 1,  # Default value, can be enhanced later
-            'tuple_estimate': tuple_estimate
-        }
+        try:
+            # Get endpoints
+            endpoints_query = text("""
+                SELECT endpoint_type, network_cidr
+                FROM far_rule_endpoints
+                WHERE rule_id = :rule_id
+            """)
+            endpoints_result = self.db.execute(endpoints_query, {"rule_id": rule_id})
+            
+            sources = []
+            destinations = []
+            for row in endpoints_result:
+                if row[0] == 'source':
+                    sources.append(row[1])
+                elif row[0] == 'destination':
+                    destinations.append(row[1])
+            
+            # Get services count
+            services_query = text("""
+                SELECT COUNT(s.id) as service_count
+                FROM far_rule_services s
+                WHERE s.rule_id = :rule_id
+            """)
+            services_result = self.db.execute(services_query, {"rule_id": rule_id}).fetchone()
+            service_count = services_result[0] if services_result else 0
+            
+            # Calculate tuple estimate
+            tuple_estimate = len(sources) * len(destinations) * max(service_count, 1)
+            
+            return {
+                'sources': sources,
+                'destinations': destinations,
+                'service_count': service_count,
+                'max_port_span': 1,  # Default value, can be enhanced later
+                'tuple_estimate': tuple_estimate
+            }
+        except OperationalError as e:
+            logger.error(f"Database connection error getting rule data for rule {rule_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message=f"Database connection failed when fetching data for rule {rule_id}",
+                details={"error": str(e), "rule_id": rule_id}
+            )
+        except Exception as e:
+            logger.error(f"Error getting rule data for rule {rule_id}: {str(e)}", exc_info=True)
+            return None  # Return None on error, caller will handle
     
     async def _compute_rule_facts(
         self, 
@@ -286,13 +357,25 @@ class FactsComputationService:
     
     def _update_rule_facts(self, rule_id: int, facts: Dict[str, Any]):
         """Update rule with computed facts"""
-        update_query = text("""
-            UPDATE far_rules 
-            SET facts = :facts_json
-            WHERE id = :rule_id
-        """)
-        
-        self.db.execute(update_query, {
-            "rule_id": rule_id,
-            "facts_json": json.dumps(facts)
-        })
+        try:
+            update_query = text("""
+                UPDATE far_rules 
+                SET facts = :facts_json
+                WHERE id = :rule_id
+            """)
+            
+            self.db.execute(update_query, {
+                "rule_id": rule_id,
+                "facts_json": json.dumps(facts)
+            })
+        except OperationalError as e:
+            self.db.rollback()
+            logger.error(f"Database connection error updating facts for rule {rule_id}: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message=f"Database connection failed when updating facts for rule {rule_id}",
+                details={"error": str(e), "rule_id": rule_id}
+            )
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Error updating facts for rule {rule_id}: {str(e)}", exc_info=True)
+            raise

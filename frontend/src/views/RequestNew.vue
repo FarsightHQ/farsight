@@ -26,9 +26,10 @@
             v-model="form.file"
             label="CSV File"
             :required="true"
-            :error="errors.file"
+            :error="fileUploadError"
             :upload-progress="uploadProgress"
             hint="Upload a CSV file containing firewall rules (Max 50MB)"
+            @error="fileUploadError = $event || ''"
           />
 
           <!-- Actions -->
@@ -37,7 +38,7 @@
             <Button
               type="submit"
               variant="primary"
-              :disabled="uploading || !form.title || !form.file"
+              :disabled="uploading || !form.title || !form.file || hasFileError"
             >
               <Spinner v-if="uploading" size="sm" class="mr-2" />
               {{ uploading ? 'Uploading...' : 'Create Request' }}
@@ -47,92 +48,51 @@
       </form>
     </Card>
 
-    <!-- Processing Prompt Modal -->
-    <Modal v-model="showProcessingPrompt" size="lg">
+    <!-- Simple Error Modal for Validation Errors -->
+    <Modal v-model="showErrorModal" size="lg">
       <template #header>
-        <h3 class="text-lg font-semibold text-gray-900">
-          <span v-if="!isProcessingPipeline && !pipelineComplete && !pipelineError">
-            Upload Successful!
-          </span>
-          <span v-else-if="isProcessingPipeline">Processing Pipeline</span>
-          <span v-else-if="pipelineComplete" class="text-success-600">Processing Complete!</span>
-          <span v-else-if="pipelineError" class="text-error-600">Processing Error</span>
-        </h3>
+        <h3 class="text-lg font-semibold text-error-600">Upload Error</h3>
       </template>
 
-      <!-- Initial Prompt -->
-      <div v-if="!isProcessingPipeline && !pipelineComplete && !pipelineError" class="space-y-4">
-        <p class="text-gray-600">
-          Your CSV file has been uploaded successfully. Would you like to start processing the
-          pipeline now?
-        </p>
-        <div class="bg-primary-50 border border-primary-200 rounded-lg p-4">
-          <p class="text-sm font-medium text-primary-900 mb-2">Processing Pipeline:</p>
-          <ul class="text-sm text-primary-800 space-y-1 list-disc list-inside">
-            <li>Process CSV and create firewall rules</li>
-            <li>Compute standard facts</li>
-            <li>Compute hybrid facts</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Processing Dashboard -->
-      <div v-else-if="isProcessingPipeline || pipelineComplete">
-        <ProcessingDashboard
-          :steps="pipelineSteps"
-          :can-cancel="false"
-          @retry="handleRetryStep"
-        />
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="pipelineError" class="space-y-4">
+      <div class="space-y-4">
         <div class="bg-error-50 border border-error-200 rounded-lg p-4">
           <h4 class="text-sm font-medium text-error-900 mb-2">Error Details:</h4>
-          <p class="text-sm text-error-700">{{ pipelineError }}</p>
+          <p class="text-sm text-error-700 whitespace-pre-wrap">{{ uploadError }}</p>
         </div>
-        <ProcessingDashboard
-          :steps="pipelineSteps"
-          :can-cancel="false"
-          @retry="handleRetryStep"
-        />
+        
+        <div v-if="errorDetails" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 class="text-sm font-medium text-gray-900 mb-2">Additional Information:</h4>
+          <div class="text-xs text-gray-700 space-y-2">
+            <div v-if="errorDetails.row_number" class="flex items-center space-x-2">
+              <span class="font-medium">Row Number:</span>
+              <span>{{ errorDetails.row_number }}</span>
+            </div>
+            <div v-if="errorDetails.column_name" class="flex items-center space-x-2">
+              <span class="font-medium">Column:</span>
+              <span>{{ errorDetails.column_name }}</span>
+            </div>
+            <div v-if="errorDetails.missing_columns && errorDetails.missing_columns.length > 0" class="flex items-start space-x-2">
+              <span class="font-medium">Missing Columns:</span>
+              <span>{{ errorDetails.missing_columns.join(', ') }}</span>
+            </div>
+            <div v-if="errorDetails.field_errors" class="mt-2">
+              <span class="font-medium block mb-1">Field Errors:</span>
+              <ul class="list-disc list-inside space-y-1">
+                <li v-for="(errorMsg, field) in errorDetails.field_errors" :key="field">
+                  <span class="font-medium">{{ field }}:</span> {{ errorMsg }}
+                </li>
+              </ul>
+            </div>
+            <div v-if="errorDetails.details" class="mt-2">
+              <pre class="text-xs overflow-auto max-h-40">{{ JSON.stringify(errorDetails.details, null, 2) }}</pre>
+            </div>
+          </div>
+        </div>
       </div>
 
       <template #footer>
-        <div class="flex items-center justify-between w-full">
-          <Button
-            variant="outline"
-            @click="navigateToDetails"
-          >
-            Go to Details Page
-          </Button>
-          <div class="flex items-center space-x-2">
-            <Button
-              v-if="!isProcessingPipeline && !pipelineComplete && !pipelineError"
-              variant="primary"
-              @click="startProcessing"
-              :disabled="starting || isProcessingPipeline"
-            >
-              <Spinner v-if="starting" size="sm" class="mr-2" />
-              Start Processing
-            </Button>
-            <Button
-              v-if="pipelineComplete || pipelineError"
-              variant="primary"
-              @click="navigateToDetails"
-            >
-              Go to Details Page
-            </Button>
-            <Button
-              v-if="pipelineError"
-              variant="outline"
-              @click="retryPipeline"
-              :disabled="starting"
-            >
-              <Spinner v-if="starting" size="sm" class="mr-2" />
-              Retry
-            </Button>
-          </div>
+        <div class="flex items-center justify-end">
+          <Button variant="primary" @click="showErrorModal = false">Close</Button>
         </div>
       </template>
     </Modal>
@@ -151,51 +111,22 @@ import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import Modal from '@/components/ui/Modal.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
-import ProcessingDashboard from '@/components/requests/ProcessingDashboard.vue'
 
 const router = useRouter()
 const { success, error } = useToast()
 
 const uploading = ref(false)
 const uploadProgress = ref(0)
-const showProcessingPrompt = ref(false)
 const createdRequestId = ref(null)
-const starting = ref(false)
-const createdRequest = ref(null)
-const pipelineComplete = ref(false)
-const pipelineError = ref(null)
+const uploadError = ref('')
+const errorDetails = ref(null)
+const showErrorModal = ref(false)
 
-// Initialize pipeline composable
+// Initialize pipeline composable (for background processing only)
 const {
-  pipelineSteps,
-  isProcessingPipeline,
   startFullPipeline,
-  handleRetryStep,
   fetchRequest,
-} = usePipeline(() => createdRequestId.value, createdRequest)
-
-// Watch for pipeline completion
-watch(
-  [() => pipelineSteps.value, () => isProcessingPipeline.value],
-  ([steps, isProcessing]) => {
-    if (!isProcessing) return
-    
-    const allCompleted = steps.every((s) => s.status === 'completed')
-    const hasError = steps.some((s) => s.status === 'error')
-    
-    if (allCompleted) {
-      pipelineComplete.value = true
-      // Auto-navigate after 2 seconds
-      setTimeout(() => {
-        navigateToDetails()
-      }, 2000)
-    } else if (hasError) {
-      const errorStep = steps.find((s) => s.status === 'error')
-      pipelineError.value = errorStep?.error || 'An error occurred during processing'
-    }
-  },
-  { deep: true }
-)
+} = usePipeline(() => createdRequestId.value, ref(null))
 
 const form = reactive({
   title: '',
@@ -208,9 +139,30 @@ const errors = reactive({
   file: '',
 })
 
+// Track FileUpload component error separately
+const fileUploadError = ref('')
+
+// Watch for file changes and clear error if file is removed
+watch(() => form.file, (newFile, oldFile) => {
+  // Only update if file actually changed
+  if (newFile !== oldFile) {
+    if (!newFile) {
+      fileUploadError.value = ''
+    }
+  }
+})
+
+// Check if file has validation error from FileUpload component
+const hasFileError = computed(() => {
+  // Explicitly check for truthy non-empty string
+  const errorValue = fileUploadError.value
+  const hasError = Boolean(errorValue && typeof errorValue === 'string' && errorValue.trim().length > 0)
+  return hasError
+})
+
 const validateForm = () => {
   errors.title = ''
-  errors.file = ''
+  // Don't clear errors.file here - let FileUpload component manage its own errors
 
   if (!form.title.trim()) {
     errors.title = 'Title is required'
@@ -219,6 +171,13 @@ const validateForm = () => {
 
   if (!form.file) {
     errors.file = 'Please select a CSV file'
+    fileUploadError.value = 'Please select a CSV file'
+    return false
+  }
+
+  // Check if file has validation error from FileUpload component
+  if (hasFileError.value) {
+    errors.file = fileUploadError.value || 'File validation failed'
     return false
   }
 
@@ -232,6 +191,9 @@ const handleSubmit = async () => {
 
   uploading.value = true
   uploadProgress.value = 0
+  uploadError.value = ''
+  errorDetails.value = null
+  showErrorModal.value = false
 
   try {
     // Simulate progress (in real app, use axios upload progress)
@@ -251,107 +213,73 @@ const handleSubmit = async () => {
     uploadProgress.value = 100
 
     // Extract request ID from response
-    // API interceptor returns standardized response: { status, message, data: {...} }
-    // So response = { status, message, data: { id: 123, ... } }
-    // And response.data = { id: 123, ... } (the actual request object)
-    
-    // Log for debugging
-    console.log('[RequestNew] Full response:', JSON.stringify(response, null, 2))
-    
-    // The interceptor returns: { status, message, data: { id: 123, ... } }
-    // So response.data is the request object
     const requestObject = response.data || response
-    
-    console.log('[RequestNew] Request object:', requestObject)
-    
-    // Extract ID - simple and direct
     let extractedId = requestObject?.id || requestObject?.request_id
     
-    // Validate
     if (!extractedId || (typeof extractedId !== 'number' && typeof extractedId !== 'string')) {
-      console.error('[RequestNew] Invalid ID:', extractedId, 'Type:', typeof extractedId)
       throw new Error('Failed to extract valid request ID')
     }
     
-    // Convert to string
     createdRequestId.value = String(extractedId)
-    createdRequest.value = requestObject
-    
-    console.log('[RequestNew] ID extracted:', createdRequestId.value)
 
-    success('Request created successfully!')
+    // Show simple success message
+    success('File uploaded, file processed')
 
-    // Show processing prompt modal
-    showProcessingPrompt.value = true
+    // Auto-process in background (silently)
+    setTimeout(async () => {
+      try {
+        const request = await fetchRequest()
+        if (request) {
+          await startFullPipeline(request)
+        }
+      } catch (err) {
+        // Silently handle processing errors - user already has the request
+        console.error('Background processing error:', err)
+      }
+    }, 500)
+
+    // Redirect to details page after brief delay
+    setTimeout(() => {
+      router.push(`/requests/${createdRequestId.value}`)
+    }, 1500)
+
   } catch (err) {
-    error(err.message || 'Failed to create request')
+    // Handle validation errors from backend
     uploadProgress.value = 0
+    
+    // Extract error details from response
+    let errorMessage = err.message || 'Failed to upload file'
+    let details = null
+
+    if (err.response?.data) {
+      const errorData = err.response.data
+      
+      // Handle standardized error response
+      if (errorData.detail) {
+        errorMessage = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : errorData.detail.message || errorMessage
+        details = errorData.detail.details || errorData.detail
+      } else if (errorData.message) {
+        errorMessage = errorData.message
+        details = errorData.details || errorData
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData
+      } else {
+        details = errorData
+      }
+    }
+
+    uploadError.value = errorMessage
+    errorDetails.value = details
+    showErrorModal.value = true
+    
+    // Also show toast
+    error(errorMessage)
   } finally {
     uploading.value = false
   }
 }
 
-const startProcessing = async () => {
-  // Validate request ID before starting
-  console.log('[RequestNew] startProcessing - createdRequestId.value:', createdRequestId.value, 'Type:', typeof createdRequestId.value)
-  
-  if (!createdRequestId.value) {
-    error('Request ID is missing. Please try uploading again.')
-    return
-  }
-
-  // Validate ID is not an object or invalid string
-  if (typeof createdRequestId.value === 'object') {
-    error('Invalid request ID format. Please try uploading again.')
-    return
-  }
-
-  const idString = String(createdRequestId.value)
-  if (idString === 'null' || idString === 'undefined' || idString === '[object Object]') {
-    error('Invalid request ID. Please try uploading again.')
-    return
-  }
-
-  starting.value = true
-  pipelineError.value = null
-  pipelineComplete.value = false
-
-  try {
-    // Fetch the request to get current status
-    const request = await fetchRequest()
-    if (!request) {
-      throw new Error('Failed to fetch request')
-    }
-
-    // Start the full pipeline
-    const success = await startFullPipeline(request)
-    if (!success) {
-      throw new Error('Failed to start pipeline')
-    }
-
-    starting.value = false
-  } catch (err) {
-    error(err.message || 'Failed to start processing')
-    starting.value = false
-    pipelineError.value = err.message || 'Failed to start processing'
-  }
-}
-
-const retryPipeline = async () => {
-  pipelineError.value = null
-  pipelineComplete.value = false
-  await startProcessing()
-}
-
-const navigateToDetails = () => {
-  if (createdRequestId.value) {
-    router.push(`/requests/${createdRequestId.value}`)
-  }
-  showProcessingPrompt.value = false
-}
-
-const viewDetails = () => {
-  navigateToDetails()
-}
 </script>
 

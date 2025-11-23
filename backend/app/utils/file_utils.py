@@ -5,11 +5,16 @@ import os
 import hashlib
 import uuid
 import re
+import csv
+import io
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 from fastapi import UploadFile, HTTPException
 import aiofiles
+from app.utils.csv_errors import InsufficientStorageError, CSVFileError
+from app.core.config import settings
 
 
 def safe_filename(filename: str) -> str:
@@ -76,15 +81,31 @@ async def save_upload_file(
         upload_file: FastAPI UploadFile object
         destination_path: Where to save the file
         max_size_bytes: Maximum allowed file size
-        
+    
     Returns:
         Tuple of (sha256_hash, file_size_bytes)
         
     Raises:
         HTTPException: If file is too large or other errors
+        InsufficientStorageError: If insufficient disk space
+        FileSystemError: For filesystem errors
     """
+    from app.utils.csv_errors import FileSystemError
+    
     # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+    try:
+        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+    except (OSError, PermissionError) as e:
+        raise FileSystemError(
+            message=f"Cannot create upload directory: {str(e)}",
+            details={"path": destination_path, "error": str(e)}
+        )
+    
+    # Check disk space before writing (estimate based on max_size_bytes)
+    try:
+        check_disk_space(max_size_bytes, os.path.dirname(destination_path))
+    except InsufficientStorageError:
+        raise  # Re-raise as-is
     
     sha256_hash = hashlib.sha256()
     total_size = 0
@@ -98,7 +119,8 @@ async def save_upload_file(
                 if total_size > max_size_bytes:
                     # Clean up partial file
                     await f.close()
-                    os.unlink(destination_path)
+                    if os.path.exists(destination_path):
+                        os.unlink(destination_path)
                     raise HTTPException(
                         status_code=413,
                         detail=f"File too large. Maximum size: {max_size_bytes / (1024*1024):.1f}MB"
@@ -107,18 +129,73 @@ async def save_upload_file(
                 sha256_hash.update(chunk)
                 await f.write(chunk)
     
-    except Exception as e:
-        # Clean up on any error
+    except (OSError, PermissionError) as e:
+        # Clean up on filesystem error
         if os.path.exists(destination_path):
-            os.unlink(destination_path)
+            try:
+                os.unlink(destination_path)
+            except:
+                pass
+        raise FileSystemError(
+            message=f"Error saving file: {str(e)}",
+            details={"path": destination_path, "error": str(e)}
+        )
+    except Exception as e:
+        # Clean up on any other error
+        if os.path.exists(destination_path):
+            try:
+                os.unlink(destination_path)
+            except:
+                pass
         raise e
     
     return sha256_hash.hexdigest(), total_size
 
 
+def _validate_csv_content(file: UploadFile, sample_size: int = 8192) -> None:
+    """
+    Validate CSV file content structure
+    
+    Args:
+        file: FastAPI UploadFile object
+        sample_size: Number of bytes to read for validation
+        
+    Raises:
+        HTTPException: If file content is not valid CSV
+    """
+    # Read sample of file content
+    file.file.seek(0)
+    sample = file.file.read(sample_size)
+    file.file.seek(0)  # Reset file pointer
+    
+    if len(sample) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="File is empty"
+        )
+    
+    # Check if file is UTF-8 decodable (not binary)
+    try:
+        decoded_sample = sample.decode('utf-8')
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="File appears to be binary, not a valid CSV file. Please upload a text-based CSV file."
+        )
+    
+    # Validate CSV structure using csv.Sniffer
+    try:
+        csv.Sniffer().sniff(decoded_sample)
+    except csv.Error as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File does not appear to be a valid CSV: {str(e)}"
+        )
+
+
 def validate_csv_file(file: UploadFile) -> None:
     """
-    Validate that uploaded file is a CSV
+    Validate that uploaded file is a CSV (basic validation)
     
     Args:
         file: FastAPI UploadFile object
@@ -149,6 +226,96 @@ def validate_csv_file(file: UploadFile) -> None:
             status_code=400,
             detail=f"Invalid content type: {file.content_type}. Expected CSV file."
         )
+
+
+def validate_csv_file_enhanced(file: UploadFile, sample_size: int = None) -> None:
+    """
+    Enhanced CSV file validation with content checking
+    
+    Validates:
+    - File extension
+    - Content type (stricter, no octet-stream)
+    - File is not empty
+    - File is UTF-8 decodable (not binary)
+    - File has valid CSV structure
+    
+    Args:
+        file: FastAPI UploadFile object
+        sample_size: Number of bytes to read for CSV structure validation
+                    (defaults to CSV_VALIDATION_SAMPLE_SIZE from config)
+        
+    Raises:
+        HTTPException: If file is not a valid CSV
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    
+    # Check file extension
+    if not file.filename.lower().endswith('.csv'):
+        raise HTTPException(
+            status_code=400, 
+            detail="Only CSV files are allowed"
+        )
+    
+    # Stricter content type validation (removed application/octet-stream for security)
+    valid_content_types = [
+        "text/csv",
+        "application/csv",
+        "text/plain; charset=utf-8",
+        "text/plain"
+    ]
+    
+    if file.content_type and file.content_type not in valid_content_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid content type: {file.content_type}. Expected CSV file."
+        )
+    
+    # Use config value if sample_size not provided
+    if sample_size is None:
+        sample_size = getattr(settings, 'CSV_VALIDATION_SAMPLE_SIZE', 8192)
+    
+    # Validate file content structure
+    _validate_csv_content(file, sample_size)
+
+
+def check_disk_space(
+    file_size: int,
+    upload_dir: str,
+    multiplier: float = None
+) -> None:
+    """
+    Check if there's sufficient disk space for file upload
+    
+    Args:
+        file_size: Size of file to upload in bytes
+        upload_dir: Directory where file will be saved
+        multiplier: Safety multiplier for required space (defaults to config)
+        
+    Raises:
+        InsufficientStorageError: If insufficient disk space
+    """
+    if multiplier is None:
+        multiplier = getattr(settings, 'MIN_DISK_SPACE_MULTIPLIER', 2.0)
+    
+    try:
+        # Get disk usage for the upload directory
+        stat = shutil.disk_usage(upload_dir)
+        available_space = stat.free
+        required_space = int(file_size * multiplier)
+        
+        if available_space < required_space:
+            raise InsufficientStorageError(
+                message=f"Insufficient disk space. Required: {required_space / (1024*1024):.1f}MB, Available: {available_space / (1024*1024):.1f}MB",
+                available_space=available_space,
+                required_space=required_space
+            )
+    except OSError as e:
+        # If we can't check disk space, log warning but don't block upload
+        # (might be permission issue or network mount)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not check disk space for {upload_dir}: {str(e)}")
 
 
 def derive_title_from_filename(filename: str) -> str:

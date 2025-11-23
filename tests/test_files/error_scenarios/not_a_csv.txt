@@ -1,0 +1,3 @@
+This is a plain text file, not a CSV file.
+It should trigger a file type validation error.
+The system should reject this file because it's not a CSV.

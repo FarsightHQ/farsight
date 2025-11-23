@@ -5,6 +5,7 @@ import csv
 import io
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, DatabaseError, OperationalError
 from app.models.far_request import FarRequest
 from app.models.far_rule import FarRule, FarRuleEndpoint, FarRuleService
 from app.utils.ip_port_utils import (
@@ -16,6 +17,10 @@ from app.utils.ip_port_utils import (
     NormalizedService,
     format_port_ranges_for_postgres
 )
+from app.utils.csv_errors import (
+    CSVRowError, CSVValidationError, CSVColumnError, DatabaseConnectionError
+)
+from app.services.csv_validation_service import CSVValidationService
 from sqlalchemy.dialects.postgresql import insert
 import logging
 
@@ -30,103 +35,66 @@ class CsvIngestionService:
     
     async def ingest_csv_file(self, request_id: int, file_content: str) -> Dict[str, Any]:
         """
-        Ingest CSV file content and create normalized FAR rules
+        Ingest CSV file content and create normalized FAR rules with comprehensive error handling
         
         Args:
             request_id: ID of the FAR request
-            file_content: CSV file content as string
+            file_content: CSV file content as string (already validated and decoded)
             
         Returns:
             Dictionary with ingestion statistics and results
+            
+        Raises:
+            ValueError: If request not found
+            CSVValidationError: If CSV structure is invalid
+            CSVColumnError: If required columns are missing
         """
+        # Initialize statistics
+        statistics = {
+            'total_rows': 0,
+            'processed_rows': 0,
+            'skipped_rows': 0,
+            'error_rows': 0,
+            'created_rules': 0,
+            'duplicate_rules': 0,
+            'errors': [],
+            'warnings': [],
+            'row_errors': []  # Detailed per-row errors
+        }
+        
+        far_request = None
         try:
             # Verify the request exists
             far_request = self.db.query(FarRequest).filter(FarRequest.id == request_id).first()
             if not far_request:
                 raise ValueError(f"FAR request {request_id} not found")
             
+            # Validate CSV structure first
+            try:
+                fieldnames, column_mapping = CSVValidationService.validate_csv_structure(
+                    file_content,
+                    filename=far_request.source_filename
+                )
+            except (CSVValidationError, CSVColumnError) as e:
+                # Re-raise with better context
+                raise CSVValidationError(
+                    f"CSV validation failed: {e.message}",
+                    details=e.details
+                )
+            
+            # Count rows
+            try:
+                row_count = CSVValidationService.validate_row_count(file_content)
+                statistics['total_rows'] = row_count
+            except CSVValidationError as e:
+                raise
+            
             # Parse CSV content
             csv_reader = csv.DictReader(io.StringIO(file_content))
-            
-            # Validate required columns with flexible naming
-            fieldnames = csv_reader.fieldnames or []
-            
-            # Clean up column names (remove BOM and whitespace)
-            clean_fieldnames = [col.strip().lstrip('\ufeff') for col in fieldnames]
-            
-            # Support both singular and plural column names
-            source_col = None
-            dest_col = None  
-            service_col = None
-            action_col = None
-            direction_col = None
-            
-            # Find source column
-            for i, col in enumerate(clean_fieldnames):
-                if col.lower() in ['source', 'sources']:
-                    source_col = fieldnames[i]  # Use original column name for data access
-                    break
-            
-            # Find destination column  
-            for i, col in enumerate(clean_fieldnames):
-                if col.lower() in ['destination', 'destinations']:
-                    dest_col = fieldnames[i]  # Use original column name for data access
-                    break
-                    
-            # Find service column
-            for i, col in enumerate(clean_fieldnames):
-                if col.lower() in ['service', 'services']:
-                    service_col = fieldnames[i]  # Use original column name for data access
-                    break
-                    
-            # Find optional action column
-            for i, col in enumerate(clean_fieldnames):
-                if col.lower() == 'action':
-                    action_col = fieldnames[i]  # Use original column name for data access
-                    break
-                    
-            # Find optional direction column
-            for i, col in enumerate(clean_fieldnames):
-                if col.lower() == 'direction':
-                    direction_col = fieldnames[i]  # Use original column name for data access
-                    break
-            
-            # Check required columns
-            missing_cols = []
-            if not source_col:
-                missing_cols.append('source/sources')
-            if not dest_col:
-                missing_cols.append('destination/destinations') 
-            if not service_col:
-                missing_cols.append('service/services')
-                
-            if missing_cols:
-                raise ValueError(f"Missing required columns: {missing_cols}")
-            
-            statistics = {
-                'total_rows': 0,
-                'processed_rows': 0,
-                'skipped_rows': 0,
-                'error_rows': 0,
-                'created_rules': 0,
-                'duplicate_rules': 0,
-                'errors': []
-            }
-            
             processed_hashes = set()
             
-            # Store column mappings for use in row parsing
-            column_mapping = {
-                'source': source_col,
-                'destination': dest_col,
-                'service': service_col,
-                'action': action_col,
-                'direction': direction_col
-            }
-            
+            # Process rows with detailed error tracking
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 for header
-                statistics['total_rows'] += 1
-                
                 try:
                     # Skip empty rows
                     if not any(row.values()):
@@ -134,12 +102,25 @@ class CsvIngestionService:
                         continue
                     
                     # Parse and normalize the rule
-                    normalized_rule = self._parse_csv_row(row, column_mapping)
+                    try:
+                        normalized_rule = self._parse_csv_row(row, column_mapping)
+                    except ValueError as e:
+                        # Row-level parsing error
+                        raise CSVRowError(
+                            f"Failed to parse row: {str(e)}",
+                            row_number=row_num,
+                            row_data=dict(row),
+                            field_errors={"parsing": str(e)}
+                        )
+                    
                     canonical_hash = compute_canonical_hash(normalized_rule)
                     
                     # Check for duplicates within this batch
                     if canonical_hash in processed_hashes:
                         statistics['duplicate_rules'] += 1
+                        statistics['warnings'].append(
+                            f"Row {row_num}: Duplicate rule (skipped)"
+                        )
                         continue
                     
                     # Check for existing rule in database
@@ -149,34 +130,155 @@ class CsvIngestionService:
                     
                     if existing_rule:
                         statistics['duplicate_rules'] += 1
+                        statistics['warnings'].append(
+                            f"Row {row_num}: Rule already exists in database (skipped)"
+                        )
                         continue
                     
-                    # Create new rule
-                    await self._create_far_rule(
-                        request_id=request_id,
-                        normalized_rule=normalized_rule,
-                        canonical_hash=canonical_hash
-                    )
+                    # Create rule with transaction safety
+                    try:
+                        await self._create_far_rule(
+                            request_id=request_id,
+                            normalized_rule=normalized_rule,
+                            canonical_hash=canonical_hash
+                        )
+                        processed_hashes.add(canonical_hash)
+                        statistics['created_rules'] += 1
+                        statistics['processed_rows'] += 1
+                        
+                    except OperationalError as e:
+                        # Database connection error
+                        self.db.rollback()
+                        logger.error(f"Database connection error on row {row_num}: {str(e)}", exc_info=True)
+                        raise DatabaseConnectionError(
+                            message="Database connection failed while processing row",
+                            details={"row_number": row_num, "error": str(e)}
+                        )
+                    except IntegrityError as e:
+                        # Database constraint violation
+                        self.db.rollback()
+                        raise CSVRowError(
+                            f"Database constraint violation: {str(e)}",
+                            row_number=row_num,
+                            row_data=dict(row),
+                            field_errors={"database": str(e)}
+                        )
+                    except DatabaseError as e:
+                        # Other database errors
+                        self.db.rollback()
+                        raise CSVRowError(
+                            f"Database error: {str(e)}",
+                            row_number=row_num,
+                            row_data=dict(row),
+                            field_errors={"database": str(e)}
+                        )
                     
-                    processed_hashes.add(canonical_hash)
-                    statistics['created_rules'] += 1
-                    statistics['processed_rows'] += 1
+                except CSVRowError as e:
+                    # Row-specific error - log and continue
+                    statistics['error_rows'] += 1
+                    statistics['row_errors'].append({
+                        "row_number": e.details.get('row_number'),
+                        "error": e.message,
+                        "field_errors": e.details.get('field_errors', {}),
+                        "row_data": e.details.get('row_data')
+                    })
+                    statistics['errors'].append(
+                        f"Row {row_num}: {e.message}"
+                    )
+                    logger.warning(f"Row {row_num} error: {e.message}", exc_info=True)
+                    continue
                     
                 except Exception as e:
+                    # Unexpected error on this row
                     statistics['error_rows'] += 1
-                    error_msg = f"Row {row_num}: {str(e)}"
+                    error_msg = f"Row {row_num}: Unexpected error - {str(e)}"
                     statistics['errors'].append(error_msg)
-                    logger.warning(error_msg)
+                    statistics['row_errors'].append({
+                        "row_number": row_num,
+                        "error": error_msg,
+                        "field_errors": {"unexpected": str(e)},
+                        "row_data": dict(row)
+                    })
+                    logger.error(f"Unexpected error on row {row_num}: {str(e)}", exc_info=True)
                     continue
             
-            # Update request status
-            far_request.status = 'ingested'
+            # Commit all successful rows
+            try:
+                self.db.commit()
+            except OperationalError as e:
+                # Database connection error
+                self.db.rollback()
+                logger.error(f"Database connection error during commit: {str(e)}", exc_info=True)
+                raise DatabaseConnectionError(
+                    message="Database connection failed while committing changes",
+                    details={"error": str(e)}
+                )
+            except Exception as e:
+                self.db.rollback()
+                raise ValueError(f"Failed to commit database changes: {str(e)}")
+            
+            # Update request status based on results
+            if statistics['error_rows'] > 0 and statistics['created_rules'] == 0:
+                # All rows failed
+                far_request.status = 'error'
+            elif statistics['error_rows'] > 0:
+                # Partial success
+                far_request.status = 'ingested_with_errors'
+            else:
+                # Complete success
+                far_request.status = 'ingested'
+            
             self.db.commit()
             
             return statistics
             
-        except Exception as e:
+        except (CSVValidationError, CSVColumnError) as e:
+            # Validation errors - rollback and re-raise
             self.db.rollback()
+            if far_request:
+                try:
+                    far_request.status = 'error'
+                    self.db.commit()
+                except:
+                    pass
+            raise
+            
+        except DatabaseConnectionError:
+            # Re-raise database connection errors as-is
+            self.db.rollback()
+            if far_request:
+                try:
+                    far_request.status = 'error'
+                    self.db.commit()
+                except:
+                    pass
+            raise
+            
+        except OperationalError as e:
+            # Database connection error
+            self.db.rollback()
+            if far_request:
+                try:
+                    far_request.status = 'error'
+                    self.db.commit()
+                except:
+                    pass
+            logger.error(f"Database connection error during CSV ingestion: {str(e)}", exc_info=True)
+            raise DatabaseConnectionError(
+                message="Database connection failed during CSV ingestion",
+                details={"error": str(e), "request_id": request_id}
+            )
+            
+        except Exception as e:
+            # Unexpected errors
+            self.db.rollback()
+            if far_request:
+                try:
+                    far_request.status = 'error'
+                    self.db.commit()
+                except:
+                    pass
+            logger.error(f"CSV ingestion failed for request {request_id}: {str(e)}", exc_info=True)
             raise ValueError(f"CSV ingestion failed: {str(e)}")
     
     def _parse_csv_row(self, row: Dict[str, str], column_mapping: Dict[str, Optional[str]]) -> NormalizedRule:
@@ -189,7 +291,13 @@ class CsvIngestionService:
             
         Returns:
             NormalizedRule object
+            
+        Raises:
+            ValueError: If required fields are missing or invalid
+            CSVRowError: If parsing fails with field-level error details
         """
+        field_errors = {}
+        
         # Extract and validate action (default to 'allow' if not present)
         action_col = column_mapping.get('action')
         if action_col and action_col in row:
@@ -211,28 +319,60 @@ class CsvIngestionService:
                 direction = None
         
         # Parse source endpoints
-        source_col = column_mapping['source']
+        source_col = column_mapping.get('source')
         if not source_col:
-            raise ValueError("Source column not found")
-        source_endpoints = self._parse_endpoints(row.get(source_col, '').strip())
-        if not source_endpoints:
-            raise ValueError("No valid source endpoints found")
+            raise ValueError("Source column not found in column mapping")
+        
+        source_value = row.get(source_col, '').strip()
+        if not source_value:
+            field_errors['source'] = "Source field is empty"
+        else:
+            try:
+                source_endpoints = self._parse_endpoints(source_value)
+                if not source_endpoints:
+                    field_errors['source'] = "No valid source endpoints found"
+            except Exception as e:
+                field_errors['source'] = f"Failed to parse source: {str(e)}"
+                source_endpoints = []
         
         # Parse destination endpoints
-        dest_col = column_mapping['destination']
+        dest_col = column_mapping.get('destination')
         if not dest_col:
-            raise ValueError("Destination column not found")
-        destination_endpoints = self._parse_endpoints(row.get(dest_col, '').strip())
-        if not destination_endpoints:
-            raise ValueError("No valid destination endpoints found")
+            raise ValueError("Destination column not found in column mapping")
+        
+        dest_value = row.get(dest_col, '').strip()
+        if not dest_value:
+            field_errors['destination'] = "Destination field is empty"
+        else:
+            try:
+                destination_endpoints = self._parse_endpoints(dest_value)
+                if not destination_endpoints:
+                    field_errors['destination'] = "No valid destination endpoints found"
+            except Exception as e:
+                field_errors['destination'] = f"Failed to parse destination: {str(e)}"
+                destination_endpoints = []
         
         # Parse services
-        service_col = column_mapping['service']
+        service_col = column_mapping.get('service')
         if not service_col:
-            raise ValueError("Service column not found")
-        services = self._parse_services(row.get(service_col, '').strip())
-        if not services:
-            raise ValueError("No valid services found")
+            raise ValueError("Service column not found in column mapping")
+        
+        service_value = row.get(service_col, '').strip()
+        if not service_value:
+            field_errors['service'] = "Service field is empty"
+        else:
+            try:
+                services = self._parse_services(service_value)
+                if not services:
+                    field_errors['service'] = "No valid services found"
+            except Exception as e:
+                field_errors['service'] = f"Failed to parse service: {str(e)}"
+                services = []
+        
+        # If any required fields failed, raise error with field details
+        if field_errors:
+            error_messages = [f"{field}: {msg}" for field, msg in field_errors.items()]
+            raise ValueError("; ".join(error_messages))
         
         return NormalizedRule(
             source_endpoints=source_endpoints,

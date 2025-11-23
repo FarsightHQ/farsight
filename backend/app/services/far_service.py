@@ -4,15 +4,19 @@ Service layer for FAR request processing
 import logging
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from fastapi import UploadFile, HTTPException
 
 from app.models import FarRequest
 from app.schemas import FarRequestCreate, FarRequestResponse
 from app.utils import (
-    validate_csv_file, 
+    validate_csv_file_enhanced, 
     get_upload_path, 
     save_upload_file, 
     derive_title_from_filename
+)
+from app.utils.csv_errors import (
+    DatabaseConnectionError, FileSystemError, InsufficientStorageError
 )
 from app.core.config import settings
 
@@ -50,8 +54,12 @@ class FarIngestionService:
         """
         logger.info(f"Processing FAR upload: {file.filename}")
         
-        # Validate file
-        validate_csv_file(file)
+        # Enhanced file validation with content checking
+        try:
+            validate_csv_file_enhanced(file)
+        except HTTPException:
+            # Re-raise validation errors as-is
+            raise
         
         # Generate title if not provided
         if not title:
@@ -63,13 +71,24 @@ class FarIngestionService:
             settings.UPLOAD_DIR
         )
         
+        far_request = None
         try:
             # Save file and compute hash/size
-            sha256_hash, file_size = await save_upload_file(
-                file, 
-                full_path, 
-                settings.max_upload_bytes
-            )
+            try:
+                sha256_hash, file_size = await save_upload_file(
+                    file, 
+                    full_path, 
+                    settings.max_upload_bytes
+                )
+            except (InsufficientStorageError, FileSystemError):
+                # Re-raise storage/filesystem errors as-is
+                raise
+            except Exception as e:
+                logger.error(f"Error saving file: {str(e)}", exc_info=True)
+                raise FileSystemError(
+                    message=f"Failed to save uploaded file: {str(e)}",
+                    details={"filename": file.filename, "path": relative_path}
+                )
             
             logger.info(
                 f"File saved successfully: {relative_path}, "
@@ -77,20 +96,37 @@ class FarIngestionService:
             )
             
             # Create database record
-            far_request_data = FarRequestCreate(
-                title=title,
-                external_id=external_id,
-                source_filename=file.filename or "unknown.csv",
-                source_sha256=sha256_hash,
-                source_size_bytes=file_size,
-                storage_path=relative_path,
-                created_by=created_by
-            )
-            
-            far_request = FarRequest(**far_request_data.model_dump())
-            self.db.add(far_request)
-            self.db.commit()
-            self.db.refresh(far_request)
+            try:
+                far_request_data = FarRequestCreate(
+                    title=title,
+                    external_id=external_id,
+                    source_filename=file.filename or "unknown.csv",
+                    source_sha256=sha256_hash,
+                    source_size_bytes=file_size,
+                    storage_path=relative_path,
+                    created_by=created_by
+                )
+                
+                far_request = FarRequest(**far_request_data.model_dump())
+                self.db.add(far_request)
+                self.db.commit()
+                self.db.refresh(far_request)
+            except OperationalError as e:
+                # Database connection error
+                self.db.rollback()
+                logger.error(f"Database connection error: {str(e)}", exc_info=True)
+                raise DatabaseConnectionError(
+                    message="Database connection failed while creating request",
+                    details={"error": str(e)}
+                )
+            except Exception as e:
+                # Other database errors
+                self.db.rollback()
+                logger.error(f"Database error: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create database record: {str(e)}"
+                )
             
             logger.info(
                 f"FAR request created successfully: ID={far_request.id}, "
@@ -100,14 +136,24 @@ class FarIngestionService:
             # Build response directly from the database object
             return FarRequestResponse.from_orm(far_request)
             
-        except HTTPException:
-            # Re-raise HTTP exceptions as-is
+        except (HTTPException, DatabaseConnectionError, FileSystemError, InsufficientStorageError):
+            # Re-raise known exceptions as-is
             raise
         except Exception as e:
-            logger.error(f"Error processing FAR upload: {str(e)}")
+            logger.error(f"Unexpected error processing FAR upload: {str(e)}", exc_info=True)
             # Clean up database if created
-            if 'far_request' in locals():
-                self.db.rollback()
+            if far_request:
+                try:
+                    self.db.rollback()
+                except:
+                    pass
+            # Clean up file if saved
+            try:
+                import os
+                if os.path.exists(full_path):
+                    os.unlink(full_path)
+            except:
+                pass
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to process upload: {str(e)}"

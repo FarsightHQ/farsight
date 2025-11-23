@@ -22,7 +22,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept=".csv"
+        accept=".csv,text/csv,application/csv"
         class="hidden"
         @change="handleFileSelect"
       />
@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -150,9 +150,29 @@ const triggerFileInput = () => {
 }
 
 const validateFile = (file) => {
-  // Check file type
+  // Check if file is provided
+  if (!file) {
+    emit('error', 'No file selected')
+    return false
+  }
+
+  // Check file type by extension
   if (!file.name.toLowerCase().endsWith('.csv')) {
     emit('error', 'Only CSV files are allowed')
+    return false
+  }
+
+  // Check MIME type only if it's provided (some browsers don't set it reliably)
+  // If MIME type is provided and doesn't match, show warning but don't block
+  const validMimeTypes = ['text/csv', 'application/csv', 'text/plain', '']
+  if (file.type && file.type.length > 0 && !validMimeTypes.includes(file.type)) {
+    // Don't block upload, just warn - extension check is more reliable
+    console.warn(`File MIME type is ${file.type}, but extension is .csv. Allowing upload.`)
+  }
+
+  // Check if file is empty
+  if (file.size === 0) {
+    emit('error', 'File is empty. Please upload a valid CSV file.')
     return false
   }
 
@@ -167,9 +187,16 @@ const validateFile = (file) => {
 
 const handleFileSelect = (event) => {
   const file = event.target.files[0]
-  if (file && validateFile(file)) {
-    emit('update:modelValue', file)
-    emit('error', '')
+  if (file) {
+    // Always allow file selection, but validate and show error if invalid
+    if (validateFile(file)) {
+      emit('update:modelValue', file)
+      emit('error', '')
+    } else {
+      // Still emit the file so user can see it, but keep error visible
+      emit('update:modelValue', file)
+      // Error is already emitted by validateFile
+    }
   }
 }
 
@@ -185,9 +212,16 @@ const handleDragLeave = () => {
 const handleDrop = (event) => {
   isDragging.value = false
   const file = event.dataTransfer.files[0]
-  if (file && validateFile(file)) {
-    emit('update:modelValue', file)
-    emit('error', '')
+  if (file) {
+    // Always allow file drop, but validate and show error if invalid
+    if (validateFile(file)) {
+      emit('update:modelValue', file)
+      emit('error', '')
+    } else {
+      // Still emit the file so user can see it, but keep error visible
+      emit('update:modelValue', file)
+      // Error is already emitted by validateFile
+    }
   }
 }
 
@@ -206,5 +240,24 @@ const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
+
+// Watch for file changes via v-model and re-validate
+// Only validate when file actually changes (not on every render)
+watch(() => props.modelValue, (newFile, oldFile) => {
+  // Only validate if file actually changed
+  if (newFile !== oldFile) {
+    if (newFile) {
+      // Re-validate when file changes
+      const isValid = validateFile(newFile)
+      // Explicitly clear error if validation passes
+      if (isValid) {
+        emit('error', '')
+      }
+    } else {
+      // Clear error when file is removed
+      emit('error', '')
+    }
+  }
+})
 </script>
 
