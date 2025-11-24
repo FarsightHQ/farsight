@@ -4,6 +4,15 @@ export default {
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'btn-primary',
+    'btn-secondary',
+    'btn-outline',
+    'btn-ghost',
+    {
+      pattern: /^btn-(primary|secondary|outline|ghost)$/,
+    },
+  ],
   theme: {
     extend: {
       fontFamily: {
