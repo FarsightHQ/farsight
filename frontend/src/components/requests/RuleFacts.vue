@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
-    <!-- Health Status Badge (if available) -->
-    <div v-if="facts?.health_status" class="flex items-center justify-start">
+    <!-- Health Status Badge (if available) - Show in major facts only -->
+    <div v-if="facts?.health_status && !showOnlyDetailed" class="flex items-center justify-start">
       <Card
         :class="[
           'p-3 inline-flex items-center space-x-2',
@@ -30,8 +30,8 @@
       </Card>
     </div>
 
-    <!-- Hybrid Facts Summary (if available) -->
-    <div v-if="facts?.tuple_summary" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <!-- Hybrid Facts Summary (if available) - Show in major facts only -->
+    <div v-if="facts?.tuple_summary && !showOnlyDetailed" class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <Card
         :class="[
           'p-3',
@@ -90,8 +90,8 @@
       </Card>
     </div>
 
-    <!-- Facts Summary Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <!-- Facts Summary Cards - Show in major facts only -->
+    <div v-if="!showOnlyDetailed" class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <!-- Self-Flow -->
       <Card
         :class="[
@@ -187,8 +187,31 @@
       </Card>
     </div>
 
-    <!-- Expandable Details -->
-    <div v-if="facts && Object.keys(facts).length > 0">
+    <!-- Detailed Facts - Always expanded when showOnlyDetailed is true -->
+    <div v-if="showOnlyDetailed && facts && Object.keys(facts).length > 0">
+      <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div
+            v-for="(value, key) in facts"
+            :key="key"
+            :class="[
+              'flex flex-col p-2 rounded',
+              isProblematicField(key, value) ? 'bg-error-50 border border-error-200' : ''
+            ]"
+          >
+            <span class="font-medium text-gray-700 capitalize mb-1">
+              {{ formatKey(key) }}:
+            </span>
+            <span class="text-gray-600 font-mono text-xs">
+              {{ formatValue(value) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expandable Details - Original behavior when neither prop is set -->
+    <div v-if="!showOnlyMajor && !showOnlyDetailed && facts && Object.keys(facts).length > 0">
       <button
         @click="expanded = !expanded"
         class="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -255,6 +278,14 @@ const props = defineProps({
   facts: {
     type: Object,
     default: null,
+  },
+  showOnlyMajor: {
+    type: Boolean,
+    default: false,
+  },
+  showOnlyDetailed: {
+    type: Boolean,
+    default: false,
   },
 })
 
