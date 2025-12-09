@@ -21,6 +21,7 @@ class FarRule(Base):
     direction = Column(Text, nullable=True)  # Optional direction
     facts = Column(JSONB, nullable=True)  # Rule-level facts in hybrid approach
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
     request = relationship("FarRequest", back_populates="rules")
