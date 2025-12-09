@@ -31,6 +31,10 @@
       </div>
     </Card>
 
+    <!-- 2-Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Left Column: Network Endpoints and Services -->
+      <div class="space-y-6">
     <!-- Endpoints Section -->
     <Card class="p-6">
       <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Endpoints</h3>
@@ -139,13 +143,10 @@
         </p>
       </div>
     </Card>
+      </div>
 
-    <!-- Facts Section -->
-    <Card class="p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Facts</h3>
-      <RuleFacts :facts="rule.facts" />
-    </Card>
-
+      <!-- Right Column: Related Info, Major Facts, Detailed Facts -->
+      <div class="space-y-6">
     <!-- Related Information -->
     <Card class="p-6">
       <h3 class="text-lg font-semibold text-gray-900 mb-4">Related Information</h3>
@@ -160,6 +161,20 @@
         </div>
       </div>
     </Card>
+
+        <!-- Major Facts Section -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Major Facts</h3>
+          <RuleFacts :facts="rule.facts" :show-only-major="true" />
+        </Card>
+
+        <!-- Detailed Facts Section -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Detailed Facts</h3>
+          <RuleFacts :facts="rule.facts" :show-only-detailed="true" />
+        </Card>
+      </div>
+    </div>
   </div>
 
   <!-- Loading State -->

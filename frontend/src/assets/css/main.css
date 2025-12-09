@@ -30,7 +30,12 @@
   }
 
   .btn-primary {
-    @apply btn bg-theme-active text-theme-text-sidebar hover:bg-theme-active/90 focus:ring-theme-active;
+    @apply btn text-theme-text-sidebar focus:ring-theme-active;
+    background-color: #003566 !important;
+  }
+
+  .btn-primary:hover {
+    background-color: rgba(0, 53, 102, 0.9) !important;
   }
 
   .btn-secondary {
