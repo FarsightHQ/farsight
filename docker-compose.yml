@@ -22,6 +22,36 @@ services:
       timeout: 5s
       retries: 5
 
+  # Keycloak - Authentication Server
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: farsight_keycloak
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-farsight}
+      KC_DB_USERNAME: ${POSTGRES_USER:-farsight_user}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    command: start-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
   # Python Backend Server
   backend:
     build:
@@ -34,6 +64,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-farsight}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-farsight-backend}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -41,6 +77,8 @@ services:
       - ./backend/uploads:/app/uploads
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - farsight_network

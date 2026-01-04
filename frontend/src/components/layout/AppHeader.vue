@@ -11,19 +11,36 @@
 
       <!-- Right: User Details + Logout -->
       <div class="flex items-center space-x-4">
-        <!-- User Info -->
-        <div class="flex items-center space-x-3">
+        <!-- User Info (shown when authenticated) -->
+        <div v-if="authenticated && user" class="flex items-center space-x-3">
           <div class="text-right">
-            <p class="text-sm font-medium text-theme-text-header">User Name</p>
-            <p class="text-xs text-theme-text-header/70">user@example.com</p>
+            <p class="text-sm font-medium text-theme-text-header">
+              {{ user.name || user.username || 'User' }}
+            </p>
+            <p v-if="user.email" class="text-xs text-theme-text-header/70">
+              {{ user.email }}
+            </p>
           </div>
           <div class="h-10 w-10 rounded-full bg-theme-text-header/20 flex items-center justify-center">
-            <span class="text-sm font-medium text-theme-text-header">U</span>
+            <span class="text-sm font-medium text-theme-text-header">
+              {{ getUserInitials(user) }}
+            </span>
           </div>
         </div>
         
-        <!-- Logout Button -->
+        <!-- Login Button (shown when not authenticated) -->
         <button
+          v-if="!authenticated"
+          @click="handleLogin"
+          class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-theme-text-header hover:text-theme-text-header/80 hover:bg-theme-text-header/10 rounded-lg transition-colors"
+        >
+          <ArrowRightOnRectangleIcon class="h-5 w-5" />
+          <span>Login</span>
+        </button>
+        
+        <!-- Logout Button (shown when authenticated) -->
+        <button
+          v-if="authenticated"
           @click="handleLogout"
           class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-theme-text-header hover:text-theme-text-header/80 hover:bg-theme-text-header/10 rounded-lg transition-colors"
         >
@@ -37,12 +54,34 @@
 
 <script setup>
 import { EyeIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
+import { useAuth } from '../../composables/useAuth'
+import { computed } from 'vue'
+
+const { authenticated, user, login, logout } = useAuth()
+
+const handleLogin = () => {
+  login()
+}
 
 const handleLogout = () => {
-  // TODO: Implement logout logic
-  // Clear auth tokens, user session, etc.
-  console.log('Logout clicked')
-  // router.push('/login')
+  logout()
+}
+
+const getUserInitials = (user) => {
+  if (user.name) {
+    const names = user.name.split(' ')
+    if (names.length >= 2) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase()
+    }
+    return names[0][0].toUpperCase()
+  }
+  if (user.username) {
+    return user.username[0].toUpperCase()
+  }
+  if (user.email) {
+    return user.email[0].toUpperCase()
+  }
+  return 'U'
 }
 </script>
 

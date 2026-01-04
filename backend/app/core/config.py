@@ -48,6 +48,39 @@ class Settings:
     
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Keycloak Authentication Settings
+    KEYCLOAK_URL: str = os.getenv("KEYCLOAK_URL", "http://localhost:8080")
+    KEYCLOAK_REALM: str = os.getenv("KEYCLOAK_REALM", "farsight")
+    KEYCLOAK_CLIENT_ID: str = os.getenv("KEYCLOAK_CLIENT_ID", "farsight-backend")
+    KEYCLOAK_CLIENT_SECRET: str = os.getenv("KEYCLOAK_CLIENT_SECRET", "")
+    KEYCLOAK_ALGORITHM: str = os.getenv("KEYCLOAK_ALGORITHM", "RS256")
+    KEYCLOAK_PUBLIC_KEY: str = os.getenv("KEYCLOAK_PUBLIC_KEY", "")
+    
+    # Environment
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    
+    # CORS Settings
+    CORS_ORIGINS: list[str] = [
+        origin.strip() 
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+        if origin.strip()
+    ]
+    
+    @property
+    def keycloak_well_known_url(self) -> str:
+        """Get Keycloak well-known configuration endpoint"""
+        return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}/.well-known/openid-configuration"
+    
+    @property
+    def keycloak_jwks_url(self) -> str:
+        """Get Keycloak JWKS endpoint for public keys"""
+        return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}/protocol/openid-connect/certs"
+    
+    @property
+    def keycloak_issuer(self) -> str:
+        """Get Keycloak issuer URL"""
+        return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}"
 
 
 # Global settings instance
