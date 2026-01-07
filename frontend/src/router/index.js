@@ -7,7 +7,7 @@ const routes = [
     path: '/',
     name: 'Home',
     component: Home,
-    meta: { requiresAuth: false }, // Public route
+    meta: { requiresAuth: true }, // Requires authentication
   },
   {
     path: '/rules',
@@ -72,8 +72,9 @@ const router = createRouter({
 
 // Navigation guard to check authentication
 router.beforeEach(async (to, from, next) => {
-  // Check if route requires authentication
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  // Require authentication by default, unless route is explicitly marked as public
+  const isPublicRoute = to.matched.some((record) => record.meta.public === true)
+  const requiresAuth = !isPublicRoute // Require auth by default
 
   if (requiresAuth) {
     // Check if user is authenticated

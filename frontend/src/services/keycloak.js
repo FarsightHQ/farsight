@@ -80,7 +80,12 @@ export function logout(options = {}) {
     clearTimeout(tokenRefreshTimer)
     tokenRefreshTimer = null
   }
-  keycloak.logout(options)
+  // Set default redirect URI to home page if not provided
+  const logoutOptions = {
+    redirectUri: window.location.origin + '/',
+    ...options,
+  }
+  keycloak.logout(logoutOptions)
 }
 
 /**
