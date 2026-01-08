@@ -80,7 +80,7 @@ router.beforeEach(async (to, from, next) => {
     // Check if user is authenticated
     if (!isAuthenticated()) {
       // Store intended destination for redirect after login
-      const redirectUri = window.location.origin + to.fullPath
+      const redirectUri = window.location.origin + to.path
       login({ redirectUri })
       return
     }
@@ -91,7 +91,7 @@ router.beforeEach(async (to, from, next) => {
     } catch (error) {
       console.error('Token refresh failed:', error)
       // If refresh fails, redirect to login
-      const redirectUri = window.location.origin + to.fullPath
+      const redirectUri = window.location.origin + to.path
       login({ redirectUri })
       return
     }
