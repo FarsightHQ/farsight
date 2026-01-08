@@ -9,7 +9,7 @@
     <button
       @click="toggleSidebar"
       :class="[
-        'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-theme-sidebar border border-theme-border-sidebar rounded-full shadow-sm hover:shadow-md hover:bg-theme-active/50 transition-all duration-300 ease-in-out',
+        'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-theme-sidebar border border-theme-border-sidebar rounded-full shadow-sm hover:shadow-md hover:bg-theme-sidebar-hover transition-all duration-300 ease-in-out',
         isCollapsed ? 'right-2' : '-right-3'
       ]"
       aria-label="Toggle sidebar"
@@ -28,7 +28,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-active/50'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             exact-active-class="bg-theme-nav-selected text-theme-text-sidebar"
@@ -51,7 +51,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-active/50'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Requests' : ''"
@@ -73,7 +73,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-active/50'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'All Rules' : ''"
@@ -95,7 +95,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-active/50'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Assets' : ''"

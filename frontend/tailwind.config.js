@@ -32,6 +32,7 @@ export default {
           'card': '#ffffff',
           'content': '#f9fafb',
           'sidebar': '#003566',
+          'sidebar-hover': '#004A8F',
           'header': '#000814',
           'hover': '#FFD60A',
           'selected': '#FFC300',

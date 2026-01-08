@@ -39,24 +39,8 @@
       </div>
     </Card>
 
-    <!-- View Toggle and Sort -->
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center space-x-2">
-        <Button
-          :variant="viewMode === 'table' ? 'primary' : 'outline'"
-          size="sm"
-          @click="viewMode = 'table'"
-        >
-          Table
-        </Button>
-        <Button
-          :variant="viewMode === 'card' ? 'primary' : 'outline'"
-          size="sm"
-          @click="viewMode = 'card'"
-        >
-          Cards
-        </Button>
-      </div>
+    <!-- Results Count -->
+    <div class="flex items-center justify-end mb-4">
       <div class="text-sm text-theme-text-content">
         Showing {{ displayedRequests.length }} of {{ totalRequests }} requests
       </div>
@@ -99,24 +83,13 @@
     </Card>
 
     <!-- Table View -->
-    <div v-else-if="viewMode === 'table'">
+    <div v-else>
       <RequestTable
         :requests="displayedRequests"
         :loading="loading"
         :sort-key="sortKey"
         :sort-direction="sortDirection"
         @sort="handleSort"
-        @view="handleView"
-        @delete="handleDelete"
-      />
-    </div>
-
-    <!-- Card View -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <RequestCard
-        v-for="request in displayedRequests"
-        :key="request.id"
-        :request="request"
         @view="handleView"
         @delete="handleDelete"
       />
@@ -177,7 +150,6 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
 import RequestTable from '@/components/requests/RequestTable.vue'
-import RequestCard from '@/components/requests/RequestCard.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 
 const router = useRouter()
@@ -187,7 +159,6 @@ const loading = ref(false)
 const requests = ref([])
 const searchQuery = ref('')
 const statusFilter = ref('')
-const viewMode = ref('table')
 const sortKey = ref('created_at')
 const sortDirection = ref('desc')
 const currentPage = ref(1)
