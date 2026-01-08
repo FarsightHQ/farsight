@@ -122,9 +122,130 @@ services:
       - farsight_network
     restart: unless-stopped
 
+  # SigNoz Observability Stack
+  
+  # ClickHouse Zookeeper - Required for ClickHouse coordination
+  clickhouse-zookeeper:
+    image: zookeeper:3.9
+    container_name: farsight_clickhouse_zookeeper
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse - Storage backend for traces, metrics, and logs
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: farsight_clickhouse
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-signoz}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    ports:
+      - "${CLICKHOUSE_PORT:-8123}:8123"  # HTTP interface
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"  # Native protocol
+    depends_on:
+      clickhouse-zookeeper:
+        condition: service_healthy
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # OTEL Collector - Receives telemetry data from application services
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: farsight_otel_collector
+    command: ["--config=/etc/otel-collector/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"  # OTLP gRPC receiver
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"  # OTLP HTTP receiver
+      - "${OTEL_COLLECTOR_METRICS_PORT:-8888}:8888"  # Prometheus metrics endpoint
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8888/metrics || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SigNoz Query Service - Processes queries from UI
+  signoz-query-service:
+    image: signoz/query-service:latest
+    container_name: farsight_signoz_query_service
+    environment:
+      ALERTMANAGER_API_PREFIX: ""
+      CLICKHOUSE_ADDR: clickhouse:9000
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-signoz}
+      CLICKHOUSE_USERNAME: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      DASHBOARDS_PATH: /root/signoz/tests/dashboards
+      PROM_QUERY_PORT: 8080
+      PROM_QUERY_PREFIX: /api/v1
+      STORAGE: clickhouse
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "${SIGNOZ_QUERY_SERVICE_PORT:-8080}:8080"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # SigNoz Frontend UI - Web dashboard
+  signoz-frontend:
+    image: signoz/frontend:latest
+    container_name: farsight_signoz_frontend
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_BASE_URL: http://localhost:3301
+      REACT_APP_ENABLE_ANALYTICS: "false"
+    ports:
+      - "${SIGNOZ_UI_PORT:-3301}:3301"
+    depends_on:
+      signoz-query-service:
+        condition: service_healthy
+    networks:
+      - farsight_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3301 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
   pgadmin_data:
+  clickhouse_data:
+  clickhouse_logs:
 
 networks:
   farsight_network:
