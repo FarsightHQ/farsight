@@ -81,9 +81,10 @@ export function logout(options = {}) {
     tokenRefreshTimer = null
   }
   // Set default redirect URI to home page if not provided
+  // Use simple path to avoid URI length issues
+  const defaultRedirectUri = window.location.origin + '/'
   const logoutOptions = {
-    redirectUri: window.location.origin + '/',
-    ...options,
+    redirectUri: options.redirectUri || defaultRedirectUri,
   }
   keycloak.logout(logoutOptions)
 }

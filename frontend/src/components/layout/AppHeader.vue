@@ -28,16 +28,6 @@
           </div>
         </div>
         
-        <!-- Login Button (shown when not authenticated) -->
-        <button
-          v-if="!authenticated"
-          @click="handleLogin"
-          class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-theme-text-header hover:text-theme-text-header/80 hover:bg-theme-text-header/10 rounded-lg transition-colors"
-        >
-          <ArrowRightOnRectangleIcon class="h-5 w-5" />
-          <span>Login</span>
-        </button>
-        
         <!-- Logout Button (shown when authenticated) -->
         <button
           v-if="authenticated"
@@ -57,11 +47,7 @@ import { EyeIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuth } from '../../composables/useAuth'
 import { computed } from 'vue'
 
-const { authenticated, user, login, logout } = useAuth()
-
-const handleLogin = () => {
-  login()
-}
+const { authenticated, user, logout } = useAuth()
 
 const handleLogout = () => {
   logout()

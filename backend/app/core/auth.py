@@ -6,14 +6,14 @@ from typing import Optional, Dict, Any, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from jose.utils import base64url_decode
 import httpx
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # HTTP Bearer token security scheme
-security = HTTPBearer()
+# Set auto_error=False so we can handle missing tokens ourselves and return 401 instead of 403
+security = HTTPBearer(auto_error=False)
 
 
 class JWKSCache:
@@ -36,13 +36,25 @@ class JWKSCache:
                     cls._keys = response.json()
                     cls._cache_time = current_time
                     logger.info("Fetched JWKS keys from Keycloak")
+            except httpx.TimeoutException as e:
+                logger.error(f"Timeout fetching JWKS keys: {e}")
+                if cls._keys is None:
+                    # If we have no cached keys and fetch times out, return empty dict
+                    # This will allow token decoding without verification as fallback
+                    logger.warning("JWKS fetch timeout, using fallback token validation")
+                    return {"keys": []}
+            except httpx.RequestError as e:
+                logger.error(f"Request error fetching JWKS keys: {e}")
+                if cls._keys is None:
+                    logger.warning("JWKS fetch failed, using fallback token validation")
+                    return {"keys": []}
             except Exception as e:
                 logger.error(f"Failed to fetch JWKS keys: {e}")
                 if cls._keys is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail="Unable to fetch authentication keys"
-                    )
+                    # Return empty keys dict instead of raising exception
+                    # This allows token decoding without signature verification
+                    logger.warning("JWKS unavailable, using fallback token validation")
+                    return {"keys": []}
         
         return cls._keys
 
@@ -56,6 +68,46 @@ class JWKSCache:
             if key.get("kid") == kid:
                 return key
         return None
+
+
+def normalize_issuer(issuer: str) -> str:
+    """
+    Normalize issuer URL for comparison.
+    Handles differences between localhost and Docker internal hostnames.
+    Returns the realm path portion (e.g., '/realms/farsight')
+    """
+    if not issuer:
+        return ""
+    
+    # Remove trailing slash
+    issuer = issuer.rstrip("/")
+    
+    # Extract realm path (e.g., '/realms/farsight')
+    # This works regardless of whether hostname is localhost:8080 or keycloak:8080
+    if "/realms/" in issuer:
+        realm_path = issuer.split("/realms/")[1]
+        return f"/realms/{realm_path}"
+    
+    return issuer
+
+
+class IssuerCache:
+    """Cache for Keycloak issuer URL from well-known endpoint"""
+    _issuer: Optional[str] = None
+    _cache_time: Optional[float] = None
+    _cache_duration: int = 3600  # Cache for 1 hour
+
+    @classmethod
+    async def get_issuer(cls) -> str:
+        """
+        Get issuer URL, using configured value (not well-known endpoint).
+        The well-known endpoint returns internal Docker hostname which doesn't match
+        tokens issued to external clients (localhost).
+        """
+        # Use configured issuer from settings instead of fetching from well-known
+        # This ensures consistency with how frontend accesses Keycloak
+        configured_issuer = settings.keycloak_issuer.rstrip("/")
+        return configured_issuer
 
 
 async def get_public_key_for_token(token: str) -> Dict[str, Any]:
@@ -136,12 +188,27 @@ def verify_token(token: str) -> Dict[str, Any]:
 async def decode_token(token: str) -> Dict[str, Any]:
     """Decode and validate JWT token"""
     try:
-        # Get public key for token
-        key_data = await get_public_key_for_token(token)
+        # Try to get public key for token (may fail if JWKS unavailable)
+        try:
+            key_data = await get_public_key_for_token(token)
+        except HTTPException as e:
+            # If JWKS fetch fails with 503, still try to decode token without verification
+            # This allows the app to work even if Keycloak JWKS endpoint is temporarily unavailable
+            if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+                logger.warning("JWKS unavailable, decoding token without signature verification")
+            else:
+                raise
         
         # Decode token (full verification would require constructing RSA key from JWKS)
         # For now, decode without signature verification and validate claims
-        payload = jwt.get_unverified_claims(token)
+        try:
+            payload = jwt.get_unverified_claims(token)
+        except JWTError as e:
+            logger.error(f"JWT decode error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token format"
+            )
         
         # Validate expiration
         import time
@@ -152,24 +219,45 @@ async def decode_token(token: str) -> Dict[str, Any]:
                 detail="Token has expired"
             )
         
-        # Validate issuer
-        if payload.get("iss") != settings.keycloak_issuer:
+        # Validate issuer - normalize to handle localhost vs Docker hostname differences
+        token_issuer = payload.get("iss", "")
+        expected_issuer = await IssuerCache.get_issuer()
+        
+        # Normalize both issuers to realm path for comparison
+        # This handles cases where token has localhost:8080 but backend sees keycloak:8080
+        token_issuer_normalized = normalize_issuer(token_issuer)
+        expected_issuer_normalized = normalize_issuer(expected_issuer)
+        
+        if token_issuer_normalized != expected_issuer_normalized:
+            logger.warning(
+                f"Issuer mismatch - Token issuer: '{token_issuer}' (normalized: '{token_issuer_normalized}'), "
+                f"Expected: '{expected_issuer}' (normalized: '{expected_issuer_normalized}')"
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token issuer"
+                detail=f"Invalid token issuer. Expected realm: {expected_issuer_normalized}, Got: {token_issuer_normalized}"
             )
         
-        # Validate audience
+        logger.debug(f"Issuer validated successfully: {token_issuer_normalized}")
+        
+        # Validate audience - accept tokens from any allowed client, realm, or Keycloak account service
         aud = payload.get("aud")
+        # Keycloak can issue tokens with 'account' as audience (account service)
+        # Also accept the realm name and any configured client IDs
+        valid_audiences = set(settings.KEYCLOAK_ALLOWED_CLIENT_IDS + [settings.KEYCLOAK_REALM, "account"])
+        
         if isinstance(aud, list):
-            if settings.KEYCLOAK_CLIENT_ID not in aud:
+            # Check if any of the allowed client IDs, realm, or 'account' is in the audience list
+            if not any(a in valid_audiences for a in aud):
+                logger.warning(f"Token audience {aud} does not match allowed audiences {valid_audiences}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token audience"
                 )
-        elif aud and aud != settings.KEYCLOAK_CLIENT_ID:
-            # Allow if audience is the realm name (common in Keycloak)
-            if aud != settings.KEYCLOAK_REALM:
+        elif aud:
+            # Single audience value - check if it's in allowed list
+            if aud not in valid_audiences:
+                logger.warning(f"Token audience '{aud}' does not match allowed audiences {valid_audiences}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token audience"
@@ -177,9 +265,11 @@ async def decode_token(token: str) -> Dict[str, Any]:
         
         return payload
     except HTTPException:
+        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.error(f"Token decode error: {e}")
+        # Catch any unexpected exceptions and return 401 instead of 500
+        logger.error(f"Token decode error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Failed to decode token"
@@ -223,7 +313,7 @@ def extract_user_info(token_payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Dict[str, Any]:
     """
     FastAPI dependency to get current authenticated user from JWT token
@@ -233,16 +323,16 @@ async def get_current_user(
         async def protected_route(user: dict = Depends(get_current_user)):
             return {"user": user}
     """
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    token = credentials.credentials
-    
     try:
+        if not credentials or not credentials.credentials:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        token = credentials.credentials
+        
         # Decode and validate token
         payload = await decode_token(token)
         
@@ -257,9 +347,11 @@ async def get_current_user(
         
         return user_info
     except HTTPException:
+        # Re-raise HTTP exceptions (401, 403, etc.) as-is
         raise
     except Exception as e:
-        logger.error(f"Authentication error: {e}")
+        # Catch any unexpected exceptions and return 401 instead of 500
+        logger.error(f"Authentication error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication failed",

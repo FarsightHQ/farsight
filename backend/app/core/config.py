@@ -57,6 +57,13 @@ class Settings:
     KEYCLOAK_ALGORITHM: str = os.getenv("KEYCLOAK_ALGORITHM", "RS256")
     KEYCLOAK_PUBLIC_KEY: str = os.getenv("KEYCLOAK_PUBLIC_KEY", "")
     
+    # Allowed client IDs for token validation (frontend can also authenticate)
+    KEYCLOAK_ALLOWED_CLIENT_IDS: list[str] = [
+        client_id.strip()
+        for client_id in os.getenv("KEYCLOAK_ALLOWED_CLIENT_IDS", "farsight-backend,farsight-frontend").split(",")
+        if client_id.strip()
+    ]
+    
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
@@ -80,7 +87,8 @@ class Settings:
     @property
     def keycloak_issuer(self) -> str:
         """Get Keycloak issuer URL"""
-        return f"{self.KEYCLOAK_URL}/realms/{self.KEYCLOAK_REALM}"
+        # Standard Keycloak issuer format: {KEYCLOAK_URL}/realms/{REALM}
+        return f"{self.KEYCLOAK_URL.rstrip('/')}/realms/{self.KEYCLOAK_REALM}"
 
 
 # Global settings instance

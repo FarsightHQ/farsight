@@ -82,6 +82,8 @@ router.beforeEach(async (to, from, next) => {
       // Store intended destination for redirect after login
       const redirectUri = window.location.origin + to.path
       login({ redirectUri })
+      // Cancel navigation since we're redirecting to Keycloak
+      next(false)
       return
     }
 
@@ -93,10 +95,13 @@ router.beforeEach(async (to, from, next) => {
       // If refresh fails, redirect to login
       const redirectUri = window.location.origin + to.path
       login({ redirectUri })
+      // Cancel navigation since we're redirecting to Keycloak
+      next(false)
       return
     }
   }
 
+  // Allow navigation to proceed
   next()
 })
 

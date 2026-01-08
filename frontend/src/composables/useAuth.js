@@ -1,12 +1,12 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
-  initKeycloak,
   login,
   logout,
   isAuthenticated,
   getUserInfo,
   getRoles,
   hasRole,
+  getKeycloakInstance,
 } from '../services/keycloak.js'
 
 // Global authentication state
@@ -14,32 +14,63 @@ const authenticated = ref(false)
 const user = ref(null)
 const loading = ref(true)
 
+// Set up Keycloak event listeners once globally
+let listenersSetup = false
+
+function setupKeycloakListeners() {
+  if (listenersSetup) return
+  
+  const keycloak = getKeycloakInstance()
+  if (!keycloak) return
+  
+  // Update state when authentication succeeds
+  keycloak.onAuthSuccess = () => {
+    authenticated.value = isAuthenticated()
+    if (authenticated.value) {
+      user.value = getUserInfo()
+    }
+  }
+  
+  // Update state on authentication error
+  keycloak.onAuthError = () => {
+    authenticated.value = false
+    user.value = null
+  }
+  
+  // Update state on logout
+  keycloak.onAuthLogout = () => {
+    authenticated.value = false
+    user.value = null
+  }
+  
+  // Update state when token is refreshed
+  keycloak.onTokenExpired = () => {
+    // Token refresh will be handled by the refresh function
+    // But we should update user info in case it changed
+    if (isAuthenticated()) {
+      user.value = getUserInfo()
+    }
+  }
+  
+  listenersSetup = true
+}
+
+/**
+ * Check authentication status (without initializing Keycloak)
+ */
+function checkAuth() {
+  authenticated.value = isAuthenticated()
+  if (authenticated.value) {
+    user.value = getUserInfo()
+  } else {
+    user.value = null
+  }
+}
+
 /**
  * Composable for authentication state and methods
  */
 export function useAuth() {
-  /**
-   * Initialize Keycloak and check authentication status
-   */
-  const checkAuth = async () => {
-    try {
-      loading.value = true
-      const authStatus = await initKeycloak()
-      authenticated.value = authStatus
-      
-      if (authStatus) {
-        user.value = getUserInfo()
-      } else {
-        user.value = null
-      }
-    } catch (error) {
-      console.error('Authentication check failed:', error)
-      authenticated.value = false
-      user.value = null
-    } finally {
-      loading.value = false
-    }
-  }
 
   /**
    * Login function
@@ -71,11 +102,13 @@ export function useAuth() {
     return getRoles()
   })
 
-  // Initialize on mount
+  // Initialize on mount - Keycloak is already initialized in main.js
   onMounted(() => {
-    if (loading.value) {
-      checkAuth()
-    }
+    // Set up Keycloak event listeners if not already done
+    setupKeycloakListeners()
+    // Check current authentication status
+    checkAuth()
+    loading.value = false
   })
 
   return {
