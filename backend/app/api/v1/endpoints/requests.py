@@ -79,39 +79,52 @@ def list_far_requests(
     """
     List all FAR requests with pagination
     """
-    total = db.query(FarRequest).count()
-    requests = db.query(FarRequest).offset(skip).limit(limit).all()
-    
-    # Convert SQLAlchemy models to dictionaries for JSON serialization
-    requests_data = []
-    for req in requests:
-        requests_data.append({
-            "id": str(req.id),
-            "source_sha256": str(req.source_sha256 or ""),
-            "source_size_bytes": req.source_size_bytes,
-            "status": str(req.status or ""),
-            "created_at": req.created_at.isoformat() if req.created_at else None,
-            "source_filename": str(req.source_filename or ""),
-            "title": str(req.title or ""),
-            "external_id": str(req.external_id or "") if req.external_id else None,
-            "storage_path": str(req.storage_path or ""),
-            "created_by": str(req.created_by or "")
-        })
-    
-    return success_response(
-        data=requests_data,
-        message=f"Retrieved {len(requests_data)} of {total} FAR requests",
-        metadata={
-            "pagination": {
-                "skip": skip,
-                "limit": limit, 
-                "total": total,
-                "returned": len(requests_data),
-                "has_next": skip + len(requests_data) < total,
-                "has_previous": skip > 0
+    try:
+        total = db.query(FarRequest).count()
+        requests = db.query(FarRequest).offset(skip).limit(limit).all()
+        
+        # Convert SQLAlchemy models to dictionaries for JSON serialization
+        requests_data = []
+        for req in requests:
+            requests_data.append({
+                "id": str(req.id),
+                "source_sha256": str(req.source_sha256 or ""),
+                "source_size_bytes": req.source_size_bytes,
+                "status": str(req.status or ""),
+                "created_at": req.created_at.isoformat() if req.created_at else None,
+                "source_filename": str(req.source_filename or ""),
+                "title": str(req.title or ""),
+                "external_id": str(req.external_id or "") if req.external_id else None,
+                "storage_path": str(req.storage_path or ""),
+                "created_by": str(req.created_by or "")
+            })
+        
+        return success_response(
+            data=requests_data,
+            message=f"Retrieved {len(requests_data)} of {total} FAR requests",
+            metadata={
+                "pagination": {
+                    "skip": skip,
+                    "limit": limit, 
+                    "total": total,
+                    "returned": len(requests_data),
+                    "has_next": skip + len(requests_data) < total,
+                    "has_previous": skip > 0
+                }
             }
-        }
-    )
+        )
+    except OperationalError as e:
+        logger.error(f"Database error listing FAR requests: {e}", exc_info=True)
+        raise DatabaseConnectionError(
+            message="Database connection failed",
+            details={"error": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Error listing FAR requests: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve FAR requests: {str(e)}"
+        )
 
 
 @router.get("/{request_id}")
