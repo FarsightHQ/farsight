@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { getToken, refreshToken, isAuthenticated, login } from './keycloak.js'
+import { context, propagation, trace, SpanStatusCode } from '@opentelemetry/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -19,6 +20,17 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Add trace context headers (W3C Trace Context) for distributed tracing
+    const activeContext = context.active()
+    const headers = {}
+    propagation.inject(activeContext, headers)
+    
+    // Merge trace context headers into request headers
+    Object.keys(headers).forEach((key) => {
+      config.headers[key] = headers[key]
+    })
+
     return config
   },
   (error) => {
@@ -107,6 +119,22 @@ apiClient.interceptors.response.use(
 
     // Handle other errors
     if (error.response) {
+      // Server responded with error - capture for 100% sampling
+      const statusCode = error.response.status
+      const activeSpan = trace.getActiveSpan()
+      
+      // Mark the span as error for 100% sampling
+      if (activeSpan) {
+        activeSpan.setAttribute('http.status_code', statusCode)
+        activeSpan.setAttribute('error', true)
+        if (statusCode >= 400) {
+          activeSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: `HTTP ${statusCode}: ${error.response.statusText}`,
+          })
+        }
+      }
+
       // Server responded with error
       const errorMessage =
         error.response.data?.detail ||
@@ -115,10 +143,28 @@ apiClient.interceptors.response.use(
         'An error occurred'
       return Promise.reject(new Error(errorMessage))
     } else if (error.request) {
-      // Request made but no response
+      // Request made but no response - capture network errors
+      const activeSpan = trace.getActiveSpan()
+      if (activeSpan) {
+        activeSpan.setAttribute('error', true)
+        activeSpan.setAttribute('error.type', 'network_error')
+        activeSpan.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: 'Network error: No response received',
+        })
+      }
       return Promise.reject(new Error('Network error. Please check your connection.'))
     } else {
-      // Something else happened
+      // Something else happened - capture other errors
+      const activeSpan = trace.getActiveSpan()
+      if (activeSpan) {
+        activeSpan.setAttribute('error', true)
+        activeSpan.setAttribute('error.type', 'request_error')
+        activeSpan.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: error.message || 'Request error',
+        })
+      }
       return Promise.reject(error)
     }
   }
