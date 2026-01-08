@@ -8,6 +8,7 @@ import logging
 from app.core.config import settings
 from app.core.exception_handlers import setup_exception_handlers
 from app.core.auth import get_current_user
+from app.core.observability import initialize_observability, instrument_fastapi_app
 from app.api.router import router as api_router
 
 # Configure logging
@@ -16,6 +17,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize OpenTelemetry observability before FastAPI app creation
+# This ensures tracing is active from startup and captures all requests
+initialize_observability()
 
 # Create FastAPI app with enhanced documentation
 app = FastAPI(
@@ -80,6 +85,10 @@ app = FastAPI(
     redoc_url="/redoc" if settings.ENVIRONMENT == "development" else None,
     openapi_url="/openapi.json"
 )
+
+# Instrument FastAPI app with OpenTelemetry
+# This must be done after app creation to ensure proper instrumentation
+instrument_fastapi_app(app)
 
 # Add CORS middleware
 # Include Keycloak URL in allowed origins

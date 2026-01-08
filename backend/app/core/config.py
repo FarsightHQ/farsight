@@ -67,6 +67,13 @@ class Settings:
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
+    # OpenTelemetry Configuration
+    OTEL_ENABLED: bool = os.getenv("OTEL_ENABLED", "true").lower() == "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+    OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "farsight-backend")
+    OTEL_TRACE_SAMPLE_RATE: float = float(os.getenv("OTEL_TRACE_SAMPLE_RATE", "0.1"))
+    OTEL_TRACE_ERROR_SAMPLE_RATE: float = float(os.getenv("OTEL_TRACE_ERROR_SAMPLE_RATE", "1.0"))
+    
     # CORS Settings
     CORS_ORIGINS: list[str] = [
         origin.strip() 
