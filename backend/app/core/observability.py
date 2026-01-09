@@ -22,10 +22,11 @@ from opentelemetry.sdk.trace.sampling import (
     Sampler,
 )
 from opentelemetry.trace import Status, StatusCode
-from opentelemetry.semantic_conventions.resource import (
-    DEPLOYMENT_ENVIRONMENT,
-    SERVICE_NAME as SEMCONV_SERVICE_NAME,
-)
+# Use string constants directly - these are the semantic convention attribute keys
+# This avoids import issues with different versions of opentelemetry-semantic-conventions
+DEPLOYMENT_ENVIRONMENT = "deployment.environment"
+# Use SERVICE_NAME from SDK resources (already imported) for consistency
+# SEMCONV_SERVICE_NAME is just an alias for SERVICE_NAME from opentelemetry.sdk.resources
 
 # Instrumentation packages
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -144,6 +145,18 @@ class ErrorBasedSampler(Sampler):
             },
         )
 
+    def get_description(self) -> str:
+        """
+        Return a description of the sampler for debugging/logging purposes.
+        
+        Returns:
+            String description of the sampler configuration
+        """
+        return (
+            f"ErrorBasedSampler(success_rate={self.success_sample_rate}, "
+            f"error_rate={self.error_sample_rate})"
+        )
+
     def __repr__(self) -> str:
         return (
             f"ErrorBasedSampler(success={self.success_sample_rate}, "
@@ -169,7 +182,7 @@ def initialize_observability() -> None:
         # Create resource with service metadata
         resource = Resource.create(
             {
-                SEMCONV_SERVICE_NAME: settings.OTEL_SERVICE_NAME,
+                SERVICE_NAME: settings.OTEL_SERVICE_NAME,
                 DEPLOYMENT_ENVIRONMENT: settings.ENVIRONMENT,
                 SERVICE_VERSION: "2.0.0",  # Match API version from main.py
             }
