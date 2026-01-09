@@ -20,8 +20,6 @@ from opentelemetry.sdk.trace.sampling import (
     Decision,
     SamplingResult,
     Sampler,
-    RECORD_AND_SAMPLE,
-    DROP,
 )
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.semantic_conventions.resource import (
@@ -95,7 +93,7 @@ class ErrorBasedSampler(Sampler):
         # If parent is sampled, always sample child to maintain trace consistency
         if parent_context and parent_context.trace_flags.sampled:
             return SamplingResult(
-                decision=RECORD_AND_SAMPLE,
+                decision=Decision.RECORD_AND_SAMPLE,
                 attributes={},
             )
 
@@ -134,7 +132,7 @@ class ErrorBasedSampler(Sampler):
             # Success spans: use success_sample_rate
             should_sample = random.random() < self.success_sample_rate
 
-        decision = RECORD_AND_SAMPLE if should_sample else DROP
+        decision = Decision.RECORD_AND_SAMPLE if should_sample else Decision.DROP
 
         return SamplingResult(
             decision=decision,
