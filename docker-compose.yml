@@ -131,12 +131,6 @@ services:
     networks:
       - farsight_network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/2181 && echo ruok >&3 && cat <&3 | grep -q imok'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
   # ClickHouse - Storage backend for traces, metrics, and logs
   clickhouse:
@@ -155,7 +149,7 @@ services:
       - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"  # Native protocol
     depends_on:
       clickhouse-zookeeper:
-        condition: service_healthy
+        condition: service_started
     networks:
       - farsight_network
     restart: unless-stopped
@@ -163,8 +157,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
 
   # OTEL Collector - Receives telemetry data from application services
   otel-collector:
@@ -179,7 +173,7 @@ services:
       - "${OTEL_COLLECTOR_METRICS_PORT:-8888}:8888"  # Prometheus metrics endpoint
     depends_on:
       clickhouse:
-        condition: service_healthy
+        condition: service_started
     networks:
       - farsight_network
     restart: unless-stopped
@@ -205,10 +199,10 @@ services:
       STORAGE: clickhouse
       TELEMETRY_ENABLED: "false"
     ports:
-      - "${SIGNOZ_QUERY_SERVICE_PORT:-8080}:8080"
+      - "${SIGNOZ_QUERY_SERVICE_PORT:-8082}:8080"
     depends_on:
       clickhouse:
-        condition: service_healthy
+        condition: service_started
     networks:
       - farsight_network
     restart: unless-stopped
@@ -216,15 +210,15 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
 
   # SigNoz Frontend UI - Web dashboard
   signoz-frontend:
     image: signoz/frontend:latest
     container_name: farsight_signoz_frontend
     environment:
-      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_API_BASE_URL: http://localhost:8082
       REACT_APP_BASE_URL: http://localhost:3301
       REACT_APP_ENABLE_ANALYTICS: "false"
     ports:

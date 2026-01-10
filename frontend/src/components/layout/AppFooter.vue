@@ -5,7 +5,7 @@
         <span>&copy; {{ currentYear }} Farsight. All rights reserved.</span>
       </div>
       <div class="flex items-center space-x-4 text-xs text-theme-text-footer/70">
-        <span>Version 2.0.0</span>
+        <span>Version 0.0.1</span>
         <a href="#" class="hover:text-theme-text-footer transition-colors">Documentation</a>
         <a href="#" class="hover:text-theme-text-footer transition-colors">Support</a>
       </div>
