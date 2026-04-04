@@ -3,12 +3,14 @@ FAR Request Management API endpoints
 Handles CRUD operations for FAR requests and file ingestion
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any, cast
 import aiofiles
 import os
 from app.core.database import get_db
+from app.core.auth import get_current_user, uploader_from_user
 from app.core.config import settings
 from app.models.far_request import FarRequest
 from app.schemas.far_request import FarRequestCreate, FarRequestResponse
@@ -30,6 +32,8 @@ from datetime import datetime
 # Import assessment computation function from far.py
 from app.api.v1.endpoints.far import _compute_rule_assessment
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/far", tags=["FAR Requests"])
 
 
@@ -38,19 +42,22 @@ async def create_far_request(
     title: str = Form(...),
     file: UploadFile = File(...),
     external_id: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """
     Create a new FAR request with file upload
     Enhanced with better error handling
     """
     service = FarIngestionService(db)
-    
+    created_by = uploader_from_user(user)
+
     try:
         result = await service.process_upload(
             title=title,
             file=file,
-            external_id=external_id
+            external_id=external_id,
+            created_by=created_by,
         )
         
         return success_response(

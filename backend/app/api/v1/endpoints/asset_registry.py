@@ -9,6 +9,7 @@ import io
 import logging
 
 from app.core.database import get_db
+from app.core.auth import get_current_user, uploader_from_user
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryResponse,
@@ -29,11 +30,12 @@ router = APIRouter()
              description="Create a new asset in the registry")
 async def create_asset(
     asset: AssetRegistryCreate,
-    created_by: str = Query(default="system", description="User creating the asset"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """Create a new asset in the registry"""
     try:
+        created_by = uploader_from_user(user)
         new_asset = AssetRegistryService.create_asset(db, asset, created_by)
         asset_data = AssetRegistryResponse.from_orm(new_asset).dict()
         
@@ -101,6 +103,7 @@ async def search_assets(
                 "environment": normalize_field(asset.environment),
                 "hostname": normalize_field(asset.hostname),
                 "is_active": bool(asset.is_active),
+                "created_by": str(asset.created_by or ""),
                 "created_at": str(asset.created_at),
                 "updated_at": str(asset.updated_at)
             }
@@ -123,11 +126,12 @@ async def search_assets(
              description="Upload and process a CSV file to create/update assets")
 async def upload_csv(
     file: UploadFile = File(..., description="CSV file containing asset data"),
-    uploaded_by: str = Query(default="system", description="User uploading the file"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     """Upload and process CSV file for asset creation/updates"""
-    
+    uploaded_by = uploader_from_user(user)
+
     # Enhanced file validation
     from app.utils.file_utils import validate_csv_file_enhanced
     from app.utils.csv_errors import (

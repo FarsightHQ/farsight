@@ -46,5 +46,16 @@ export const assetsService = {
       throw error
     })
   },
+
+  /**
+   * Upload asset CSV; created_by / batch uploaded_by come from the auth token (backend).
+   */
+  uploadCSV(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post('/api/v1/assets/upload-csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 

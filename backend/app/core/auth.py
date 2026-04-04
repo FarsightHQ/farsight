@@ -312,6 +312,18 @@ def extract_user_info(token_payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def uploader_from_user(user: Dict[str, Any]) -> str:
+    """
+    Map the authenticated user to created_by / uploaded_by audit fields (DB max 100 chars).
+    """
+    if not user:
+        return "system"
+    name = user.get("username") or user.get("email") or user.get("sub")
+    if not name:
+        return "system"
+    return str(name)[:100]
+
+
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Dict[str, Any]:

@@ -75,6 +75,9 @@
           <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
             Status
           </th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+            Uploaded by
+          </th>
           <th
             class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider cursor-pointer hover:bg-theme-hover/50"
             @click="handleSort('created_at')"
@@ -123,6 +126,9 @@
           </td>
           <td class="px-6 py-4">
             <div class="h-4 bg-theme-active/30 rounded animate-pulse w-16"></div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-28"></div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="h-4 bg-theme-active/30 rounded animate-pulse w-24"></div>
@@ -175,6 +181,11 @@
               :label="asset.is_active ? 'Active' : 'Inactive'"
             />
           </td>
+          <td class="px-6 py-4 text-sm text-theme-text-content">
+            <div class="max-w-[160px] truncate" :title="asset.created_by">
+              {{ asset.created_by || '—' }}
+            </div>
+          </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-theme-text-muted">
             {{ formatDate(asset.created_at) }}
           </td>
@@ -187,7 +198,7 @@
 
         <!-- Empty State -->
         <tr v-if="!loading && assets.length === 0">
-          <td colspan="10" class="px-6 py-12 text-center text-sm text-theme-text-muted">
+          <td colspan="11" class="px-6 py-12 text-center text-sm text-theme-text-muted">
             No assets found
           </td>
         </tr>

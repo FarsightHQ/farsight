@@ -27,7 +27,7 @@
               <span class="text-gray-400">•</span>
               <span>{{ formatFileSize(request.source_size_bytes) }}</span>
               <span class="text-gray-400">•</span>
-              <span>{{ request.created_by || 'system' }}</span>
+              <span>Uploaded by: {{ request.created_by || '—' }}</span>
               <span class="text-gray-400">•</span>
               <span class="font-mono text-xs">{{ request.source_sha256 }}</span>
             </div>

@@ -91,6 +91,9 @@
             {{ request.external_id || '—' }}
           </td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-theme-text-muted">
+            {{ request.created_by || '—' }}
+          </td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-theme-text-muted">
             {{ formatDate(request.created_at) }}
           </td>
           <td class="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
@@ -126,6 +129,7 @@ const props = defineProps({
       { key: 'title', label: 'Title', sortable: true },
       { key: 'status', label: 'Status', sortable: true },
       { key: 'external_id', label: 'External ID', sortable: false },
+      { key: 'created_by', label: 'Uploaded by', sortable: true },
       { key: 'created_at', label: 'Created', sortable: true },
     ],
   },

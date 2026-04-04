@@ -20,14 +20,6 @@
             hint="Upload a CSV file containing asset data (Max 50MB)"
           />
 
-          <!-- Uploaded By -->
-          <Input
-            v-model="form.uploadedBy"
-            label="Uploaded By"
-            placeholder="Your name or identifier"
-            hint="Optional: Defaults to 'system'"
-          />
-
           <!-- Actions -->
           <div class="flex items-center justify-end space-x-4 pt-4 border-t">
             <Button variant="outline" @click="$router.back()">Cancel</Button>
@@ -119,7 +111,6 @@ import { useRouter } from 'vue-router'
 import { assetsService } from '@/services/assets'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
-import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
@@ -133,7 +124,6 @@ const uploadResult = ref(null)
 
 const form = reactive({
   file: null,
-  uploadedBy: 'system',
 })
 
 const errors = reactive({
@@ -167,10 +157,7 @@ const handleSubmit = async () => {
       }
     }, 200)
 
-    const response = await assetsService.uploadCSV(
-      form.file,
-      form.uploadedBy || 'system'
-    )
+    const response = await assetsService.uploadCSV(form.file)
 
     clearInterval(progressInterval)
     uploadProgress.value = 100
@@ -202,7 +189,6 @@ const viewBatchDetails = () => {
 
 const resetForm = () => {
   form.file = null
-  form.uploadedBy = 'system'
   uploadResult.value = null
   uploadProgress.value = 0
   errors.file = ''
