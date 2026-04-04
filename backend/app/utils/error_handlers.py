@@ -313,17 +313,33 @@ class ResponseFormatter:
     ) -> JSONResponse:
         """Create error JSON response with proper status code"""
         status_code = 500  # Default
-        
+
         if hasattr(error_response, 'errors') and error_response.errors:
             first_error = error_response.errors[0]
-            if first_error.code == "VALIDATION_ERROR":
-                status_code = 422
-            elif first_error.code in ["RULE_NOT_FOUND", "REQUEST_NOT_FOUND"]:
-                status_code = 404
-            elif first_error.code == "INVALID_PARAMETER":
-                status_code = 400
-            elif first_error.code == "SERVICE_UNAVAILABLE":
-                status_code = 503
+            # format_http_exception() puts the real HTTP status here — must not always return 500,
+            # or clients (e.g. axios 401 refresh) never see 401/403/404.
+            ctx = getattr(first_error, "context", None)
+            if isinstance(ctx, dict):
+                sc = ctx.get("status_code")
+                if isinstance(sc, int) and 100 <= sc <= 599:
+                    status_code = sc
+            if status_code == 500:
+                if first_error.code == "VALIDATION_ERROR":
+                    status_code = 422
+                elif first_error.code in ["RULE_NOT_FOUND", "REQUEST_NOT_FOUND"]:
+                    status_code = 404
+                elif first_error.code == "INVALID_PARAMETER":
+                    status_code = 400
+                elif first_error.code == "SERVICE_UNAVAILABLE":
+                    status_code = 503
+                elif first_error.code == "UNAUTHORIZED":
+                    status_code = 401
+                elif first_error.code == "FORBIDDEN":
+                    status_code = 403
+                elif first_error.code == "NOT_FOUND":
+                    status_code = 404
+                elif first_error.code == "BAD_REQUEST":
+                    status_code = 400
         
         # Use model_dump with mode='json' to properly serialize datetime objects
         # For Pydantic v2, model_dump() replaces dict() and mode='json' serializes datetimes
