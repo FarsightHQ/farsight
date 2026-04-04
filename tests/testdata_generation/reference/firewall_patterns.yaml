@@ -1,0 +1,405 @@
+# Reference firewall rule templates for test data generation.
+# Consumed by generate_firewall_rules.py together with network_topology.yaml
+# and the asset manifest. Selectors resolve to CIDRs or manifest IPs at generation time.
+#
+# Facts keys match backend/app/services/facts_computation_service.py::_compute_rule_facts
+# (boolean flags plus numeric fields computed during ingestion).
+schema_version: 1
+
+description: >
+  Catalog of legitimate traffic patterns and deliberately risky patterns used to
+  drive security analytics, facts coverage, and UI fixtures. Templates list which
+  fact fields they are intended to exercise once rules are parsed and enriched.
+
+# Canonical list of fact keys stored on rules (for coverage checks / generators).
+facts_catalog:
+  boolean:
+    src_is_any: Source includes 0.0.0.0/0 (any).
+    dst_is_any: Destination includes 0.0.0.0/0 (any).
+    is_self_flow: Source and destination CIDRs overlap (same-flow / east-west on same segment).
+    src_has_public: Source overlaps non-RFC1918, non-loopback, non-link-local space.
+    dst_has_public: Destination overlaps public address space (same definition).
+    src_has_broadcast: Source is or includes broadcast (e.g. 255.255.255.255/32).
+    dst_has_broadcast: Destination includes broadcast.
+    src_has_multicast: Source overlaps 224.0.0.0/4 (excluding any-only special cases in classifier).
+    dst_has_multicast: Destination overlaps multicast range.
+    src_has_link_local: Source overlaps 169.254.0.0/16.
+    dst_has_link_local: Destination overlaps link-local.
+    src_has_loopback: Source overlaps 127.0.0.0/8.
+    dst_has_loopback: Destination overlaps loopback.
+  numeric:
+    service_count: Number of distinct service entries on the rule after normalization.
+    max_port_span: Widest port range found across services (e.g. tcp/1-65535).
+    tuple_estimate: Estimated cross-product of sources × destinations × services.
+    expansion_capped: True when tuple_estimate exceeds FACTS_MAX_TUPLE_ESTIMATE_CAP (derived).
+
+# Optional weights when a generator picks templates stochastically (sum need not be 1).
+category_weights:
+  web_tier: 0.12
+  app_data: 0.14
+  infrastructure: 0.12
+  management: 0.08
+  mail: 0.05
+  cross_zone: 0.10
+  security_audit: 0.22
+  facts_matrix: 0.17
+
+templates:
+  # --- Web tier ---
+  - id: web_dmz_to_app_http
+    category: web_tier
+    description: DMZ frontends to application tier on common HTTP(S) middleware ports.
+    source_selector: { kind: zone, zone: DMZ }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/8080, tcp/8443]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: web_dmz_to_app_alt
+    category: web_tier
+    description: Alternate web-to-app path (HTTP + TLS termination variants).
+    source_selector: { kind: vlan_key, vlan_key: dc_east_dmz }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_app_prod }
+    services: [tcp/8008, tcp/8443, tcp/9443]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Application to data tier ---
+  - id: app_to_db_relational
+    category: app_data
+    description: Application servers to database VLANs on standard RDBMS ports.
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: zone, zone: Database }
+    services: [tcp/5432, tcp/3306, tcp/1521]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: app_pci_to_db
+    category: app_data
+    description: PCI-scoped app segment to production DB (segmentation test).
+    source_selector: { kind: vlan_key, vlan_key: dc_east_pci_app }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_db_prod }
+    services: [tcp/5432]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: app_dr_to_db_dr
+    category: app_data
+    description: DR application tier to DR database replicas.
+    source_selector: { kind: vlan_key, vlan_key: dc_west_app_dr }
+    dest_selector: { kind: vlan_key, vlan_key: dc_west_db_dr }
+    services: [tcp/5432, tcp/1433]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Infrastructure ---
+  - id: infra_dns_dual_stack
+    category: infrastructure
+    description: Internal clients to DNS resolvers (UDP primary, TCP fallback).
+    source_selector: { kind: zone, zone: User }
+    dest_selector: { kind: zone, zone: Management }
+    services: [udp/53, tcp/53]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: infra_ntp
+    category: infrastructure
+    description: Time sync from user and app zones to management NTP.
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_mgmt }
+    services: [udp/123]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: infra_ldap
+    category: infrastructure
+    description: Application tier to directory services.
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_mgmt }
+    services: [tcp/389, tcp/636]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Management ---
+  - id: mgmt_jump_ssh
+    category: management
+    description: Jump / management hosts to server infrastructure over SSH.
+    source_selector: { kind: vlan_key, vlan_key: dc_east_mgmt }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/22]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: mgmt_monitoring_agents
+    category: management
+    description: Monitoring collectors to application endpoints (Zabbix-style).
+    source_selector: { kind: vlan_key, vlan_key: dc_east_mgmt }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/10050, tcp/10051]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Mail ---
+  - id: mail_app_to_relay
+    category: mail
+    description: Application servers to internal mail relay (SMTP/submission).
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_dmz }
+    services: [tcp/25, tcp/587]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Cross-zone policy stress ---
+  - id: cross_zone_dmz_to_db
+    category: cross_zone
+    description: Policy violation pattern — DMZ should not talk directly to DB zone.
+    source_selector: { kind: zone, zone: DMZ }
+    dest_selector: { kind: zone, zone: Database }
+    services: [tcp/5432]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: cross_zone_user_to_mgmt_rdp
+    category: cross_zone
+    description: User VLAN to management (often restricted; useful for graph edges).
+    source_selector: { kind: vlan_key, vlan_key: dc_east_users }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_mgmt }
+    services: [tcp/3389]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  - id: cross_zone_branch_to_dc_app
+    category: cross_zone
+    description: Branch users into primary DC application tier (WAN path).
+    source_selector: { kind: vlan_key, vlan_key: branch_eu_users }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_app_prod }
+    services: [tcp/443]
+    action: allow
+    direction: egress
+    fact_triggers: []
+
+  # --- Security audit: any / public / pathological endpoints ---
+  - id: audit_any_to_any
+    category: security_audit
+    description: Fully open rule; triggers src and dst any flags.
+    source_selector: { kind: cidr_literal, cidr: "0.0.0.0/0" }
+    dest_selector: { kind: cidr_literal, cidr: "0.0.0.0/0" }
+    services: [tcp/443]
+    action: allow
+    direction: egress
+    fact_triggers: [src_is_any, dst_is_any]
+
+  - id: audit_any_src_to_internal_https
+    category: security_audit
+    description: Any source into internal application HTTPS.
+    source_selector: { kind: cidr_literal, cidr: "0.0.0.0/0" }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/443]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_is_any]
+
+  - id: audit_internal_to_any_dst
+    category: security_audit
+    description: Internal source to any destination (exfil-style pattern).
+    source_selector: { kind: zone, zone: User }
+    dest_selector: { kind: cidr_literal, cidr: "0.0.0.0/0" }
+    services: [tcp/443]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_is_any]
+
+  - id: audit_self_flow_overlap
+    category: security_audit
+    description: Overlapping source and destination CIDR (same subnet bidirectional).
+    source_selector: { kind: vlan_subnet, vlan_key: dc_east_app_prod }
+    dest_selector: { kind: same_as_source }
+    services: [tcp/443]
+    action: allow
+    direction: egress
+    fact_triggers: [is_self_flow]
+
+  - id: audit_public_src_testnet3
+    category: security_audit
+    description: TEST-NET-3 as source into internal (public src classification).
+    source_selector: { kind: cidr_literal, cidr: "203.0.113.0/24" }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/443]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_has_public]
+
+  - id: audit_public_dst_testnet2
+    category: security_audit
+    description: Internal to TEST-NET-2 (public dst classification).
+    source_selector: { kind: zone, zone: DMZ }
+    dest_selector: { kind: cidr_literal, cidr: "198.51.100.0/24" }
+    services: [tcp/443]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_has_public]
+
+  - id: audit_multicast_src
+    category: security_audit
+    description: Multicast range in source (routing/analytics edge case).
+    source_selector: { kind: cidr_literal, cidr: "224.0.0.0/24" }
+    dest_selector: { kind: zone, zone: Application }
+    services: [udp/5000]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_has_multicast]
+
+  - id: audit_multicast_dst
+    category: security_audit
+    description: Multicast destination from corporate users.
+    source_selector: { kind: vlan_key, vlan_key: dc_east_users }
+    dest_selector: { kind: cidr_literal, cidr: "239.255.0.0/16" }
+    services: [udp/1900]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_has_multicast]
+
+  - id: audit_link_local_src
+    category: security_audit
+    description: Link-local source into app tier (cloud metadata / misconfig).
+    source_selector: { kind: cidr_literal, cidr: "169.254.169.254/32" }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/80]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_has_link_local]
+
+  - id: audit_link_local_dst
+    category: security_audit
+    description: Internal to link-local destination.
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: cidr_literal, cidr: "169.254.1.0/24" }
+    services: [tcp/8080]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_has_link_local]
+
+  - id: audit_loopback_src
+    category: security_audit
+    description: Loopback as source (policy mistake).
+    source_selector: { kind: cidr_literal, cidr: "127.0.0.1/32" }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/443]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_has_loopback]
+
+  - id: audit_loopback_dst
+    category: security_audit
+    description: Traffic toward loopback from internal (misdirected rule).
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: cidr_literal, cidr: "127.0.0.53/32" }
+    services: [udp/53]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_has_loopback]
+
+  - id: audit_broadcast_dst
+    category: security_audit
+    description: Directed broadcast destination.
+    source_selector: { kind: zone, zone: User }
+    dest_selector: { kind: cidr_literal, cidr: "255.255.255.255/32" }
+    services: [udp/67]
+    action: allow
+    direction: egress
+    fact_triggers: [dst_has_broadcast]
+
+  - id: audit_broadcast_src
+    category: security_audit
+    description: Broadcast-only source (rare; exercises src broadcast flag).
+    source_selector: { kind: cidr_literal, cidr: "255.255.255.255/32" }
+    dest_selector: { kind: vlan_key, vlan_key: dc_east_users }
+    services: [udp/68]
+    action: allow
+    direction: ingress
+    fact_triggers: [src_has_broadcast]
+
+  - id: audit_wide_port_span
+    category: security_audit
+    description: Single service with maximum port span (max_port_span fact).
+    source_selector: { kind: zone, zone: DMZ }
+    dest_selector: { kind: zone, zone: Application }
+    services: [tcp/1-65535]
+    action: allow
+    direction: egress
+    fact_triggers: [max_port_span]
+
+  - id: audit_many_distinct_services
+    category: security_audit
+    description: Many explicit services to raise service_count without wide ranges.
+    source_selector: { kind: zone, zone: Application }
+    dest_selector: { kind: zone, zone: Database }
+    services:
+      - tcp/5432
+      - tcp/3306
+      - tcp/1521
+      - tcp/1433
+      - tcp/27017
+      - tcp/6379
+      - tcp/9200
+      - tcp/9300
+      - tcp/11211
+      - tcp/9042
+      - tcp/7199
+      - tcp/7000
+      - tcp/7001
+      - tcp/7474
+      - tcp/7687
+      - tcp/5984
+    action: allow
+    direction: egress
+    fact_triggers: [service_count]
+
+  # --- High tuple / expansion (numeric stress) ---
+  - id: stress_high_tuple_grid
+    category: facts_matrix
+    description: >
+      Generator expands to multiple source CIDRs, destination CIDRs, and services
+      (e.g. 10×10×5) to raise tuple_estimate for pagination and analytics tests.
+    source_selector: { kind: multi_zone, zones: [DMZ, Application], count: 10 }
+    dest_selector: { kind: multi_zone, zones: [Application, Database], count: 10 }
+    services_template: [tcp/443, tcp/8080, tcp/8443, udp/53, icmp]
+    service_expansion: { per_combo: all_listed }
+    action: allow
+    direction: egress
+    fact_triggers: [tuple_estimate]
+    generation_hints:
+      source_endpoint_count: 10
+      destination_endpoint_count: 10
+      service_entry_count: 5
+
+  - id: stress_expansion_capped
+    category: facts_matrix
+    description: >
+      Deliberately large cross-product so tuple_estimate exceeds FACTS_MAX_TUPLE_ESTIMATE_CAP
+      after ingestion, setting expansion_capped.
+    source_selector: { kind: multi_vlan, vlan_keys: [dc_east_app_prod, dc_east_db_prod, dc_east_dmz, dc_east_users, dc_east_mgmt], count_per_key: 4 }
+    dest_selector: { kind: multi_vlan, vlan_keys: [dc_east_app_prod, dc_east_db_prod, dc_west_app_dr, branch_eu_users], count_per_key: 5 }
+    services_template: [tcp/80, tcp/443, tcp/8080-8090, udp/53-60, icmp]
+    action: allow
+    direction: egress
+    fact_triggers: [tuple_estimate, expansion_capped]
+    generation_hints:
+      target_tuple_estimate_min: 2000000000
+
+# Coverage note: every key in facts_catalog appears in at least one template’s
+# fact_triggers (boolean keys explicitly; numeric keys via audit_many_distinct_services,
+# audit_wide_port_span, stress_high_tuple_grid, stress_expansion_capped).
