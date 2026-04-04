@@ -1,0 +1,544 @@
+# Asset archetypes for test data generation.
+# Maps to CSV columns consumed by AssetRegistryService._map_csv_row_to_asset().
+# VLAN keys reference tests/testdata_generation/reference/network_topology.yaml.
+schema_version: 1
+
+description: >
+  Twelve role profiles with weighted OS/hardware stacks, tool-agent strings, and
+  security posture defaults. Generators pick environment from environment_distribution,
+  then apply availability_by_environment and dmz_mz_by_zone using the asset's VLAN zone.
+
+# Share of assets assigned to each environment (must sum to 100).
+environment_distribution:
+  - environment: Production
+    weight: 50
+  - environment: Staging
+    weight: 15
+  - environment: UAT
+    weight: 10
+  - environment: Development
+    weight: 15
+  - environment: DR
+    weight: 10
+
+# Availability label after environment is chosen.
+availability_by_environment:
+  Production: High
+  Staging: Medium
+  UAT: Medium
+  Development: Low
+  DR: High
+
+# Maps topology zone (from VLAN) to DMZ/MZ column value.
+dmz_mz_by_zone:
+  DMZ: DMZ
+  Application: MZ
+  Database: MZ
+  Management: Internal
+  User: Internal
+
+# Optional compliance tag sets (weighted). Generator picks 0–2 tags unless role overrides.
+compliance_tag_pools:
+  default:
+    - tags: [SOC2]
+      weight: 35
+    - tags: [ISO27001]
+      weight: 25
+    - tags: [PCI-DSS]
+      weight: 15
+    - tags: [HIPAA]
+      weight: 10
+    - tags: [SOC2, ISO27001]
+      weight: 15
+  pci_heavy:
+    - tags: [PCI-DSS, SOC2]
+      weight: 50
+    - tags: [PCI-DSS]
+      weight: 35
+    - tags: [ISO27001]
+      weight: 15
+  workstation_light:
+    - tags: []
+      weight: 40
+    - tags: [SOC2]
+      weight: 35
+    - tags: [ISO27001]
+      weight: 25
+
+# Relative frequency when sampling roles (sum = 100).
+roles:
+  web-server:
+    selection_weight: 15
+    hostname_pattern: "web-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-web-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_dmz
+      - dc_west_dmz
+      - dc_east_app_prod
+      - dc_west_app_dr
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 45
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 30
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 25
+    vcpu_range: [2, 16]
+    memory_gb_range: [4, 64]
+    app_version_pool:
+      - value: "nginx 1.24.x"
+        weight: 40
+      - value: "Apache httpd 2.4.x"
+        weight: 35
+      - value: "IIS 10.0"
+        weight: 25
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 45
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 30
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 25
+    itam_id_prefix: ITAM-WEB
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.55
+
+  app-server:
+    selection_weight: 28
+    hostname_pattern: "app-{env_slug}-{seq:03d}"
+    vm_display_name_pattern: "VM-app-{env_slug}-{seq:03d}"
+    allowed_vlan_keys:
+      - dc_east_app_prod
+      - dc_west_app_dr
+      - dc_east_pci_app
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 55
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 25
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 20
+    vcpu_range: [4, 32]
+    memory_gb_range: [8, 128]
+    app_version_pool:
+      - value: "OpenJDK 17.0.12"
+        weight: 35
+      - value: "OpenJDK 11.0.24"
+        weight: 25
+      - value: "Node.js 20 LTS"
+        weight: 20
+      - value: ".NET 8 Runtime"
+        weight: 20
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 40
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+      - value: "Rapid7 Insight Agent 3.14"
+        weight: 25
+    itam_id_prefix: ITAM-APP
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.65
+
+  db-server:
+    selection_weight: 10
+    hostname_pattern: "db-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-db-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_db_prod
+      - dc_west_db_dr
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 60
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 25
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 15
+    vcpu_range: [4, 64]
+    memory_gb_range: [16, 256]
+    app_version: null
+    db_version_pool:
+      - value: "PostgreSQL 15.8"
+        weight: 40
+      - value: "Oracle 19c"
+        weight: 30
+      - value: "MySQL 8.0.39"
+        weight: 20
+      - value: "Microsoft SQL Server 2022"
+        weight: 10
+    confidentiality: Confidential
+    integrity: High
+    tool_update_pool:
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 40
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 35
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 25
+    itam_id_prefix: ITAM-DB
+    compliance_tag_pool_ref: pci_heavy
+    compliance_tag_pick_probability: 0.85
+
+  mail-server:
+    selection_weight: 4
+    hostname_pattern: "mail-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-mail-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_app_prod
+      - dc_west_app_dr
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 50
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 35
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 15
+    vcpu_range: [2, 16]
+    memory_gb_range: [8, 64]
+    app_version_pool:
+      - value: "Postfix 3.7 + Dovecot 2.3"
+        weight: 50
+      - value: "Microsoft Exchange 2019 CU14"
+        weight: 30
+      - value: "Proofpoint MTA"
+        weight: 20
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 45
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+      - value: "Rapid7 Insight Agent 3.14"
+        weight: 20
+    itam_id_prefix: ITAM-MAIL
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.5
+
+  dns-server:
+    selection_weight: 5
+    hostname_pattern: "dns-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-dns-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_mgmt
+      - dc_west_mgmt
+      - dc_east_app_prod
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 40
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 35
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 25
+    vcpu_range: [2, 8]
+    memory_gb_range: [4, 16]
+    app_version_pool:
+      - value: "BIND 9.18"
+        weight: 55
+      - value: "PowerDNS 4.8"
+        weight: 25
+      - value: "Unbound 1.19"
+        weight: 20
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 40
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 40
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 20
+    itam_id_prefix: ITAM-DNS
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.45
+
+  ldap-server:
+    selection_weight: 4
+    hostname_pattern: "ldap-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-ldap-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_app_prod
+      - dc_west_app_dr
+      - dc_east_mgmt
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 50
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 35
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 15
+    vcpu_range: [2, 16]
+    memory_gb_range: [8, 64]
+    app_version_pool:
+      - value: "389 Directory Server 2.4"
+        weight: 40
+      - value: "OpenLDAP 2.6"
+        weight: 35
+      - value: "Active Directory LDS"
+        weight: 25
+    db_version: null
+    confidentiality: Confidential
+    integrity: High
+    tool_update_pool:
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 45
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 20
+    itam_id_prefix: ITAM-LDAP
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.7
+
+  load-balancer:
+    selection_weight: 5
+    hostname_pattern: "lb-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-lb-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_dmz
+      - dc_west_dmz
+      - dc_east_app_prod
+    os_choices:
+      - os_name: F5 BIG-IP TMOS
+        os_version: "17.1.1"
+        weight: 35
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 30
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 20
+      - os_name: VMware NSX ALB
+        os_version: "22.1.2"
+        weight: 15
+    vcpu_range: [4, 16]
+    memory_gb_range: [8, 64]
+    app_version_pool:
+      - value: "HAProxy 2.8"
+        weight: 40
+      - value: "nginx Plus R32"
+        weight: 35
+      - value: "Kemp LoadMaster 7.2"
+        weight: 25
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 35
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 30
+    itam_id_prefix: ITAM-LB
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.5
+
+  firewall:
+    selection_weight: 2
+    hostname_pattern: "fw-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-fw-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_mgmt
+      - dc_west_mgmt
+    os_choices:
+      - os_name: Palo Alto PAN-OS
+        os_version: "11.1.3"
+        weight: 40
+      - os_name: FortiOS
+        os_version: "7.4.3"
+        weight: 35
+      - os_name: Cisco ASA
+        os_version: "9.20"
+        weight: 25
+    vcpu_range: [4, 16]
+    memory_gb_range: [8, 32]
+    app_version: null
+    db_version: null
+    confidentiality: Confidential
+    integrity: High
+    tool_update_pool:
+      - value: "Tenable Nessus 10.6 (appliance scan)"
+        weight: 40
+      - value: "Qualys Virtual Scanner 4.x"
+        weight: 35
+      - value: "Rapid7 InsightVM 6.x"
+        weight: 25
+    itam_id_prefix: ITAM-FW
+    compliance_tag_pool_ref: pci_heavy
+    compliance_tag_pick_probability: 0.75
+
+  switch:
+    selection_weight: 3
+    hostname_pattern: "sw-{site}-{seq:02d}"
+    vm_display_name_pattern: "VM-sw-{site}-{seq:02d}"
+    # site is resolved from VLAN location in generator (dc_east, dc_west, branch_eu).
+    allowed_vlan_keys:
+      - dc_east_mgmt
+      - dc_west_mgmt
+    os_choices:
+      - os_name: Cisco IOS XE
+        os_version: "17.12"
+        weight: 45
+      - os_name: Arista EOS
+        os_version: "4.31.2F"
+        weight: 30
+      - os_name: Juniper JunOS
+        os_version: "23.4R1"
+        weight: 25
+    vcpu_range: [1, 4]
+    memory_gb_range: [2, 8]
+    app_version: null
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "Cisco DNA Center agent 2.3"
+        weight: 40
+      - value: "Qualys Network Scanner 4.8"
+        weight: 35
+      - value: "Tenable Nessus 10.6"
+        weight: 25
+    itam_id_prefix: ITAM-NET
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.35
+
+  workstation:
+    selection_weight: 14
+    hostname_pattern: "ws-{env_slug}-{seq:04d}"
+    vm_display_name_pattern: "VDI-ws-{env_slug}-{seq:04d}"
+    allowed_vlan_keys:
+      - dc_east_users
+      - branch_eu_users
+      - dc_east_guest
+      - branch_eu_guest
+    os_choices:
+      - os_name: Windows
+        os_version: "11 23H2"
+        weight: 55
+      - os_name: Windows
+        os_version: "10 22H2"
+        weight: 25
+      - os_name: macOS
+        os_version: "14.6"
+        weight: 15
+      - os_name: Ubuntu Desktop
+        os_version: "22.04 LTS"
+        weight: 5
+    vcpu_range: [2, 8]
+    memory_gb_range: [8, 32]
+    app_version: null
+    db_version: null
+    confidentiality: Internal
+    integrity: Low
+    tool_update_pool:
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 50
+      - value: "Microsoft Intune compliance"
+        weight: 30
+      - value: "Jamf Pro 11.x"
+        weight: 20
+    itam_id_prefix: ITAM-WS
+    compliance_tag_pool_ref: workstation_light
+    compliance_tag_pick_probability: 0.4
+
+  jump-host:
+    selection_weight: 3
+    hostname_pattern: "jmp-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-jmp-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_mgmt
+      - dc_west_mgmt
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 60
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 25
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 15
+    vcpu_range: [2, 8]
+    memory_gb_range: [4, 16]
+    app_version: null
+    db_version: null
+    confidentiality: Confidential
+    integrity: High
+    tool_update_pool:
+      - value: "CyberArk PSM 13.x"
+        weight: 35
+      - value: "BeyondTrust PRA 23.x"
+        weight: 30
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+    itam_id_prefix: ITAM-JMP
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.6
+
+  monitoring-server:
+    selection_weight: 7
+    hostname_pattern: "mon-{env_slug}-{seq:02d}"
+    vm_display_name_pattern: "VM-mon-{env_slug}-{seq:02d}"
+    allowed_vlan_keys:
+      - dc_east_mgmt
+      - dc_west_mgmt
+      - dc_east_app_prod
+    os_choices:
+      - os_name: Red Hat Enterprise Linux
+        os_version: "8.10"
+        weight: 50
+      - os_name: Ubuntu Server
+        os_version: "22.04 LTS"
+        weight: 30
+      - os_name: Red Hat Enterprise Linux
+        os_version: "9.4"
+        weight: 20
+    vcpu_range: [4, 24]
+    memory_gb_range: [8, 64]
+    app_version_pool:
+      - value: "Zabbix Server 6.4"
+        weight: 35
+      - value: "Prometheus 2.53 + Grafana 11"
+        weight: 35
+      - value: "Datadog Agent 7.56"
+        weight: 30
+    db_version: null
+    confidentiality: Internal
+    integrity: Medium
+    tool_update_pool:
+      - value: "Tenable Nessus Agent 10.6"
+        weight: 40
+      - value: "Qualys Cloud Agent 4.8"
+        weight: 35
+      - value: "CrowdStrike Falcon 7.12"
+        weight: 25
+    itam_id_prefix: ITAM-MON
+    compliance_tag_pool_ref: default
+    compliance_tag_pick_probability: 0.5
