@@ -1,0 +1,189 @@
+# Reference network topology for test data generation.
+# Single source of truth for IP allocation: generators allocate addresses only within these CIDRs.
+schema_version: 1
+
+description: >
+  Synthetic multi-site enterprise LAN. DC-East uses 10.0.0.0/8-style allocation,
+  DC-West (DR) uses 172.16.0.0/12, Branch-EU uses 192.168.0.0/16. Includes DMZ
+  subnets so firewall rules can cross public/private-style boundaries in fixtures.
+
+locations:
+  dc_east:
+    display_name: DC-East
+    role: primary_datacenter
+    rfc1918_scope: "10.0.0.0/8 (allocated below)"
+  dc_west:
+    display_name: DC-West
+    role: disaster_recovery
+    rfc1918_scope: "172.16.0.0/12 (allocated below)"
+  branch_eu:
+    display_name: Branch-EU
+    role: regional_branch
+    rfc1918_scope: "192.168.0.0/16 (allocated below)"
+
+zones:
+  DMZ:
+    description: Internet-facing and untrusted or isolated segments (DMZ, guest, quarantine).
+  Application:
+    description: Application and transaction tiers including regulated application subnets.
+  Database:
+    description: Data persistence and cardholder-adjacent database tiers.
+  Management:
+    description: Infrastructure management, jump hosts, and network control plane.
+  User:
+    description: Corporate workstations, voice, and general user access VLANs.
+
+# Each entry is uniquely identified by `key`. `vlan_id` is the conventional 802.1Q tag (may repeat per site).
+vlans:
+  # --- DC-East (10.x) — primary footprint ---
+  - key: dc_east_mgmt
+    vlan_id: 10
+    name: mgmt-dc-east
+    zone: Management
+    location: dc_east
+    subnet: 10.10.0.0/24
+    gateway: 10.10.0.1
+    segment: SEG-MGMT-DC-EAST
+    description: Out-of-band-style management; network devices, jump infrastructure, tooling.
+
+  - key: dc_east_dmz
+    vlan_id: 20
+    name: dmz-dc-east
+    zone: DMZ
+    location: dc_east
+    subnet: 10.20.0.0/24
+    gateway: 10.20.0.1
+    segment: SEG-DMZ-DC-EAST
+    description: Primary DMZ; reverse proxies, WAF edges, public service frontends.
+
+  - key: dc_east_app_prod
+    vlan_id: 100
+    name: app-prod-dc-east
+    zone: Application
+    location: dc_east
+    subnet: 10.100.0.0/23
+    gateway: 10.100.0.1
+    segment: SEG-APP-PROD-DC-EAST
+    description: Production application servers and middleware (VLAN 100 server tier).
+
+  - key: dc_east_db_prod
+    vlan_id: 110
+    name: db-prod-dc-east
+    zone: Database
+    location: dc_east
+    subnet: 10.110.0.0/24
+    gateway: 10.110.0.1
+    segment: SEG-DB-PROD-DC-EAST
+    description: Production relational and document stores.
+
+  - key: dc_east_users
+    vlan_id: 200
+    name: users-corp-dc-east
+    zone: User
+    location: dc_east
+    subnet: 10.200.0.0/22
+    gateway: 10.200.0.1
+    segment: SEG-USERS-CORP-DC-EAST
+    description: Corporate desktop and laptop VLAN (VLAN 200+ user convention).
+
+  - key: dc_east_voice
+    vlan_id: 300
+    name: voice-dc-east
+    zone: User
+    location: dc_east
+    subnet: 10.30.0.0/24
+    gateway: 10.30.0.1
+    segment: SEG-VOICE-DC-EAST
+    description: VoIP handsets and voice gateways (VLAN 300 voice convention).
+
+  - key: dc_east_guest
+    vlan_id: 400
+    name: guest-dc-east
+    zone: DMZ
+    location: dc_east
+    subnet: 10.40.0.0/24
+    gateway: 10.40.0.1
+    segment: SEG-GUEST-DC-EAST
+    description: Captive portal guest Wi-Fi; untrusted endpoints (VLAN 400 guest convention).
+
+  - key: dc_east_pci_app
+    vlan_id: 500
+    name: pci-app-dc-east
+    zone: Application
+    location: dc_east
+    subnet: 10.50.0.0/24
+    gateway: 10.50.0.1
+    segment: SEG-PCI-APP-DC-EAST
+    description: PCI-scoped application segment (VLAN 500); strict east-west policy testing.
+
+  - key: dc_east_quarantine
+    vlan_id: 999
+    name: quarantine-dc-east
+    zone: DMZ
+    location: dc_east
+    subnet: 10.254.0.0/24
+    gateway: 10.254.0.1
+    segment: SEG-QUARANTINE-DC-EAST
+    description: Remediation / NAC quarantine pool before production admission.
+
+  # --- DC-West (172.16.x) — DR / secondary DC ---
+  - key: dc_west_mgmt
+    vlan_id: 10
+    name: mgmt-dc-west
+    zone: Management
+    location: dc_west
+    subnet: 172.16.10.0/24
+    gateway: 172.16.10.1
+    segment: SEG-MGMT-DC-WEST
+    description: DR site management plane (VLAN 10); mirrors East management patterns.
+
+  - key: dc_west_dmz
+    vlan_id: 20
+    name: dmz-dc-west
+    zone: DMZ
+    location: dc_west
+    subnet: 172.16.20.0/24
+    gateway: 172.16.20.1
+    segment: SEG-DMZ-DC-WEST
+    description: DR DMZ; cross-site and failover routing test targets.
+
+  - key: dc_west_app_dr
+    vlan_id: 100
+    name: app-dr-dc-west
+    zone: Application
+    location: dc_west
+    subnet: 172.16.100.0/24
+    gateway: 172.16.100.1
+    segment: SEG-APP-DR-DC-WEST
+    description: DR application tier; pairs with East prod for replication and failover tests.
+
+  - key: dc_west_db_dr
+    vlan_id: 110
+    name: db-dr-dc-west
+    zone: Database
+    location: dc_west
+    subnet: 172.16.110.0/24
+    gateway: 172.16.110.1
+    segment: SEG-DB-DR-DC-WEST
+    description: DR database replicas; zone-crossing rules vs East application tiers.
+
+  # --- Branch-EU (192.168.x) ---
+  - key: branch_eu_users
+    vlan_id: 200
+    name: users-branch-eu
+    zone: User
+    location: branch_eu
+    subnet: 192.168.200.0/24
+    gateway: 192.168.200.1
+    segment: SEG-USERS-BRANCH-EU
+    description: Regional office corporate clients; path to DC-East/West over WAN.
+
+  - key: branch_eu_guest
+    vlan_id: 400
+    name: guest-branch-eu
+    zone: DMZ
+    location: branch_eu
+    subnet: 192.168.40.0/24
+    gateway: 192.168.40.1
+    segment: SEG-GUEST-BRANCH-EU
+    description: Branch visitor Wi-Fi; policy contrast with internal user VLAN.
