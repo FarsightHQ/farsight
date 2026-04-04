@@ -106,23 +106,40 @@ def upgrade() -> None:
                existing_type=postgresql.JSONB(astext_type=sa.Text()),
                nullable=True,
                existing_server_default=sa.text("'{}'::jsonb"))
-    op.drop_index('ix_far_rules_facts', table_name='far_rules', postgresql_using='gin')
+    # Prior revisions may not have created these indexes/constraints; use IF EXISTS.
+    op.execute(sa.text('DROP INDEX IF EXISTS ix_far_rules_facts'))
     op.alter_column('far_tuple_facts', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('CURRENT_TIMESTAMP'))
-    op.drop_constraint('far_tuple_facts_rule_id_source_cidr_destination_cidr_key', 'far_tuple_facts', type_='unique')
-    op.drop_index('idx_far_tuple_facts_facts', table_name='far_tuple_facts', postgresql_using='gin')
-    op.drop_index('idx_far_tuple_facts_rule_id', table_name='far_tuple_facts')
-    op.drop_index('idx_tuple_facts_clean', table_name='far_tuple_facts', postgresql_using='gin')
-    op.drop_index('idx_tuple_facts_facts', table_name='far_tuple_facts', postgresql_using='gin')
-    op.drop_index('idx_tuple_facts_rule_id', table_name='far_tuple_facts')
-    op.drop_index('idx_tuple_facts_self_flow', table_name='far_tuple_facts', postgresql_using='gin')
-    op.drop_index('idx_tuple_facts_violations', table_name='far_tuple_facts', postgresql_using='gin')
-    op.drop_index('ix_far_tuple_facts_facts_gin', table_name='far_tuple_facts', postgresql_using='gin')
-    op.create_index(op.f('ix_far_tuple_facts_destination_cidr'), 'far_tuple_facts', ['destination_cidr'], unique=False)
-    op.create_index(op.f('ix_far_tuple_facts_id'), 'far_tuple_facts', ['id'], unique=False)
-    op.create_index(op.f('ix_far_tuple_facts_source_cidr'), 'far_tuple_facts', ['source_cidr'], unique=False)
+    op.execute(sa.text(
+        'ALTER TABLE far_tuple_facts DROP CONSTRAINT IF EXISTS '
+        'far_tuple_facts_rule_id_source_cidr_destination_cidr_key'
+    ))
+    # 7bd0bc1fde0e enforces uniqueness via ix_far_tuple_facts_tuple, not the constraint name above.
+    op.execute(sa.text('DROP INDEX IF EXISTS ix_far_tuple_facts_tuple'))
+    for _ix in (
+        'idx_far_tuple_facts_facts',
+        'idx_far_tuple_facts_rule_id',
+        'idx_tuple_facts_clean',
+        'idx_tuple_facts_facts',
+        'idx_tuple_facts_rule_id',
+        'idx_tuple_facts_self_flow',
+        'idx_tuple_facts_violations',
+        'ix_far_tuple_facts_facts_gin',
+    ):
+        op.execute(sa.text(f'DROP INDEX IF EXISTS {_ix}'))
+    op.execute(sa.text(
+        'CREATE INDEX IF NOT EXISTS ix_far_tuple_facts_destination_cidr '
+        'ON far_tuple_facts (destination_cidr)'
+    ))
+    op.execute(sa.text(
+        'CREATE INDEX IF NOT EXISTS ix_far_tuple_facts_id ON far_tuple_facts (id)'
+    ))
+    op.execute(sa.text(
+        'CREATE INDEX IF NOT EXISTS ix_far_tuple_facts_source_cidr '
+        'ON far_tuple_facts (source_cidr)'
+    ))
     # ### end Alembic commands ###
 
 

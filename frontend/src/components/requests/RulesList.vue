@@ -54,27 +54,28 @@
     </Card>
 
     <!-- Pagination -->
-    <div v-if="totalPages > 1" class="flex items-center justify-between">
+    <div v-if="!loading && filteredRules.length > 0" class="mt-6 flex items-center justify-between">
       <div class="flex items-center space-x-2">
-        <span class="text-sm text-theme-text-content">Page size:</span>
-        <select
-          v-model="pageSize"
-          class="rounded-md border-theme-border-default shadow-sm focus:border-theme-active focus:ring-theme-active text-sm"
-          @change="handlePageSizeChange"
-        >
+        <span class="text-sm text-theme-text-content">Show</span>
+        <select v-model="pageSize" class="input text-sm" style="width: auto" @change="handlePageSizeChange">
           <option :value="10">10</option>
           <option :value="25">25</option>
           <option :value="50">50</option>
           <option :value="100">100</option>
         </select>
+        <span class="text-sm text-theme-text-content">per page</span>
       </div>
-
       <div class="flex items-center space-x-2">
-        <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+        >
           Previous
         </Button>
         <span class="text-sm text-theme-text-content">
-          Page {{ currentPage }} of {{ totalPages }} ({{ totalRules }} total)
+          Page {{ currentPage }} of {{ totalPages }}
         </span>
         <Button
           variant="outline"

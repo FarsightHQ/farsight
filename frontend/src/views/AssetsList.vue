@@ -14,21 +14,7 @@
     <!-- View Controls Bar -->
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center space-x-2">
-        <Button
-          :variant="viewMode === 'table' ? 'primary' : 'outline'"
-          size="sm"
-          @click="viewMode = 'table'"
-        >
-          Table
-        </Button>
-        <Button
-          :variant="viewMode === 'card' ? 'primary' : 'outline'"
-          size="sm"
-          @click="viewMode = 'card'"
-        >
-          Cards
-        </Button>
-        <div class="text-sm text-theme-text-content ml-4">
+        <div class="text-sm text-theme-text-content">
           Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
         </div>
       </div>
@@ -44,25 +30,6 @@
         <Button variant="outline" size="sm" @click="handleExportAll">
           Export All
         </Button>
-        <div v-if="!loading && assets.length > 0" class="flex items-center space-x-2 ml-4">
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="currentPage === 1"
-            @click="goToPage(currentPage - 1)"
-          >
-            Previous
-          </Button>
-          <span class="text-sm text-theme-text-content">Page {{ currentPage }} of {{ totalPages }}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="currentPage === totalPages"
-            @click="goToPage(currentPage + 1)"
-          >
-            Next
-          </Button>
-        </div>
       </div>
     </div>
 
@@ -111,7 +78,7 @@
         </Card>
 
         <!-- Assets Table View -->
-        <div v-else-if="viewMode === 'table'" class="flex-1 overflow-y-auto">
+        <div v-else class="flex-1 overflow-y-auto">
           <AssetTable
             :assets="displayedAssets"
             :loading="loading"
@@ -125,17 +92,38 @@
           />
         </div>
 
-        <!-- Assets Card View -->
-        <div v-else class="flex-1 overflow-y-auto">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
-            <AssetCard
-              v-for="asset in displayedAssets"
-              :key="asset.id"
-              :asset="asset"
-              :is-selected="selectedAssets.includes(asset.id)"
-              @view-asset="handleViewAsset"
-              @select-asset="handleSelectAsset"
-            />
+        <!-- Pagination -->
+        <div v-if="!loading && assets.length > 0" class="mt-6 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-theme-text-content">Show</span>
+            <select v-model="pageSize" class="input text-sm" style="width: auto" @change="handlePageSizeChange">
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+            <span class="text-sm text-theme-text-content">per page</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="currentPage === 1"
+              @click="goToPage(currentPage - 1)"
+            >
+              Previous
+            </Button>
+            <span class="text-sm text-theme-text-content">
+              Page {{ currentPage }} of {{ totalPages }}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="currentPage === totalPages"
+              @click="goToPage(currentPage + 1)"
+            >
+              Next
+            </Button>
           </div>
         </div>
       </div>
@@ -158,7 +146,6 @@ import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 import AssetFilter from '@/components/assets/AssetFilter.vue'
 import AssetTable from '@/components/assets/AssetTable.vue'
-import AssetCard from '@/components/assets/AssetCard.vue'
 import AssetAnalytics from '@/components/assets/AssetAnalytics.vue'
 
 const router = useRouter()
@@ -166,7 +153,6 @@ const { success, error } = useToast()
 
 const assets = ref([])
 const loading = ref(false)
-const viewMode = ref('table')
 const selectedAssets = ref([])
 const sortKey = ref('ip_address')
 const sortDirection = ref('asc')
@@ -323,6 +309,11 @@ const exportAssetsToCSV = (assetsData, filename) => {
   a.click()
   window.URL.revokeObjectURL(url)
   success(`Exported ${assetsData.length} assets to CSV`)
+}
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1
+  fetchAssets()
 }
 
 const goToPage = (page) => {
