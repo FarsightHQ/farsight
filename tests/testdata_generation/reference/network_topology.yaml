@@ -41,10 +41,10 @@ vlans:
     name: mgmt-dc-east
     zone: Management
     location: dc_east
-    subnet: 10.10.0.0/24
+    subnet: 10.10.0.0/22
     gateway: 10.10.0.1
     segment: SEG-MGMT-DC-EAST
-    description: Out-of-band-style management; network devices, jump infrastructure, tooling.
+    description: Out-of-band-style management; network devices, jump infrastructure, tooling. /22 for 5k-asset fixtures sharing this VLAN with monitoring, DNS, etc.
 
   - key: dc_east_dmz
     vlan_id: 20
@@ -61,10 +61,10 @@ vlans:
     name: app-prod-dc-east
     zone: Application
     location: dc_east
-    subnet: 10.100.0.0/23
+    subnet: 10.100.0.0/21
     gateway: 10.100.0.1
     segment: SEG-APP-PROD-DC-EAST
-    description: Production application servers and middleware (VLAN 100 server tier).
+    description: Production application servers and middleware (VLAN 100 server tier). Expanded /21 so large (5k) asset fixtures fit without IP exhaustion.
 
   - key: dc_east_db_prod
     vlan_id: 110
@@ -132,10 +132,10 @@ vlans:
     name: mgmt-dc-west
     zone: Management
     location: dc_west
-    subnet: 172.16.10.0/24
+    subnet: 172.16.10.0/22
     gateway: 172.16.10.1
     segment: SEG-MGMT-DC-WEST
-    description: DR site management plane (VLAN 10); mirrors East management patterns.
+    description: DR site management plane (VLAN 10); mirrors East management patterns. /22 for large synthetic inventories.
 
   - key: dc_west_dmz
     vlan_id: 20
