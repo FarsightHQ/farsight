@@ -17,14 +17,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Remove redundant columns from far_rules table
-    # These columns are unused and their data is stored in the facts JSONB column
-    op.drop_column('far_rules', 'src_raw')
-    op.drop_column('far_rules', 'dst_raw')
-    op.drop_column('far_rules', 'svc_raw')
-    op.drop_column('far_rules', 'service_count')
-    op.drop_column('far_rules', 'max_port_span')
-    op.drop_column('far_rules', 'tuple_estimate')
+    # Remove redundant columns from far_rules table (if present).
+    # Older DBs may have had these; fresh installs never created them (see aebb5f24c6cf).
+    op.execute(
+        sa.text(
+            """
+            ALTER TABLE far_rules
+            DROP COLUMN IF EXISTS src_raw,
+            DROP COLUMN IF EXISTS dst_raw,
+            DROP COLUMN IF EXISTS svc_raw,
+            DROP COLUMN IF EXISTS service_count,
+            DROP COLUMN IF EXISTS max_port_span,
+            DROP COLUMN IF EXISTS tuple_estimate
+            """
+        )
+    )
 
 
 def downgrade() -> None:

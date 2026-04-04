@@ -44,9 +44,13 @@ services:
     networks:
       - farsight_network
     restart: unless-stopped
-    command: start-dev
+    # Realm JSON must stay in sync with KEYCLOAK_CLIENT_SECRET for farsight-backend
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      # Keycloak image has no curl; check that the HTTP port accepts connections
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -59,7 +63,9 @@ services:
       dockerfile: Dockerfile
     container_name: farsight_backend
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      # Always use the Docker service name "postgres" — do not read DATABASE_URL from .env here,
+      # so .env can use localhost for running uvicorn / scripts on the host.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       PYTHONPATH: ${PYTHONPATH:-/app}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}

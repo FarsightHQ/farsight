@@ -1,13 +1,15 @@
 """
 Database configuration and connection management
 """
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://farsight_user:farsight_password@localhost:5432/farsight")
+# Single source of truth: app.core.config loads .env and builds DATABASE_URL from
+# DATABASE_URL or POSTGRES_* (e.g. POSTGRES_HOST=localhost when not using Docker).
+from app.core.config import settings
+
+DATABASE_URL = settings.DATABASE_URL
 
 # Create SQLAlchemy engine
 engine = create_engine(DATABASE_URL)
