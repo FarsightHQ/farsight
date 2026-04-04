@@ -63,7 +63,9 @@ services:
       dockerfile: Dockerfile
     container_name: farsight_backend
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      # Always use the Docker service name "postgres" — do not read DATABASE_URL from .env here,
+      # so .env can use localhost for running uvicorn / scripts on the host.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       PYTHONPATH: ${PYTHONPATH:-/app}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}

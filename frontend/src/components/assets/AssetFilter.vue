@@ -167,7 +167,17 @@ const fetchFilterOptions = async () => {
   try {
     loadingOptions.value = true
     const response = await assetsService.getFilterOptions()
-    filterOptions.value = response.data || response
+    const raw =
+      response && typeof response === 'object' && 'data' in response && response.data !== undefined
+        ? response.data
+        : response
+    const o = raw && typeof raw === 'object' ? raw : {}
+    filterOptions.value = {
+      segments: Array.isArray(o.segments) ? o.segments : [],
+      vlans: Array.isArray(o.vlans) ? o.vlans : [],
+      environments: Array.isArray(o.environments) ? o.environments : [],
+      os_names: Array.isArray(o.os_names) ? o.os_names : [],
+    }
   } catch (err) {
     console.error('Error fetching filter options:', err)
     // Graceful degradation: if options fail to load, filters will still work as text inputs

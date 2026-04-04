@@ -533,6 +533,14 @@ class AssetRegistryService:
             func.avg(AssetRegistry.vcpu).label('avg_vcpu'),
             func.sum(AssetRegistry.vcpu).label('total_vcpu')
         ).filter(AssetRegistry.is_active == True).first()
+
+        avg_vcpu = None
+        total_vcpu_val = None
+        if resource_stats is not None:
+            if resource_stats.avg_vcpu is not None:
+                avg_vcpu = float(resource_stats.avg_vcpu)
+            if resource_stats.total_vcpu is not None:
+                total_vcpu_val = int(resource_stats.total_vcpu)
         
         # Last updated
         last_updated = db.query(
@@ -548,9 +556,9 @@ class AssetRegistryService:
             criticality_levels=criticality_levels,
             security_zones=security_zones,
             business_units=business_units,
-            average_vcpu=float(resource_stats.avg_vcpu) if resource_stats.avg_vcpu else None,
+            average_vcpu=avg_vcpu,
             average_memory_gb=None,  # Memory is string field, not numeric
-            total_vcpu=int(resource_stats.total_vcpu) if resource_stats.total_vcpu else None,
+            total_vcpu=total_vcpu_val,
             total_memory_gb=None,  # Memory is string field, not numeric
             last_updated=last_updated
         )

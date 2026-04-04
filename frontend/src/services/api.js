@@ -41,6 +41,33 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
+/** FastAPI may return detail as a string, object, or list of validation errors */
+function normalizeApiDetail(detail) {
+  if (detail == null) return null
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object' && item.msg) return item.msg
+        try {
+          return JSON.stringify(item)
+        } catch {
+          return String(item)
+        }
+      })
+      .join('; ')
+  }
+  if (typeof detail === 'object') {
+    try {
+      return JSON.stringify(detail)
+    } catch {
+      return String(detail)
+    }
+  }
+  return String(detail)
+}
+
 apiClient.interceptors.response.use(
   (response) => {
     // Handle standardized response format
@@ -107,13 +134,18 @@ apiClient.interceptors.response.use(
 
     // Handle other errors
     if (error.response) {
-      // Server responded with error
+      const status = error.response.status
+      const data = error.response.data
+      const detail = normalizeApiDetail(data?.detail)
       const errorMessage =
-        error.response.data?.detail ||
-        error.response.data?.message ||
+        detail ||
+        data?.message ||
         error.response.statusText ||
         'An error occurred'
-      return Promise.reject(new Error(errorMessage))
+      const err = new Error(
+        status === 503 ? `Service unavailable: ${errorMessage}` : errorMessage
+      )
+      return Promise.reject(err)
     } else if (error.request) {
       // Request made but no response
       return Promise.reject(new Error('Network error. Please check your connection.'))

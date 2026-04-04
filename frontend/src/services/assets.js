@@ -39,7 +39,9 @@ export const assetsService = {
       // If endpoint doesn't exist, return empty options
       if (error.response?.status === 404) {
         console.warn('Filter options endpoint not available, returning empty options')
-        return { data: { data: { segments: [], vlans: [], os_names: [], environments: [] } } }
+        return {
+          data: { segments: [], vlans: [], os_names: [], environments: [] },
+        }
       }
       throw error
     })

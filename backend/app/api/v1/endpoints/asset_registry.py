@@ -3,6 +3,7 @@ Asset Registry API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import List, Optional
 import io
 import logging
@@ -242,13 +243,26 @@ async def get_analytics(
     """Get asset registry analytics and insights"""
     try:
         analytics_result = AssetRegistryService.get_analytics(db)
-        analytics_data = analytics_result.dict() if hasattr(analytics_result, 'dict') else analytics_result
-        
+        if hasattr(analytics_result, "model_dump"):
+            analytics_data = analytics_result.model_dump(mode="json")
+        else:
+            analytics_data = analytics_result.dict()
+
         return success_response(
             data=analytics_data,
             message="Successfully retrieved asset registry analytics"
         )
+    except OperationalError as e:
+        logger.exception("Analytics: database unavailable (%s)", e)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Database unavailable. If you run the API on your machine (not inside Docker), "
+                "set POSTGRES_HOST=localhost in .env (or point DATABASE_URL at a reachable PostgreSQL)."
+            ),
+        )
     except Exception as e:
+        logger.exception("Failed to get analytics: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
 
 

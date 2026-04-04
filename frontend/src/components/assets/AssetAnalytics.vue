@@ -27,6 +27,13 @@
         </div>
       </div>
 
+      <p
+        v-if="(analytics.total_assets || 0) === 0"
+        class="text-xs text-gray-500 pt-1"
+      >
+        No assets in the registry yet. Upload a CSV to populate analytics.
+      </p>
+
       <!-- Environment Distribution -->
       <div v-if="analytics.environments && typeof analytics.environments === 'object' && Object.keys(analytics.environments).length > 0">
         <h4 class="text-xs font-medium text-gray-700 mb-2">By Environment</h4>
@@ -42,7 +49,7 @@
                 <div
                   class="bg-primary-600 h-1.5 rounded-full"
                   :style="{
-                    width: `${analytics.total_assets > 0 ? (count / analytics.total_assets) * 100 : 0}%`,
+                    width: `${barWidthPercent(count, analytics.total_assets)}%`,
                   }"
                 ></div>
               </div>
@@ -53,7 +60,7 @@
       </div>
 
       <!-- OS Distribution -->
-      <div v-if="analytics.operating_systems && Object.keys(analytics.operating_systems).length > 0">
+      <div v-if="analytics.operating_systems && typeof analytics.operating_systems === 'object' && Object.keys(analytics.operating_systems).length > 0">
         <h4 class="text-xs font-medium text-gray-700 mb-2">By OS</h4>
         <div class="space-y-1.5">
           <div
@@ -67,7 +74,7 @@
                 <div
                   class="bg-primary-600 h-1.5 rounded-full"
                   :style="{
-                    width: `${(count / analytics.total_assets) * 100}%`,
+                    width: `${barWidthPercent(count, analytics.total_assets)}%`,
                   }"
                 ></div>
               </div>
@@ -78,16 +85,16 @@
       </div>
 
       <!-- vCPU Stats -->
-      <div v-if="analytics.average_vcpu !== null && analytics.average_vcpu !== undefined" class="pt-2 border-t border-gray-200">
+      <div v-if="hasVcpuStats" class="pt-2 border-t border-gray-200">
         <h4 class="text-xs font-medium text-gray-700 mb-2">vCPU Statistics</h4>
         <div class="space-y-1.5">
           <div>
             <div class="text-xs text-gray-600">Average vCPU</div>
-            <div class="text-sm font-semibold text-gray-900">{{ analytics.average_vcpu.toFixed(2) }}</div>
+            <div class="text-sm font-semibold text-gray-900">{{ formatVcpu(analytics.average_vcpu) }}</div>
           </div>
           <div>
             <div class="text-xs text-gray-600">Total vCPU</div>
-            <div class="text-sm font-semibold text-gray-900">{{ analytics.total_vcpu || 0 }}</div>
+            <div class="text-sm font-semibold text-gray-900">{{ analytics.total_vcpu ?? 0 }}</div>
           </div>
         </div>
       </div>
@@ -101,7 +108,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Card from '@/components/ui/Card.vue'
 import { assetsService } from '@/services/assets'
 
@@ -109,21 +116,74 @@ const analytics = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
+const emptyAnalytics = () => ({
+  total_assets: 0,
+  active_assets: 0,
+  inactive_assets: 0,
+  environments: {},
+  operating_systems: {},
+  average_vcpu: undefined,
+  total_vcpu: undefined,
+  last_updated: undefined,
+})
+
+/** Normalize API payload so missing keys never break the template. */
+function normalizeAnalytics(raw) {
+  if (!raw || typeof raw !== 'object') return emptyAnalytics()
+  const env = raw.environments
+  const os = raw.operating_systems
+  return {
+    total_assets: raw.total_assets ?? 0,
+    active_assets: raw.active_assets ?? 0,
+    inactive_assets: raw.inactive_assets ?? 0,
+    environments: env && typeof env === 'object' && !Array.isArray(env) ? env : {},
+    operating_systems: os && typeof os === 'object' && !Array.isArray(os) ? os : {},
+    average_vcpu: raw.average_vcpu,
+    total_vcpu: raw.total_vcpu,
+    last_updated: raw.last_updated,
+  }
+}
+
+function unwrapApiPayload(body) {
+  if (!body || typeof body !== 'object') return null
+  if (Object.prototype.hasOwnProperty.call(body, 'data') && body.data !== undefined && body.data !== null) {
+    return body.data
+  }
+  return body
+}
+
+const hasVcpuStats = computed(() => {
+  const a = analytics.value
+  if (!a) return false
+  const avg = a.average_vcpu
+  if (avg !== null && avg !== undefined && Number.isFinite(Number(avg))) return true
+  const total = a.total_vcpu
+  if (total !== null && total !== undefined && Number.isFinite(Number(total))) return true
+  return false
+})
+
+function barWidthPercent(count, totalAssets) {
+  const n = Number(count)
+  const t = Number(totalAssets)
+  if (!Number.isFinite(n) || !Number.isFinite(t) || t <= 0) return 0
+  return Math.min(100, (n / t) * 100)
+}
+
+function formatVcpu(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toFixed(2)
+}
+
 const fetchAnalytics = async () => {
   try {
     loading.value = true
     error.value = null
     const response = await assetsService.getAnalytics()
-    analytics.value = response.data || response
-    // Debug: Log environments data
-    if (analytics.value && analytics.value.environments) {
-      console.log('Analytics environments:', analytics.value.environments)
-      console.log('Environments keys:', Object.keys(analytics.value.environments))
-      console.log('Environments count:', Object.keys(analytics.value.environments).length)
-    }
+    const payload = unwrapApiPayload(response)
+    analytics.value = normalizeAnalytics(payload)
   } catch (err) {
     error.value = err.message || 'Failed to load analytics'
-    console.error('Error fetching analytics:', err)
   } finally {
     loading.value = false
   }
@@ -132,6 +192,7 @@ const fetchAnalytics = async () => {
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return 'N/A'
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
