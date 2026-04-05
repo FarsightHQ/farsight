@@ -73,17 +73,25 @@ function buildColorScale(segments) {
   return seg => scale(seg || 'Unknown')
 }
 
-function clusterCenters(segments, width, height) {
+/**
+ * Target positions for segment forces. Pulls grid toward canvas center so clusters sit closer together.
+ * `tighten` in (0,1]: lower = more compression toward center.
+ */
+function clusterCenters(segments, width, height, tighten = 0.66) {
   const n = Math.max(1, segments.length)
   const cols = Math.ceil(Math.sqrt(n))
   const rows = Math.ceil(n / cols)
+  const cx = width / 2
+  const cy = height / 2
   const map = {}
   segments.forEach((seg, i) => {
     const col = i % cols
     const row = Math.floor(i / cols)
+    const bx = ((col + 0.5) / cols) * width
+    const by = ((row + 0.5) / rows) * height
     map[seg] = {
-      x: ((col + 0.5) / cols) * width,
-      y: ((row + 0.5) / rows) * height,
+      x: cx + (bx - cx) * tighten,
+      y: cy + (by - cy) * tighten,
     }
   })
   return map
@@ -127,7 +135,7 @@ function circlePath(cx, cy, r) {
  */
 function buildSegmentOutlineEntries(nodeData, segments) {
   const bySeg = d3.group(nodeData, d => d.segment || 'Unknown')
-  const lineClosed = d3.line().curve(d3.curveLinearClosed)
+  const lineClosedSmooth = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.72))
   const pad = 26
 
   return segments
@@ -156,7 +164,7 @@ function buildSegmentOutlineEntries(nodeData, segments) {
         }
       }
 
-      const pathD = lineClosed(ring)
+      const pathD = lineClosedSmooth(ring)
       const cx = d3.mean(pts, p => p.x)
       const cy = d3.mean(pts, p => p.y)
       return { seg, pathD, cx, cy }
@@ -223,6 +231,25 @@ function linkKeyFromSim(d) {
   const s = typeof d.source === 'object' ? d.source.id : d.source
   const t = typeof d.target === 'object' ? d.target.id : d.target
   return `${s}->${t}`
+}
+
+/** Cubic Bézier from source to target, bent perpendicular to chord (reduces overlap vs straight lines). */
+function curvedLinkPath(d) {
+  const sx = d.source.x
+  const sy = d.source.y
+  const tx = d.target.x
+  const ty = d.target.y
+  const dx = tx - sx
+  const dy = ty - sy
+  const dist = Math.hypot(dx, dy) || 1
+  const nx = -dy / dist
+  const ny = dx / dist
+  const bend = dist * 0.22 * (d._curveSide || 1)
+  const c1x = sx + dx * 0.32 + nx * bend
+  const c1y = sy + dy * 0.32 + ny * bend
+  const c2x = sx + dx * 0.68 + nx * bend
+  const c2y = sy + dy * 0.68 + ny * bend
+  return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`
 }
 
 function updateVisualState() {
@@ -336,7 +363,7 @@ function runSimulation() {
     .append('marker')
     .attr('id', arrowId)
     .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 28)
+    .attr('refX', 26)
     .attr('refY', 0)
     .attr('markerWidth', 6)
     .attr('markerHeight', 6)
@@ -356,10 +383,11 @@ function runSimulation() {
     return { ...n, x: c.x + jitter(), y: c.y + jitter() }
   })
 
-  const linkData = links.map(l => ({
+  const linkData = links.map((l, i) => ({
     ...l,
     source: l.source,
     target: l.target,
+    _curveSide: i % 2 === 0 ? 1 : -1,
   }))
 
   gMain
@@ -384,23 +412,24 @@ function runSimulation() {
       d3
         .forceLink(linkData)
         .id(d => d.id)
-        .distance(90)
-        .strength(0.4)
+        .distance(72)
+        .strength(0.48)
     )
-    .force('charge', d3.forceManyBody().strength(-220))
+    .force('charge', d3.forceManyBody().strength(-165))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('x', d3.forceX(d => centers[d.segment || 'Unknown']?.x ?? width / 2).strength(0.38))
-    .force('y', d3.forceY(d => centers[d.segment || 'Unknown']?.y ?? height / 2).strength(0.38))
-    .force('collision', d3.forceCollide().radius(32))
+    .force('x', d3.forceX(d => centers[d.segment || 'Unknown']?.x ?? width / 2).strength(0.3))
+    .force('y', d3.forceY(d => centers[d.segment || 'Unknown']?.y ?? height / 2).strength(0.3))
+    .force('collision', d3.forceCollide().radius(28))
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
   const labelG = gMain.append('g').attr('class', 'segment-labels').style('pointer-events', 'none')
 
   const linkSel = linkLayer
     .attr('stroke', '#94a3b8')
-    .selectAll('line')
+    .attr('fill', 'none')
+    .selectAll('path')
     .data(linkData)
-    .join('line')
+    .join('path')
     .attr('stroke-width', 1.5)
     .attr('marker-end', `url(#${arrowId})`)
     .style('pointer-events', 'stroke')
@@ -503,11 +532,7 @@ function runSimulation() {
   graphCtx = { linkSel, nodeSel, linkData, nodeData }
 
   simulation.on('tick', () => {
-    linkSel
-      .attr('x1', d => d.source.x)
-      .attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x)
-      .attr('y2', d => d.target.y)
+    linkSel.attr('d', curvedLinkPath)
 
     nodeSel.attr('transform', d => `translate(${d.x},${d.y})`)
   })
