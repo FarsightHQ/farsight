@@ -48,6 +48,11 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  /** Draw smooth convex hulls per VLAN (dashed / alternate palette); independent of segment hulls. */
+  showVlanHulls: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:selectedNodeId', 'update:selectedLinkKey'])
@@ -66,7 +71,19 @@ let resizeRafId = null
 /** Live D3 selections + data for selection / emphasis styling without full rebuild */
 let graphCtx = null
 
+/** Latest hull layers + data so VLAN toggle can redraw without re-running the simulation */
+let latestHullRedraw = null
+
 let arrowMarkerSeq = 0
+
+const VLAN_NONE_KEY = '__no_vlan__'
+
+function vlanGroupKey(d) {
+  const v = d.vlan
+  if (v == null) return VLAN_NONE_KEY
+  const s = String(v).trim()
+  return s === '' ? VLAN_NONE_KEY : s
+}
 
 function buildColorScale(segments) {
   const scale = d3.scaleOrdinal(d3.schemeTableau10).domain(segments)
@@ -208,6 +225,130 @@ function redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn) {
   labelJoin.text(d => (d.seg.length > 38 ? `${d.seg.slice(0, 36)}…` : d.seg))
 }
 
+function buildVlanColorScale(vlanIds) {
+  const scheme = d3.schemeObservable10.concat(d3.schemeSet3)
+  return d3.scaleOrdinal(scheme).domain(vlanIds)
+}
+
+/**
+ * VLAN hulls: same geometry as segment (Catmull–Rom closed), larger padding, dashed stroke, cooler palette.
+ */
+function buildVlanOutlineEntries(nodeData) {
+  const byVlan = d3.group(nodeData, vlanGroupKey)
+  const lineClosedSmooth = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.72))
+  const pad = 36
+
+  const vlanIds = [...byVlan.keys()].sort((a, b) => {
+    if (a === VLAN_NONE_KEY) return 1
+    if (b === VLAN_NONE_KEY) return -1
+    return a.localeCompare(b, undefined, { sensitivity: 'base' })
+  })
+
+  return vlanIds
+    .map(vlanId => {
+      const pts = byVlan.get(vlanId) || []
+      if (pts.length === 0) return null
+
+      const label = vlanId === VLAN_NONE_KEY ? 'No VLAN' : vlanId
+      const xy = pts.map(p => [p.x, p.y])
+      let ring = null
+
+      if (pts.length >= 3) {
+        const hull = d3.polygonHull(xy)
+        if (hull && hull.length >= 3) {
+          ring = expandHullFromCentroid(hull, pad)
+        } else {
+          ring = bboxPolygonPad(xy, pad)
+        }
+      } else if (pts.length === 2) {
+        ring = bboxPolygonPad(xy, pad)
+      } else {
+        return {
+          vlanId,
+          label,
+          pathD: circlePath(xy[0][0], xy[0][1], 44),
+          cx: xy[0][0],
+          cy: xy[0][1],
+        }
+      }
+
+      const pathD = lineClosedSmooth(ring)
+      const cx = d3.mean(pts, p => p.x)
+      const cy = d3.mean(pts, p => p.y)
+      return { vlanId, label, pathD, cx, cy }
+    })
+    .filter(Boolean)
+}
+
+function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vlanColorFn) {
+  if (!vlanHullG || !vlanLabelG) return
+
+  if (!visible) {
+    vlanHullG.selectAll('*').remove()
+    vlanLabelG.selectAll('*').remove()
+    return
+  }
+
+  const entries = buildVlanOutlineEntries(nodeData)
+
+  const pathJoin = vlanHullG
+    .selectAll('path')
+    .data(entries, d => d.vlanId)
+    .join('path')
+    .attr('stroke-linejoin', 'round')
+    .attr('stroke-linecap', 'round')
+    .attr('stroke-dasharray', '7 5')
+    .attr('stroke-width', 2)
+
+  pathJoin.each(function (d) {
+    const el = d3.select(this)
+    if (d.vlanId === VLAN_NONE_KEY) {
+      el.attr('fill', 'rgba(148, 163, 184, 0.06)').attr('stroke', 'rgba(71, 85, 105, 0.65)')
+    } else {
+      const base = d3.color(vlanColorFn(d.vlanId))
+      const fillC = base
+        ? base.copy({ opacity: 0.08 })
+        : d3.color('#818cf8').copy({ opacity: 0.08 })
+      const strokeC = base
+        ? base.copy({ opacity: 0.75 })
+        : d3.color('#6366f1').copy({ opacity: 0.8 })
+      el.attr('fill', fillC.formatRgb()).attr('stroke', strokeC.formatRgb())
+    }
+  })
+
+  pathJoin.attr('d', d => d.pathD)
+
+  const labelJoin = vlanLabelG
+    .selectAll('text')
+    .data(entries, d => d.vlanId)
+    .join('text')
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 9)
+    .attr('font-weight', 600)
+    .attr('font-style', 'italic')
+    .attr('fill', '#4338ca')
+    .style('paint-order', 'stroke fill')
+    .attr('stroke', '#f8fafc')
+    .attr('stroke-width', 3)
+    .attr('pointer-events', 'none')
+
+  labelJoin
+    .attr('x', d => d.cx)
+    .attr('y', d => d.cy + 4)
+    .text(d => {
+      const t = d.label.length > 32 ? `${d.label.slice(0, 30)}…` : d.label
+      return d.vlanId === VLAN_NONE_KEY ? t : `VLAN ${t}`
+    })
+}
+
+function applyHullRedraws() {
+  if (!latestHullRedraw) return
+  const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, segments, colorFn, vlanColorFn } =
+    latestHullRedraw
+  redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn)
+  redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, props.showVlanHulls, vlanColorFn)
+}
+
 function neighborIds(selId, linkData) {
   const set = new Set([selId])
   for (const l of linkData) {
@@ -307,6 +448,7 @@ function updateVisualState() {
 
 function destroyGraph() {
   graphCtx = null
+  latestHullRedraw = null
   if (simulation) {
     simulation.on('tick', null)
     simulation.on('end', null)
@@ -403,7 +545,15 @@ function runSimulation() {
       emit('update:selectedLinkKey', null)
     })
 
+  const vlanHullG = gMain.append('g').attr('class', 'vlan-hulls').style('pointer-events', 'none')
   const hullG = gMain.append('g').attr('class', 'segment-hulls').style('pointer-events', 'none')
+
+  const vlanIdsForScale = [...new Set(nodeData.map(d => vlanGroupKey(d)))].sort((a, b) => {
+    if (a === VLAN_NONE_KEY) return 1
+    if (b === VLAN_NONE_KEY) return -1
+    return a.localeCompare(b, undefined, { sensitivity: 'base' })
+  })
+  const vlanColorFn = buildVlanColorScale(vlanIdsForScale)
 
   simulation = d3
     .forceSimulation(nodeData)
@@ -423,6 +573,7 @@ function runSimulation() {
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
   const labelG = gMain.append('g').attr('class', 'segment-labels').style('pointer-events', 'none')
+  const vlanLabelG = gMain.append('g').attr('class', 'vlan-labels').style('pointer-events', 'none')
 
   const linkSel = linkLayer
     .attr('stroke', '#94a3b8')
@@ -539,7 +690,17 @@ function runSimulation() {
 
   simulation.on('end', () => {
     requestAnimationFrame(() => {
-      redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn)
+      latestHullRedraw = {
+        vlanHullG,
+        vlanLabelG,
+        hullG,
+        labelG,
+        nodeData,
+        segments,
+        colorFn,
+        vlanColorFn,
+      }
+      applyHullRedraws()
       fitView(false)
       updateVisualState()
     })
@@ -596,6 +757,13 @@ watch(
   () => [props.selectedNodeId, props.selectedLinkKey, props.emphasizeCrossSegment],
   () => {
     nextTick(() => updateVisualState())
+  }
+)
+
+watch(
+  () => props.showVlanHulls,
+  () => {
+    nextTick(() => applyHullRedraws())
   }
 )
 

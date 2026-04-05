@@ -54,6 +54,7 @@
         :filter-text="filterText"
         :segment-focus="segmentFocus"
         :emphasize-cross-segment="emphasizeCrossSegment"
+        :show-vlan-hulls="showVlanHulls"
         :selected-node-id="selectedNodeId"
         :selected-link-key="selectedLinkKey"
         @update:selected-node-id="selectedNodeId = $event"
@@ -140,6 +141,26 @@
         </label>
       </div>
 
+      <div class="space-y-1">
+        <label
+          class="flex items-start gap-2 text-xs text-gray-700 cursor-pointer select-none"
+          for="unified-show-vlan-hulls"
+        >
+          <input
+            id="unified-show-vlan-hulls"
+            v-model="showVlanHulls"
+            type="checkbox"
+            class="rounded border-gray-300 mt-0.5 shrink-0"
+          />
+          <span>
+            Show VLAN outlines
+            <span class="block text-[11px] text-gray-500 font-normal leading-snug mt-0.5">
+              Dashed hulls from asset VLAN (larger than segment); turn off if too busy.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div v-if="legendSegments.length" class="space-y-2">
         <p class="text-xs font-medium text-gray-600">Segments</p>
         <ul class="flex flex-col gap-2 list-none p-0 m-0">
@@ -190,6 +211,7 @@ const graphPayload = ref(null)
 const filterText = ref('')
 const segmentFocus = ref('')
 const emphasizeCrossSegment = ref(false)
+const showVlanHulls = ref(false)
 const selectedNodeId = ref(null)
 const selectedLinkKey = ref(null)
 const graphRef = ref(null)
