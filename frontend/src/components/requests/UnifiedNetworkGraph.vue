@@ -84,33 +84,120 @@ function clusterCenters(segments, width, height) {
     map[seg] = {
       x: ((col + 0.5) / cols) * width,
       y: ((row + 0.5) / rows) * height,
-      col,
-      row,
-      cols,
-      rows,
     }
   })
   return map
 }
 
-function segmentRegionLayout(segments, width, height, pad = 10) {
-  const n = Math.max(1, segments.length)
-  const cols = Math.ceil(Math.sqrt(n))
-  const rows = Math.ceil(n / cols)
-  const cellW = width / cols
-  const cellH = height / rows
-  const map = {}
-  segments.forEach((seg, i) => {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    map[seg] = {
-      x: col * cellW + pad,
-      y: row * cellH + pad,
-      w: cellW - pad * 2,
-      h: cellH - pad * 2,
-    }
+/** Push hull vertices outward from centroid so outlines clear node circles. */
+function expandHullFromCentroid(hull, pad) {
+  let cx = 0
+  let cy = 0
+  for (const [x, y] of hull) {
+    cx += x
+    cy += y
+  }
+  cx /= hull.length
+  cy /= hull.length
+  return hull.map(([x, y]) => {
+    const dx = x - cx
+    const dy = y - cy
+    const len = Math.hypot(dx, dy) || 1
+    return [x + (dx / len) * pad, y + (dy / len) * pad]
   })
-  return map
+}
+
+function bboxPolygonPad(xy, pad) {
+  const xs = xy.map(p => p[0])
+  const ys = xy.map(p => p[1])
+  return [
+    [Math.min(...xs) - pad, Math.min(...ys) - pad],
+    [Math.max(...xs) + pad, Math.min(...ys) - pad],
+    [Math.max(...xs) + pad, Math.max(...ys) + pad],
+    [Math.min(...xs) - pad, Math.max(...ys) + pad],
+  ]
+}
+
+function circlePath(cx, cy, r) {
+  return `M ${cx - r},${cy} A ${r},${r} 0 1,1 ${cx + r},${cy} A ${r},${r} 0 1,1 ${cx - r},${cy}`
+}
+
+/**
+ * Outlines that follow actual node positions (convex hull + fallbacks), not a fixed grid.
+ */
+function buildSegmentOutlineEntries(nodeData, segments) {
+  const bySeg = d3.group(nodeData, d => d.segment || 'Unknown')
+  const lineClosed = d3.line().curve(d3.curveLinearClosed)
+  const pad = 26
+
+  return segments
+    .map(seg => {
+      const pts = bySeg.get(seg) || []
+      if (pts.length === 0) return null
+
+      const xy = pts.map(p => [p.x, p.y])
+      let ring = null
+
+      if (pts.length >= 3) {
+        const hull = d3.polygonHull(xy)
+        if (hull && hull.length >= 3) {
+          ring = expandHullFromCentroid(hull, pad)
+        } else {
+          ring = bboxPolygonPad(xy, pad)
+        }
+      } else if (pts.length === 2) {
+        ring = bboxPolygonPad(xy, pad)
+      } else {
+        return {
+          seg,
+          pathD: circlePath(xy[0][0], xy[0][1], 38),
+          cx: xy[0][0],
+          cy: xy[0][1],
+        }
+      }
+
+      const pathD = lineClosed(ring)
+      const cx = d3.mean(pts, p => p.x)
+      const cy = d3.mean(pts, p => p.y)
+      return { seg, pathD, cx, cy }
+    })
+    .filter(Boolean)
+}
+
+function redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn) {
+  const entries = buildSegmentOutlineEntries(nodeData, segments)
+  const pathJoin = hullG
+    .selectAll('path')
+    .data(entries, d => d.seg)
+    .join('path')
+    .attr('stroke-linejoin', 'round')
+    .attr('stroke-linecap', 'round')
+    .attr('stroke-width', 1.25)
+
+  pathJoin.each(function (d) {
+    const base = d3.color(colorFn(d.seg))
+    const fillC = base ? base.copy({ opacity: 0.07 }) : d3.color('#94a3b8').copy({ opacity: 0.07 })
+    const strokeC = base ? base.copy({ opacity: 0.4 }) : d3.color('#64748b').copy({ opacity: 0.45 })
+    d3.select(this).attr('fill', fillC.formatRgb()).attr('stroke', strokeC.formatRgb())
+  })
+
+  pathJoin.attr('d', d => d.pathD)
+
+  const labelJoin = labelG
+    .selectAll('text')
+    .data(entries, d => d.seg)
+    .join('text')
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 10)
+    .attr('font-weight', 600)
+    .attr('fill', '#475569')
+    .style('paint-order', 'stroke fill')
+    .attr('stroke', '#f8fafc')
+    .attr('stroke-width', 4)
+    .attr('pointer-events', 'none')
+
+  labelJoin.attr('x', d => d.cx).attr('y', d => d.cy - 10)
+  labelJoin.text(d => (d.seg.length > 38 ? `${d.seg.slice(0, 36)}…` : d.seg))
 }
 
 function neighborIds(selId, linkData) {
@@ -260,7 +347,6 @@ function runSimulation() {
 
   const segments = [...new Set(rawFiltered.map(n => n.segment || 'Unknown'))].sort()
   const centers = clusterCenters(segments, width, height)
-  const regionLayout = segmentRegionLayout(segments, width, height)
   const colorFn = buildColorScale(segments)
 
   const nodeData = rawFiltered.map(n => {
@@ -289,36 +375,7 @@ function runSimulation() {
       emit('update:selectedLinkKey', null)
     })
 
-  const regionG = gMain.append('g').attr('class', 'segment-regions').style('pointer-events', 'none')
-
-  segments.forEach(seg => {
-    const r = regionLayout[seg]
-    if (!r) return
-    const base = d3.color(colorFn(seg))
-    const fill = base ? base.copy({ opacity: 0.1 }) : null
-    regionG
-      .append('rect')
-      .attr('x', r.x)
-      .attr('y', r.y)
-      .attr('width', Math.max(0, r.w))
-      .attr('height', Math.max(0, r.h))
-      .attr('rx', 8)
-      .attr('ry', 8)
-      .attr('fill', fill ? fill.formatRgb() : 'rgba(148,163,184,0.1)')
-      .attr('stroke', '#cbd5e1')
-      .attr('stroke-opacity', 0.45)
-      .attr('stroke-width', 1)
-
-    const label = seg.length > 42 ? `${seg.slice(0, 40)}…` : seg
-    regionG
-      .append('text')
-      .attr('x', r.x + 8)
-      .attr('y', r.y + 14)
-      .attr('font-size', 10)
-      .attr('font-weight', 600)
-      .attr('fill', '#475569')
-      .text(label)
-  })
+  const hullG = gMain.append('g').attr('class', 'segment-hulls').style('pointer-events', 'none')
 
   simulation = d3
     .forceSimulation(nodeData)
@@ -337,6 +394,8 @@ function runSimulation() {
     .force('collision', d3.forceCollide().radius(32))
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
+  const labelG = gMain.append('g').attr('class', 'segment-labels').style('pointer-events', 'none')
+
   const linkSel = linkLayer
     .attr('stroke', '#94a3b8')
     .selectAll('line')
@@ -455,6 +514,7 @@ function runSimulation() {
 
   simulation.on('end', () => {
     requestAnimationFrame(() => {
+      redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn)
       fitView(false)
       updateVisualState()
     })
