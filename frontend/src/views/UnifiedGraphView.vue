@@ -36,9 +36,9 @@
       <div class="space-y-1 text-sm text-gray-700">
         <p class="font-medium text-gray-900">Summary</p>
         <ul class="list-none space-y-0.5 text-xs sm:text-sm">
-          <li>{{ graphPayload?.metadata?.node_count ?? graphPayload?.nodes?.length ?? '—' }} nodes</li>
-          <li>{{ graphPayload?.metadata?.link_count ?? graphPayload?.links?.length ?? '—' }} links</li>
-          <li v-if="graphPayload?.metadata?.rule_count != null">{{ graphPayload.metadata.rule_count }} rules</li>
+          <li>{{ graphSummary.nodes }} nodes</li>
+          <li>{{ graphSummary.links }} links</li>
+          <li v-if="graphSummary.rules != null">{{ graphSummary.rules }} rules</li>
         </ul>
       </div>
 
@@ -95,7 +95,7 @@ import { useVizAppChrome } from '@/composables/useVizAppChrome'
 
 const route = useRoute()
 const { setSidebarCollapsed, isCollapsed } = useSidebar()
-const { setVizFullscreen } = useVizAppChrome()
+const { resetVizChrome } = useVizAppChrome()
 const sidebarStateBeforeViz = ref(null)
 
 const loading = ref(true)
@@ -141,7 +141,23 @@ function legendColor(seg) {
   return segmentScale.value(seg)
 }
 
+/** Coalesced stats for the panel (stable placeholders while loading). */
+const graphSummary = computed(() => {
+  if (loading.value || !graphPayload.value?.nodes?.length) {
+    return { nodes: '—', links: '—', rules: null }
+  }
+  const g = graphPayload.value
+  return {
+    nodes: g.metadata?.node_count ?? g.nodes.length,
+    links: g.metadata?.link_count ?? g.links?.length ?? 0,
+    rules: g.metadata?.rule_count ?? null,
+  }
+})
+
+let loadGeneration = 0
+
 async function load() {
+  const gen = ++loadGeneration
   loading.value = true
   error.value = null
   graphPayload.value = null
@@ -149,6 +165,7 @@ async function load() {
   try {
     if (requestId.value != null) {
       const res = await requestsService.getNetworkTopology(requestId.value)
+      if (gen !== loadGeneration) return
       const data = res.data?.data || res.data || res
       if (data.error) {
         error.value = data.error
@@ -164,6 +181,7 @@ async function load() {
     }
 
     const responses = await Promise.all(ruleIds.value.map((id) => requestsService.getRuleGraph(id)))
+    if (gen !== loadGeneration) return
 
     if (ruleIds.value.length === 1) {
       graphPayload.value = extractUnifiedGraphFromRuleResponse(responses[0])
@@ -175,9 +193,13 @@ async function load() {
       error.value = 'No unified_graph in API response. Ensure the backend includes graph data.'
     }
   } catch (e) {
-    error.value = e.message || 'Failed to load unified graph'
+    if (gen === loadGeneration) {
+      error.value = e.message || 'Failed to load unified graph'
+    }
   } finally {
-    loading.value = false
+    if (gen === loadGeneration) {
+      loading.value = false
+    }
   }
 }
 
@@ -191,7 +213,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  setVizFullscreen(false)
+  resetVizChrome()
   if (sidebarStateBeforeViz.value !== null) {
     setSidebarCollapsed(sidebarStateBeforeViz.value, { persist: false })
   }

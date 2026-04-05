@@ -35,6 +35,10 @@ let gMain = null
 let zoomBehavior = null
 let simulation = null
 let resizeObserver = null
+let resizeRafId = null
+
+/** Unique defs ids so multiple graph instances (or rapid rebuilds) never clash. */
+let arrowMarkerSeq = 0
 
 function buildColorScale(nodes) {
   const segments = [...new Set(nodes.map((n) => n.segment || 'Unknown'))].sort()
@@ -81,12 +85,18 @@ function formatLinkTooltip(d) {
 
 function destroyGraph() {
   if (simulation) {
+    simulation.on('tick', null)
+    simulation.on('end', null)
     simulation.stop()
     simulation = null
   }
   if (svg) {
+    svg.on('.zoom', null)
     svg.selectAll('*').remove()
   }
+  svg = null
+  gMain = null
+  zoomBehavior = null
 }
 
 function runSimulation() {
@@ -138,9 +148,10 @@ function runSimulation() {
     })
   svg.call(zoomBehavior)
 
+  const arrowId = `arrowhead-unified-${++arrowMarkerSeq}`
   svg.append('defs')
     .append('marker')
-    .attr('id', 'arrowhead-unified')
+    .attr('id', arrowId)
     .attr('viewBox', '0 -5 10 10')
     .attr('refX', 28)
     .attr('refY', 0)
@@ -196,7 +207,7 @@ function runSimulation() {
     .data(linkData)
     .join('line')
     .attr('stroke-width', 1.5)
-    .attr('marker-end', 'url(#arrowhead-unified)')
+    .attr('marker-end', `url(#${arrowId})`)
 
   const nodeLayer = gMain.append('g').attr('class', 'node-layer')
   const nodeSel = nodeLayer
@@ -305,12 +316,13 @@ function fitView(animated = true) {
   for (const d of nodeData) {
     const x = d.x
     const y = d.y
-    if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y)) return
+    if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y)) continue
     minX = Math.min(minX, x - 24)
     minY = Math.min(minY, y - 24)
     maxX = Math.max(maxX, x + 24)
     maxY = Math.max(maxY, y + 44)
   }
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return
   const w = svgRef.value.clientWidth || 800
   const h = parseFloat(svg.attr('height')) || 600
   const dx = Math.max(maxX - minX, 80)
@@ -338,13 +350,21 @@ watch(
 
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => {
-    nextTick(() => runSimulation())
+    if (resizeRafId != null) cancelAnimationFrame(resizeRafId)
+    resizeRafId = requestAnimationFrame(() => {
+      resizeRafId = null
+      nextTick(() => runSimulation())
+    })
   })
   if (containerRef.value) resizeObserver.observe(containerRef.value)
   nextTick(() => runSimulation())
 })
 
 onUnmounted(() => {
+  if (resizeRafId != null) {
+    cancelAnimationFrame(resizeRafId)
+    resizeRafId = null
+  }
   destroyGraph()
   if (resizeObserver && containerRef.value) resizeObserver.unobserve(containerRef.value)
   resizeObserver = null

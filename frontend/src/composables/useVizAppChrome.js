@@ -15,9 +15,15 @@ export function useVizAppChrome() {
     hideAppChrome.value = !hideAppChrome.value
   }
 
+  /** Clears fullscreen chrome override (e.g. on route leave); idempotent. */
+  function resetVizChrome() {
+    hideAppChrome.value = false
+  }
+
   return {
     hideAppChrome,
     setVizFullscreen,
     toggleVizFullscreen,
+    resetVizChrome,
   }
 }

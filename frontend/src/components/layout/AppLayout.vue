@@ -39,16 +39,14 @@ import Toast from '../ui/Toast.vue'
 import { useVizAppChrome } from '@/composables/useVizAppChrome'
 
 const route = useRoute()
-const { hideAppChrome } = useVizAppChrome()
+const { hideAppChrome, resetVizChrome } = useVizAppChrome()
 
 const isVizWorkspaceRoute = computed(() => route.matched.some((record) => record.meta.vizWorkspace === true))
 
 watch(
   () => route.fullPath,
   () => {
-    if (!route.matched.some((record) => record.meta.vizWorkspace === true)) {
-      hideAppChrome.value = false
-    }
+    if (!isVizWorkspaceRoute.value) resetVizChrome()
   },
 )
 </script>

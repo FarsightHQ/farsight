@@ -64,9 +64,3 @@ defineProps({
 })
 
 </script>
-
-<style scoped>
-.viz-workspace {
-  box-sizing: border-box;
-}
-</style>
