@@ -20,8 +20,20 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useGraphTooltip } from '@/composables/useGraphTooltip'
 import { filterUnifiedGraph } from '@/utils/unifiedGraphFilter'
 import { formatNodeDetailLines, formatLinkDetailLines } from '@/utils/unifiedGraphFormat'
+import { hierarchicalClusterTargets } from '@/utils/unifiedGraphLayout'
+import { nodeLayoutKey, vlanGroupKey, sortVlanIds } from '@/utils/unifiedGraphKeys'
+import { buildSegmentColorScale, buildVlanColorScale } from '@/utils/unifiedGraphHulls'
+import {
+  curvedLinkPath,
+  linkCrossSegment,
+  linkEndpointIds,
+  linkKeyFromSim,
+  neighborIds,
+} from '@/utils/unifiedGraphLinks'
+import { redrawSegmentGrouping, redrawVlanGrouping } from '@/utils/unifiedGraphHullRedraw'
 
 const props = defineProps({
   unifiedGraph: {
@@ -48,7 +60,6 @@ const props = defineProps({
     type: String,
     default: null,
   },
-  /** Draw smooth convex hulls per VLAN (dashed / alternate palette); independent of segment hulls. */
   showVlanHulls: {
     type: Boolean,
     default: true,
@@ -59,7 +70,7 @@ const emit = defineEmits(['update:selectedNodeId', 'update:selectedLinkKey'])
 
 const containerRef = ref(null)
 const svgRef = ref(null)
-const tooltip = ref({ visible: false, x: 0, y: 0, text: '' })
+const { tooltip, show: tipShow, move: tipMove, hide: tipHide } = useGraphTooltip(containerRef)
 
 let svg = null
 let gMain = null
@@ -68,374 +79,16 @@ let simulation = null
 let resizeObserver = null
 let resizeRafId = null
 
-/** Live D3 selections + data for selection / emphasis styling without full rebuild */
 let graphCtx = null
-
-/** Latest hull layers + data so VLAN toggle can redraw without re-running the simulation */
 let latestHullRedraw = null
 
 let arrowMarkerSeq = 0
-
-const VLAN_NONE_KEY = '__no_vlan__'
-/** Separates vlan id and segment in layout / hull keys (unlikely in real names). */
-const LAYOUT_SEP = '\x1f'
-
-function vlanGroupKey(d) {
-  const v = d.vlan
-  if (v == null) return VLAN_NONE_KEY
-  const s = String(v).trim()
-  return s === '' ? VLAN_NONE_KEY : s
-}
-
-function nodeLayoutKey(d) {
-  return `${vlanGroupKey(d)}${LAYOUT_SEP}${d.segment || 'Unknown'}`
-}
-
-/**
- * VLANs sit on a coarse grid; each segment in that VLAN gets a sub-cell around the VLAN center.
- * Keeps segment clusters inside their VLAN blob and separates VLANs from each other.
- */
-function hierarchicalClusterTargets(rawNodes, width, height) {
-  const vlanTighten = 0.56
-  const subSpacing = 58
-  const byVlan = d3.group(rawNodes, vlanGroupKey)
-  const vlans = [...byVlan.keys()].sort((a, b) => {
-    if (a === VLAN_NONE_KEY) return 1
-    if (b === VLAN_NONE_KEY) return -1
-    return a.localeCompare(b, undefined, { sensitivity: 'base' })
-  })
-  const vlanCenters = clusterCenters(vlans, width, height, vlanTighten)
-  const targets = {}
-
-  for (const V of vlans) {
-    const inVlan = byVlan.get(V) || []
-    const segs = [...new Set(inVlan.map(n => n.segment || 'Unknown'))].sort()
-    const nSeg = segs.length
-    const cols = Math.ceil(Math.sqrt(nSeg))
-    const rows = Math.ceil(nSeg / cols)
-    const vc = vlanCenters[V] || { x: width / 2, y: height / 2 }
-    segs.forEach((seg, i) => {
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      const ox = (col - (cols - 1) / 2) * subSpacing
-      const oy = (row - (rows - 1) / 2) * subSpacing
-      targets[`${V}${LAYOUT_SEP}${seg}`] = { x: vc.x + ox, y: vc.y + oy }
-    })
-  }
-
-  return targets
-}
-
-function buildColorScale(segments) {
-  const scale = d3.scaleOrdinal(d3.schemeTableau10).domain(segments)
-  return seg => scale(seg || 'Unknown')
-}
-
-/**
- * Target positions for segment forces. Pulls grid toward canvas center so clusters sit closer together.
- * `tighten` in (0,1]: lower = more compression toward center.
- */
-function clusterCenters(segments, width, height, tighten = 0.66) {
-  const n = Math.max(1, segments.length)
-  const cols = Math.ceil(Math.sqrt(n))
-  const rows = Math.ceil(n / cols)
-  const cx = width / 2
-  const cy = height / 2
-  const map = {}
-  segments.forEach((seg, i) => {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const bx = ((col + 0.5) / cols) * width
-    const by = ((row + 0.5) / rows) * height
-    map[seg] = {
-      x: cx + (bx - cx) * tighten,
-      y: cy + (by - cy) * tighten,
-    }
-  })
-  return map
-}
-
-/** Push hull vertices outward from centroid so outlines clear node circles. */
-function expandHullFromCentroid(hull, pad) {
-  let cx = 0
-  let cy = 0
-  for (const [x, y] of hull) {
-    cx += x
-    cy += y
-  }
-  cx /= hull.length
-  cy /= hull.length
-  return hull.map(([x, y]) => {
-    const dx = x - cx
-    const dy = y - cy
-    const len = Math.hypot(dx, dy) || 1
-    return [x + (dx / len) * pad, y + (dy / len) * pad]
-  })
-}
-
-function bboxPolygonPad(xy, pad) {
-  const xs = xy.map(p => p[0])
-  const ys = xy.map(p => p[1])
-  return [
-    [Math.min(...xs) - pad, Math.min(...ys) - pad],
-    [Math.max(...xs) + pad, Math.min(...ys) - pad],
-    [Math.max(...xs) + pad, Math.max(...ys) + pad],
-    [Math.min(...xs) - pad, Math.max(...ys) + pad],
-  ]
-}
-
-function circlePath(cx, cy, r) {
-  return `M ${cx - r},${cy} A ${r},${r} 0 1,1 ${cx + r},${cy} A ${r},${r} 0 1,1 ${cx - r},${cy}`
-}
-
-/**
- * One hull per (VLAN × segment) so the same segment name in two VLANs stays separate;
- * geometry stays inside each VLAN’s layout island.
- */
-function buildSegmentOutlineEntries(nodeData) {
-  const byLayout = d3.group(nodeData, nodeLayoutKey)
-  const lineClosedSmooth = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.72))
-  const pad = 22
-
-  const keys = [...byLayout.keys()].sort()
-
-  return keys
-    .map(layoutKey => {
-      const pts = byLayout.get(layoutKey) || []
-      if (pts.length === 0) return null
-
-      const seg = pts[0].segment || 'Unknown'
-      const xy = pts.map(p => [p.x, p.y])
-      let ring = null
-
-      if (pts.length >= 3) {
-        const hull = d3.polygonHull(xy)
-        if (hull && hull.length >= 3) {
-          ring = expandHullFromCentroid(hull, pad)
-        } else {
-          ring = bboxPolygonPad(xy, pad)
-        }
-      } else if (pts.length === 2) {
-        ring = bboxPolygonPad(xy, pad)
-      } else {
-        return {
-          layoutKey,
-          seg,
-          pathD: circlePath(xy[0][0], xy[0][1], 34),
-          cx: xy[0][0],
-          cy: xy[0][1],
-        }
-      }
-
-      const pathD = lineClosedSmooth(ring)
-      const cx = d3.mean(pts, p => p.x)
-      const cy = d3.mean(pts, p => p.y)
-      return { layoutKey, seg, pathD, cx, cy }
-    })
-    .filter(Boolean)
-}
-
-function redrawSegmentGrouping(hullG, labelG, nodeData, colorFn) {
-  const entries = buildSegmentOutlineEntries(nodeData)
-  const pathJoin = hullG
-    .selectAll('path')
-    .data(entries, d => d.layoutKey)
-    .join('path')
-    .attr('stroke-linejoin', 'round')
-    .attr('stroke-linecap', 'round')
-    .attr('stroke-width', 1.25)
-
-  pathJoin.each(function (d) {
-    const base = d3.color(colorFn(d.seg))
-    const fillC = base ? base.copy({ opacity: 0.07 }) : d3.color('#94a3b8').copy({ opacity: 0.07 })
-    const strokeC = base ? base.copy({ opacity: 0.4 }) : d3.color('#64748b').copy({ opacity: 0.45 })
-    d3.select(this).attr('fill', fillC.formatRgb()).attr('stroke', strokeC.formatRgb())
-  })
-
-  pathJoin.attr('d', d => d.pathD)
-
-  const labelJoin = labelG
-    .selectAll('text')
-    .data(entries, d => d.layoutKey)
-    .join('text')
-    .attr('text-anchor', 'middle')
-    .attr('font-size', 10)
-    .attr('font-weight', 600)
-    .attr('fill', '#475569')
-    .style('paint-order', 'stroke fill')
-    .attr('stroke', '#f8fafc')
-    .attr('stroke-width', 4)
-    .attr('pointer-events', 'none')
-
-  labelJoin.attr('x', d => d.cx).attr('y', d => d.cy - 10)
-  labelJoin.text(d => (d.seg.length > 38 ? `${d.seg.slice(0, 36)}…` : d.seg))
-}
-
-function buildVlanColorScale(vlanIds) {
-  const scheme = d3.schemeObservable10.concat(d3.schemeSet3)
-  return d3.scaleOrdinal(scheme).domain(vlanIds)
-}
-
-/**
- * VLAN hulls: same geometry as segment (Catmull–Rom closed), larger padding, dashed stroke, cooler palette.
- */
-function buildVlanOutlineEntries(nodeData) {
-  const byVlan = d3.group(nodeData, vlanGroupKey)
-  const lineClosedSmooth = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.72))
-  const pad = 36
-
-  const vlanIds = [...byVlan.keys()].sort((a, b) => {
-    if (a === VLAN_NONE_KEY) return 1
-    if (b === VLAN_NONE_KEY) return -1
-    return a.localeCompare(b, undefined, { sensitivity: 'base' })
-  })
-
-  return vlanIds
-    .map(vlanId => {
-      const pts = byVlan.get(vlanId) || []
-      if (pts.length === 0) return null
-
-      const label = vlanId === VLAN_NONE_KEY ? 'No VLAN' : vlanId
-      const xy = pts.map(p => [p.x, p.y])
-      let ring = null
-
-      if (pts.length >= 3) {
-        const hull = d3.polygonHull(xy)
-        if (hull && hull.length >= 3) {
-          ring = expandHullFromCentroid(hull, pad)
-        } else {
-          ring = bboxPolygonPad(xy, pad)
-        }
-      } else if (pts.length === 2) {
-        ring = bboxPolygonPad(xy, pad)
-      } else {
-        return {
-          vlanId,
-          label,
-          pathD: circlePath(xy[0][0], xy[0][1], 44),
-          cx: xy[0][0],
-          cy: xy[0][1],
-        }
-      }
-
-      const pathD = lineClosedSmooth(ring)
-      const cx = d3.mean(pts, p => p.x)
-      const cy = d3.mean(pts, p => p.y)
-      return { vlanId, label, pathD, cx, cy }
-    })
-    .filter(Boolean)
-}
-
-function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vlanColorFn) {
-  if (!vlanHullG || !vlanLabelG) return
-
-  if (!visible) {
-    vlanHullG.selectAll('*').remove()
-    vlanLabelG.selectAll('*').remove()
-    return
-  }
-
-  const entries = buildVlanOutlineEntries(nodeData)
-
-  const pathJoin = vlanHullG
-    .selectAll('path')
-    .data(entries, d => d.vlanId)
-    .join('path')
-    .attr('stroke-linejoin', 'round')
-    .attr('stroke-linecap', 'round')
-    .attr('stroke-dasharray', '7 5')
-    .attr('stroke-width', 2)
-
-  pathJoin.each(function (d) {
-    const el = d3.select(this)
-    if (d.vlanId === VLAN_NONE_KEY) {
-      el.attr('fill', 'rgba(148, 163, 184, 0.06)').attr('stroke', 'rgba(71, 85, 105, 0.65)')
-    } else {
-      const base = d3.color(vlanColorFn(d.vlanId))
-      const fillC = base
-        ? base.copy({ opacity: 0.08 })
-        : d3.color('#818cf8').copy({ opacity: 0.08 })
-      const strokeC = base
-        ? base.copy({ opacity: 0.75 })
-        : d3.color('#6366f1').copy({ opacity: 0.8 })
-      el.attr('fill', fillC.formatRgb()).attr('stroke', strokeC.formatRgb())
-    }
-  })
-
-  pathJoin.attr('d', d => d.pathD)
-
-  const labelJoin = vlanLabelG
-    .selectAll('text')
-    .data(entries, d => d.vlanId)
-    .join('text')
-    .attr('text-anchor', 'middle')
-    .attr('font-size', 9)
-    .attr('font-weight', 600)
-    .attr('font-style', 'italic')
-    .attr('fill', '#4338ca')
-    .style('paint-order', 'stroke fill')
-    .attr('stroke', '#f8fafc')
-    .attr('stroke-width', 3)
-    .attr('pointer-events', 'none')
-
-  labelJoin
-    .attr('x', d => d.cx)
-    .attr('y', d => d.cy + 4)
-    .text(d => {
-      const t = d.label.length > 32 ? `${d.label.slice(0, 30)}…` : d.label
-      return d.vlanId === VLAN_NONE_KEY ? t : `VLAN ${t}`
-    })
-}
 
 function applyHullRedraws() {
   if (!latestHullRedraw) return
   const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, colorFn, vlanColorFn } = latestHullRedraw
   redrawSegmentGrouping(hullG, labelG, nodeData, colorFn)
   redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, props.showVlanHulls, vlanColorFn)
-}
-
-function neighborIds(selId, linkData) {
-  const set = new Set([selId])
-  for (const l of linkData) {
-    const s = typeof l.source === 'object' ? l.source.id : l.source
-    const t = typeof l.target === 'object' ? l.target.id : l.target
-    if (s === selId) set.add(t)
-    if (t === selId) set.add(s)
-  }
-  return set
-}
-
-function linkCrossSegment(d, segById) {
-  const s = typeof d.source === 'object' ? d.source.id : d.source
-  const t = typeof d.target === 'object' ? d.target.id : d.target
-  const a = segById.get(s) || 'Unknown'
-  const b = segById.get(t) || 'Unknown'
-  return a !== b
-}
-
-function linkKeyFromSim(d) {
-  const s = typeof d.source === 'object' ? d.source.id : d.source
-  const t = typeof d.target === 'object' ? d.target.id : d.target
-  return `${s}->${t}`
-}
-
-/** Cubic Bézier from source to target, bent perpendicular to chord (reduces overlap vs straight lines). */
-function curvedLinkPath(d) {
-  const sx = d.source.x
-  const sy = d.source.y
-  const tx = d.target.x
-  const ty = d.target.y
-  const dx = tx - sx
-  const dy = ty - sy
-  const dist = Math.hypot(dx, dy) || 1
-  const nx = -dy / dist
-  const ny = dx / dist
-  const bend = dist * 0.22 * (d._curveSide || 1)
-  const c1x = sx + dx * 0.32 + nx * bend
-  const c1y = sy + dy * 0.32 + ny * bend
-  const c2x = sx + dx * 0.68 + nx * bend
-  const c2y = sy + dy * 0.68 + ny * bend
-  return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`
 }
 
 function updateVisualState() {
@@ -468,9 +121,8 @@ function updateVisualState() {
       op = on ? 1 : 0.12
       sw = on ? 2.6 : 1
     } else if (selN) {
-      const s = typeof d.source === 'object' ? d.source.id : d.source
-      const t = typeof d.target === 'object' ? d.target.id : d.target
-      const inc = s === selN || t === selN
+      const { sourceId, targetId } = linkEndpointIds(d)
+      const inc = sourceId === selN || targetId === selN
       op = inc ? 0.95 : 0.15
       sw = inc ? 2.1 : 1.2
     }
@@ -511,7 +163,7 @@ function destroyGraph() {
 
 function runSimulation() {
   destroyGraph()
-  tooltip.value.visible = false
+  tipHide()
 
   if (!svgRef.value || !containerRef.value || !props.unifiedGraph?.nodes?.length) return
 
@@ -560,7 +212,7 @@ function runSimulation() {
     .attr('fill', '#64748b')
 
   const segments = [...new Set(rawFiltered.map(n => n.segment || 'Unknown'))].sort()
-  const colorFn = buildColorScale(segments)
+  const colorFn = buildSegmentColorScale(segments)
   const layoutTargets = hierarchicalClusterTargets(rawFiltered, width, height)
 
   const nodeData = rawFiltered.map(n => {
@@ -593,11 +245,7 @@ function runSimulation() {
   const vlanHullG = gMain.append('g').attr('class', 'vlan-hulls').style('pointer-events', 'none')
   const hullG = gMain.append('g').attr('class', 'segment-hulls').style('pointer-events', 'none')
 
-  const vlanIdsForScale = [...new Set(nodeData.map(d => vlanGroupKey(d)))].sort((a, b) => {
-    if (a === VLAN_NONE_KEY) return 1
-    if (b === VLAN_NONE_KEY) return -1
-    return a.localeCompare(b, undefined, { sensitivity: 'base' })
-  })
+  const vlanIdsForScale = [...new Set(nodeData.map(d => vlanGroupKey(d)))].sort(sortVlanIds)
   const vlanColorFn = buildVlanColorScale(vlanIdsForScale)
 
   simulation = d3
@@ -689,47 +337,22 @@ function runSimulation() {
       updateVisualState()
     })
     .on('mouseenter', (event, d) => {
-      const rect = containerRef.value.getBoundingClientRect()
-      tooltip.value = {
-        visible: true,
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-        text: formatNodeDetailLines(d).join('\n'),
-      }
+      tipShow(formatNodeDetailLines(d).join('\n'), event)
     })
-    .on('mousemove', event => {
-      const rect = containerRef.value.getBoundingClientRect()
-      tooltip.value.x = event.clientX - rect.left
-      tooltip.value.y = event.clientY - rect.top
-    })
-    .on('mouseleave', () => {
-      tooltip.value.visible = false
-    })
+    .on('mousemove', tipMove)
+    .on('mouseleave', tipHide)
 
   linkSel
     .on('mouseenter', (event, d) => {
-      const rect = containerRef.value.getBoundingClientRect()
-      tooltip.value = {
-        visible: true,
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-        text: formatLinkDetailLines(d).join('\n'),
-      }
+      tipShow(formatLinkDetailLines(d).join('\n'), event)
     })
-    .on('mousemove', event => {
-      const rect = containerRef.value.getBoundingClientRect()
-      tooltip.value.x = event.clientX - rect.left
-      tooltip.value.y = event.clientY - rect.top
-    })
-    .on('mouseleave', () => {
-      tooltip.value.visible = false
-    })
+    .on('mousemove', tipMove)
+    .on('mouseleave', tipHide)
 
   graphCtx = { linkSel, nodeSel, linkData, nodeData }
 
   simulation.on('tick', () => {
     linkSel.attr('d', curvedLinkPath)
-
     nodeSel.attr('transform', d => `translate(${d.x},${d.y})`)
   })
 

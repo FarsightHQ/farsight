@@ -185,7 +185,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import * as d3 from 'd3'
 import { requestsService } from '@/services/requests'
 import {
   mergeUnifiedGraphData,
@@ -193,6 +192,7 @@ import {
 } from '@/utils/unifiedGraphMerge'
 import { filterUnifiedGraph, countCrossSegmentLinks } from '@/utils/unifiedGraphFilter'
 import { formatNodeDetailLines, formatLinkDetailLines } from '@/utils/unifiedGraphFormat'
+import { buildSegmentColorScale } from '@/utils/unifiedGraphHulls'
 import UnifiedNetworkGraph from '@/components/requests/UnifiedNetworkGraph.vue'
 import VizWorkspaceLayout from '@/components/layout/VizWorkspaceLayout.vue'
 import Button from '@/components/ui/Button.vue'
@@ -244,13 +244,10 @@ const legendSegments = computed(() => {
   return [...new Set(nodes.map(n => n.segment || 'Unknown'))].sort()
 })
 
-const segmentScale = computed(() => {
-  const segs = legendSegments.value
-  return d3.scaleOrdinal(d3.schemeTableau10).domain(segs)
-})
+const segmentColorFn = computed(() => buildSegmentColorScale(legendSegments.value))
 
 function legendColor(seg) {
-  return segmentScale.value(seg)
+  return segmentColorFn.value(seg)
 }
 
 const filteredGraph = computed(() => {
