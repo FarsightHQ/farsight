@@ -5,6 +5,17 @@ import { buildSegmentOutlineEntries, buildVlanOutlineEntries } from '@/utils/uni
 /** Single translucent fill for every VLAN hull (no per-VLAN hue). */
 const VLAN_HULL_FILL = 'rgba(226, 232, 240, 0.52)'
 
+const VLAN_PILL_FILL = '#0f172a'
+const VLAN_PILL_TEXT = '#f8fafc'
+const VLAN_PILL_PAD_X = 7
+const VLAN_PILL_PAD_Y = 4
+const VLAN_PILL_RX = 6
+
+function formatVlanLabelText(d) {
+  const t = d.label.length > 36 ? `${d.label.slice(0, 34)}…` : d.label
+  return d.vlanId === VLAN_NONE_KEY ? t : `VLAN ${t}`
+}
+
 export function redrawSegmentGrouping(hullG, labelG, nodeData, colorFn) {
   const entries = buildSegmentOutlineEntries(nodeData)
   const pathJoin = hullG
@@ -61,24 +72,39 @@ export function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible) {
 
   pathJoin.attr('d', d => d.pathD)
 
-  const labelJoin = vlanLabelG
-    .selectAll('text')
+  const pillG = vlanLabelG
+    .selectAll('g.vlan-label-pill')
     .data(entries, d => d.vlanId)
-    .join('text')
-    .attr('text-anchor', 'start')
-    .attr('font-size', 9)
-    .attr('font-weight', 600)
-    .attr('fill', '#475569')
-    .style('paint-order', 'stroke fill')
-    .attr('stroke', '#f8fafc')
-    .attr('stroke-width', 3)
+    .join('g')
+    .attr('class', 'vlan-label-pill')
     .attr('pointer-events', 'none')
+    .attr('transform', d => `translate(${d.labelX}, ${d.labelY})`)
 
-  labelJoin
-    .attr('x', d => d.labelX)
-    .attr('y', d => d.labelY)
-    .text(d => {
-      const t = d.label.length > 36 ? `${d.label.slice(0, 34)}…` : d.label
-      return d.vlanId === VLAN_NONE_KEY ? t : `VLAN ${t}`
-    })
+  pillG.each(function (d) {
+    const g = d3.select(this)
+    g.selectAll('*').remove()
+    const textStr = formatVlanLabelText(d)
+    const text = g
+      .append('text')
+      .attr('font-size', 9)
+      .attr('font-weight', 600)
+      .attr('font-family', 'system-ui, -apple-system, sans-serif')
+      .attr('fill', VLAN_PILL_TEXT)
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('dominant-baseline', 'hanging')
+      .text(textStr)
+
+    const node = text.node()
+    if (!node || typeof node.getBBox !== 'function') return
+    const bbox = node.getBBox()
+    g.insert('rect', 'text')
+      .attr('x', bbox.x - VLAN_PILL_PAD_X)
+      .attr('y', bbox.y - VLAN_PILL_PAD_Y)
+      .attr('width', bbox.width + VLAN_PILL_PAD_X * 2)
+      .attr('height', bbox.height + VLAN_PILL_PAD_Y * 2)
+      .attr('rx', VLAN_PILL_RX)
+      .attr('ry', VLAN_PILL_RX)
+      .attr('fill', VLAN_PILL_FILL)
+  })
 }
