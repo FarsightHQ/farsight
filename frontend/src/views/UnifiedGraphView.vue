@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col">
+  <div class="flex flex-col bg-gray-100 min-h-[calc(100dvh-9rem)]">
     <header class="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-center gap-4 shrink-0">
       <div class="flex-1 min-w-0">
         <h1 class="text-xl font-semibold text-gray-900 truncate">Unified network topology</h1>
@@ -32,13 +32,13 @@
       No unified graph data for this selection.
     </div>
 
-    <main v-else class="flex-1 flex flex-col p-4 min-h-0">
-      <div class="flex flex-wrap gap-4 mb-3 text-xs text-gray-600">
+    <main v-else class="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
+      <div class="flex flex-wrap gap-4 mb-3 text-xs text-gray-600 shrink-0">
         <span>{{ graphPayload.metadata?.node_count ?? graphPayload.nodes.length }} nodes</span>
         <span>{{ graphPayload.metadata?.link_count ?? graphPayload.links?.length ?? 0 }} links</span>
         <span v-if="graphPayload.metadata?.rule_count != null">{{ graphPayload.metadata.rule_count }} rules</span>
       </div>
-      <div class="flex-1 min-h-[480px]">
+      <div class="flex-1 min-h-0">
         <UnifiedNetworkGraph ref="graphRef" :unified-graph="graphPayload" :filter-text="filterText" />
       </div>
       <div v-if="legendSegments.length" class="mt-4 flex flex-wrap gap-2">
@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { requestsService } from '@/services/requests'
@@ -65,8 +65,12 @@ import { mergeUnifiedGraphData, extractUnifiedGraphFromRuleResponse } from '@/ut
 import UnifiedNetworkGraph from '@/components/requests/UnifiedNetworkGraph.vue'
 import Button from '@/components/ui/Button.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import { useSidebar } from '@/composables/useSidebar'
 
 const route = useRoute()
+const { setSidebarCollapsed, isCollapsed } = useSidebar()
+/** Snapshot so we restore sidebar when leaving this page (does not overwrite localStorage). */
+const sidebarStateBeforeViz = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const graphPayload = ref(null)
@@ -154,6 +158,17 @@ function handleFit() {
   graphRef.value?.fitView?.()
 }
 
+onMounted(() => {
+  sidebarStateBeforeViz.value = isCollapsed.value
+  setSidebarCollapsed(true, { persist: false })
+})
+
+onBeforeUnmount(() => {
+  if (sidebarStateBeforeViz.value !== null) {
+    setSidebarCollapsed(sidebarStateBeforeViz.value, { persist: false })
+  }
+})
+
 watch(
   () => [route.query.requestId, route.query.ruleIds],
   () => {
@@ -161,12 +176,4 @@ watch(
   },
   { immediate: true },
 )
-
-watch(graphPayload, async (g) => {
-  if (g?.nodes?.length) {
-    await nextTick()
-    await nextTick()
-    graphRef.value?.fitView?.()
-  }
-})
 </script>

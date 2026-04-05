@@ -22,9 +22,21 @@ export function useSidebar() {
     }
   }
 
+  /**
+   * @param {boolean} collapsed
+   * @param {{ persist?: boolean }} [options] - pass persist: false for temporary UI (e.g. fullscreen viz) without changing saved preference
+   */
+  const setSidebarCollapsed = (collapsed, { persist = true } = {}) => {
+    isCollapsed.value = collapsed
+    if (persist && typeof window !== 'undefined') {
+      localStorage.setItem('sidebarCollapsed', collapsed.toString())
+    }
+  }
+
   return {
     isCollapsed,
     toggleSidebar,
+    setSidebarCollapsed,
   }
 }
 

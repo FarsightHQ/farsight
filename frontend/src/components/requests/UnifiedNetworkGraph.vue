@@ -122,8 +122,9 @@ function runSimulation() {
     return
   }
 
-  const width = containerRef.value.clientWidth || 800
-  const height = Math.max(480, Math.min(900, width * 0.65))
+  const width = Math.max(320, containerRef.value.clientWidth || 800)
+  const ch = containerRef.value.clientHeight
+  const height = Math.max(320, ch > 0 ? ch : Math.min(900, width * 0.65))
 
   svg = d3.select(svgRef.value).attr('viewBox', [0, 0, width, height]).attr('width', width).attr('height', height)
 
@@ -286,31 +287,43 @@ function runSimulation() {
 
     nodeSel.attr('transform', (d) => `translate(${d.x},${d.y})`)
   })
+
+  simulation.on('end', () => {
+    requestAnimationFrame(() => fitView(false))
+  })
 }
 
-function fitView() {
+function fitView(animated = true) {
   if (!svg || !gMain || !zoomBehavior) return
   const nodeData = gMain.select('.node-layer').selectAll('g').data()
   if (!nodeData?.length) return
-  const padding = 48
+  const padding = 56
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
   let maxY = -Infinity
   for (const d of nodeData) {
-    minX = Math.min(minX, d.x - 20)
-    minY = Math.min(minY, d.y - 20)
-    maxX = Math.max(maxX, d.x + 20)
-    maxY = Math.max(maxY, d.y + 40)
+    const x = d.x
+    const y = d.y
+    if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y)) return
+    minX = Math.min(minX, x - 24)
+    minY = Math.min(minY, y - 24)
+    maxX = Math.max(maxX, x + 24)
+    maxY = Math.max(maxY, y + 44)
   }
   const w = svgRef.value.clientWidth || 800
   const h = parseFloat(svg.attr('height')) || 600
-  const dx = maxX - minX
-  const dy = maxY - minY
-  const scale = Math.min((w - padding * 2) / dx, (h - padding * 2) / dy, 2) * 0.9
+  const dx = Math.max(maxX - minX, 80)
+  const dy = Math.max(maxY - minY, 80)
+  const scale = Math.min((w - padding * 2) / dx, (h - padding * 2) / dy, 2.5) * 0.92
   const tx = w / 2 - scale * (minX + dx / 2)
   const ty = h / 2 - scale * (minY + dy / 2)
-  svg.transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
+  const transform = d3.zoomIdentity.translate(tx, ty).scale(scale)
+  if (animated) {
+    svg.transition().duration(400).call(zoomBehavior.transform, transform)
+  } else {
+    svg.call(zoomBehavior.transform, transform)
+  }
 }
 
 defineExpose({ fitView, restart: runSimulation })
@@ -340,6 +353,7 @@ onUnmounted(() => {
 
 <style scoped>
 .unified-graph-host {
-  min-height: 480px;
+  height: 100%;
+  min-height: 320px;
 }
 </style>
