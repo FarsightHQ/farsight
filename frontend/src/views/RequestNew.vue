@@ -59,7 +59,7 @@
           <h4 class="text-sm font-medium text-error-900 mb-2">Error Details:</h4>
           <p class="text-sm text-error-700 whitespace-pre-wrap">{{ uploadError }}</p>
         </div>
-        
+
         <div v-if="errorDetails" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h4 class="text-sm font-medium text-gray-900 mb-2">Additional Information:</h4>
           <div class="text-xs text-gray-700 space-y-2">
@@ -71,7 +71,10 @@
               <span class="font-medium">Column:</span>
               <span>{{ errorDetails.column_name }}</span>
             </div>
-            <div v-if="errorDetails.missing_columns && errorDetails.missing_columns.length > 0" class="flex items-start space-x-2">
+            <div
+              v-if="errorDetails.missing_columns && errorDetails.missing_columns.length > 0"
+              class="flex items-start space-x-2"
+            >
               <span class="font-medium">Missing Columns:</span>
               <span>{{ errorDetails.missing_columns.join(', ') }}</span>
             </div>
@@ -84,7 +87,9 @@
               </ul>
             </div>
             <div v-if="errorDetails.details" class="mt-2">
-              <pre class="text-xs overflow-auto max-h-40">{{ JSON.stringify(errorDetails.details, null, 2) }}</pre>
+              <pre class="text-xs overflow-auto max-h-40">{{
+                JSON.stringify(errorDetails.details, null, 2)
+              }}</pre>
             </div>
           </div>
         </div>
@@ -123,10 +128,7 @@ const errorDetails = ref(null)
 const showErrorModal = ref(false)
 
 // Initialize pipeline composable (for background processing only)
-const {
-  startFullPipeline,
-  fetchRequest,
-} = usePipeline(() => createdRequestId.value, ref(null))
+const { startFullPipeline, fetchRequest } = usePipeline(() => createdRequestId.value, ref(null))
 
 const form = reactive({
   title: '',
@@ -143,20 +145,25 @@ const errors = reactive({
 const fileUploadError = ref('')
 
 // Watch for file changes and clear error if file is removed
-watch(() => form.file, (newFile, oldFile) => {
-  // Only update if file actually changed
-  if (newFile !== oldFile) {
-    if (!newFile) {
-      fileUploadError.value = ''
+watch(
+  () => form.file,
+  (newFile, oldFile) => {
+    // Only update if file actually changed
+    if (newFile !== oldFile) {
+      if (!newFile) {
+        fileUploadError.value = ''
+      }
     }
   }
-})
+)
 
 // Check if file has validation error from FileUpload component
 const hasFileError = computed(() => {
   // Explicitly check for truthy non-empty string
   const errorValue = fileUploadError.value
-  const hasError = Boolean(errorValue && typeof errorValue === 'string' && errorValue.trim().length > 0)
+  const hasError = Boolean(
+    errorValue && typeof errorValue === 'string' && errorValue.trim().length > 0
+  )
   return hasError
 })
 
@@ -203,11 +210,7 @@ const handleSubmit = async () => {
       }
     }, 200)
 
-    const response = await requestsService.create(
-      form.title,
-      form.file,
-      form.externalId || null
-    )
+    const response = await requestsService.create(form.title, form.file, form.externalId || null)
 
     clearInterval(progressInterval)
     uploadProgress.value = 100
@@ -215,11 +218,11 @@ const handleSubmit = async () => {
     // Extract request ID from response
     const requestObject = response.data || response
     let extractedId = requestObject?.id || requestObject?.request_id
-    
+
     if (!extractedId || (typeof extractedId !== 'number' && typeof extractedId !== 'string')) {
       throw new Error('Failed to extract valid request ID')
     }
-    
+
     createdRequestId.value = String(extractedId)
 
     // Show simple success message
@@ -242,23 +245,23 @@ const handleSubmit = async () => {
     setTimeout(() => {
       router.push(`/requests/${createdRequestId.value}`)
     }, 1500)
-
   } catch (err) {
     // Handle validation errors from backend
     uploadProgress.value = 0
-    
+
     // Extract error details from response
     let errorMessage = err.message || 'Failed to upload file'
     let details = null
 
     if (err.response?.data) {
       const errorData = err.response.data
-      
+
       // Handle standardized error response
       if (errorData.detail) {
-        errorMessage = typeof errorData.detail === 'string' 
-          ? errorData.detail 
-          : errorData.detail.message || errorMessage
+        errorMessage =
+          typeof errorData.detail === 'string'
+            ? errorData.detail
+            : errorData.detail.message || errorMessage
         details = errorData.detail.details || errorData.detail
       } else if (errorData.message) {
         errorMessage = errorData.message
@@ -273,13 +276,11 @@ const handleSubmit = async () => {
     uploadError.value = errorMessage
     errorDetails.value = details
     showErrorModal.value = true
-    
+
     // Also show toast
     error(errorMessage)
   } finally {
     uploading.value = false
   }
 }
-
 </script>
-

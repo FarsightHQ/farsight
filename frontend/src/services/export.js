@@ -16,30 +16,30 @@ function convertToCSV(data, columns) {
   // If columns not provided, use all keys from first object
   if (!columns || columns.length === 0) {
     const firstItem = data[0]
-    columns = Object.keys(firstItem).map((key) => ({
+    columns = Object.keys(firstItem).map(key => ({
       key,
       label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '),
     }))
   }
 
   // Create header row
-  const headers = columns.map((col) => col.label).join(',')
-  
+  const headers = columns.map(col => col.label).join(',')
+
   // Create data rows
-  const rows = data.map((item) => {
+  const rows = data.map(item => {
     return columns
-      .map((col) => {
+      .map(col => {
         let value = item[col.key]
-        
+
         // Handle nested objects/arrays
         if (value && typeof value === 'object') {
           if (Array.isArray(value)) {
-            value = value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : v)).join('; ')
+            value = value.map(v => (typeof v === 'object' ? JSON.stringify(v) : v)).join('; ')
           } else {
             value = JSON.stringify(value)
           }
         }
-        
+
         // Escape commas and quotes
         if (typeof value === 'string') {
           value = value.replace(/"/g, '""') // Escape quotes
@@ -47,7 +47,7 @@ function convertToCSV(data, columns) {
             value = `"${value}"` // Wrap in quotes if needed
           }
         }
-        
+
         return value ?? ''
       })
       .join(',')
@@ -64,7 +64,7 @@ function convertToCSV(data, columns) {
  */
 export function exportToCSV(data, filename = 'export', columns = null) {
   const csv = convertToCSV(data, columns)
-  
+
   if (!csv) {
     throw new Error('No data to export')
   }
@@ -73,15 +73,15 @@ export function exportToCSV(data, filename = 'export', columns = null) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
-  
+
   link.setAttribute('href', url)
   link.setAttribute('download', `${filename}.csv`)
   link.style.visibility = 'hidden'
-  
+
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  
+
   URL.revokeObjectURL(url)
 }
 
@@ -100,15 +100,15 @@ export function exportToJSON(data, filename = 'export', pretty = true) {
   const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
-  
+
   link.setAttribute('href', url)
   link.setAttribute('download', `${filename}.json`)
   link.style.visibility = 'hidden'
-  
+
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  
+
   URL.revokeObjectURL(url)
 }
 
@@ -132,19 +132,21 @@ export function exportRulesToCSV(rules, filename = 'rules') {
   ]
 
   // Transform rules data for CSV
-  const csvData = rules.map((rule) => {
-    const sourceNetworks = rule.endpoints
-      ?.filter((ep) => ep.endpoint_type === 'source' || ep.type === 'source')
-      .map((ep) => ep.network_cidr || ep.cidr)
-      .join('; ') || ''
-    
-    const destNetworks = rule.endpoints
-      ?.filter((ep) => ep.endpoint_type === 'destination' || ep.type === 'destination')
-      .map((ep) => ep.network_cidr || ep.cidr)
-      .join('; ') || ''
-    
-    const protocols = rule.services?.map((svc) => svc.protocol).join('; ') || ''
-    const portRanges = rule.services?.map((svc) => svc.port_ranges || svc.ports).join('; ') || ''
+  const csvData = rules.map(rule => {
+    const sourceNetworks =
+      rule.endpoints
+        ?.filter(ep => ep.endpoint_type === 'source' || ep.type === 'source')
+        .map(ep => ep.network_cidr || ep.cidr)
+        .join('; ') || ''
+
+    const destNetworks =
+      rule.endpoints
+        ?.filter(ep => ep.endpoint_type === 'destination' || ep.type === 'destination')
+        .map(ep => ep.network_cidr || ep.cidr)
+        .join('; ') || ''
+
+    const protocols = rule.services?.map(svc => svc.protocol).join('; ') || ''
+    const portRanges = rule.services?.map(svc => svc.port_ranges || svc.ports).join('; ') || ''
 
     return {
       id: rule.id,
@@ -171,4 +173,3 @@ export function exportRulesToCSV(rules, filename = 'rules') {
 export function exportRulesToJSON(rules, filename = 'rules') {
   exportToJSON(rules, filename, true)
 }
-

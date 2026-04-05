@@ -11,7 +11,7 @@ const props = defineProps({
   status: {
     type: String,
     required: true,
-    validator: (value) =>
+    validator: value =>
       ['submitted', 'processing', 'ingested', 'completed', 'error', 'failed', 'pending'].includes(
         value?.toLowerCase()
       ),
@@ -35,4 +35,3 @@ const badgeClasses = computed(() => {
   return [base, variants[statusLower] || variants.submitted].join(' ')
 })
 </script>
-

@@ -188,7 +188,7 @@ const fetchFilterOptions = async () => {
 
 watch(
   () => props.filters,
-  (newFilters) => {
+  newFilters => {
     localFilters.value = {
       ip_address: newFilters.ip_address || '',
       ip_range: newFilters.ip_range || '',
@@ -260,4 +260,3 @@ onMounted(() => {
   fetchFilterOptions()
 })
 </script>
-

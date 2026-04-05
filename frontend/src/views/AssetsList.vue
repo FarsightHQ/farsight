@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col min-h-0" style="height: 100%;">
+  <div class="flex flex-col min-h-0" style="height: 100%">
     <!-- Compact Header -->
     <div class="flex items-center justify-between mb-3 pb-3 border-b border-theme-border-default">
       <div>
@@ -19,17 +19,10 @@
         </div>
       </div>
       <div class="flex items-center space-x-2">
-        <Button
-          v-if="selectedAssets.length > 0"
-          variant="outline"
-          size="sm"
-          @click="handleExport"
-        >
+        <Button v-if="selectedAssets.length > 0" variant="outline" size="sm" @click="handleExport">
           Export Selected ({{ selectedAssets.length }})
         </Button>
-        <Button variant="outline" size="sm" @click="handleExportAll">
-          Export All
-        </Button>
+        <Button variant="outline" size="sm" @click="handleExportAll"> Export All </Button>
       </div>
     </div>
 
@@ -45,12 +38,19 @@
         <!-- Loading State -->
         <div v-if="loading" class="flex-1 overflow-y-auto">
           <div class="space-y-2">
-            <div v-for="i in 10" :key="i" class="h-12 bg-theme-active/30 rounded animate-pulse"></div>
+            <div
+              v-for="i in 10"
+              :key="i"
+              class="h-12 bg-theme-active/30 rounded animate-pulse"
+            ></div>
           </div>
         </div>
 
         <!-- Empty State -->
-        <Card v-else-if="!loading && assets.length === 0" class="flex-1 flex items-center justify-center">
+        <Card
+          v-else-if="!loading && assets.length === 0"
+          class="flex-1 flex items-center justify-center"
+        >
           <div class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-theme-text-muted"
@@ -67,7 +67,11 @@
             </svg>
             <h3 class="mt-2 text-sm font-medium text-theme-text-content">No assets found</h3>
             <p class="mt-1 text-sm text-theme-text-muted">
-              {{ hasActiveFilters ? 'Try adjusting your filters.' : 'Get started by uploading a CSV file.' }}
+              {{
+                hasActiveFilters
+                  ? 'Try adjusting your filters.'
+                  : 'Get started by uploading a CSV file.'
+              }}
             </p>
             <div class="mt-6">
               <Button variant="primary" @click="$router.push('/assets/upload')">
@@ -96,7 +100,12 @@
         <div v-if="!loading && assets.length > 0" class="mt-6 flex items-center justify-between">
           <div class="flex items-center space-x-2">
             <span class="text-sm text-theme-text-content">Show</span>
-            <select v-model="pageSize" class="input text-sm" style="width: auto" @change="handlePageSizeChange">
+            <select
+              v-model="pageSize"
+              class="input text-sm"
+              style="width: auto"
+              @change="handlePageSizeChange"
+            >
               <option :value="10">10</option>
               <option :value="25">25</option>
               <option :value="50">50</option>
@@ -208,7 +217,7 @@ const fetchAssets = async () => {
   try {
     loading.value = true
     const offset = (currentPage.value - 1) * pageSize.value
-    
+
     // Build filter params
     const filterParams = {
       ...filters,
@@ -217,7 +226,7 @@ const fetchAssets = async () => {
     }
 
     const response = await assetsService.searchAssets(filterParams)
-    
+
     // Handle response structure
     const responseData = response.data || response
     assets.value = responseData.data || responseData
@@ -230,13 +239,13 @@ const fetchAssets = async () => {
   }
 }
 
-const handleFilterUpdate = (newFilters) => {
+const handleFilterUpdate = newFilters => {
   Object.assign(filters, newFilters)
   currentPage.value = 1
   fetchAssets()
 }
 
-const handleViewAsset = (asset) => {
+const handleViewAsset = asset => {
   router.push(`/assets/${encodeURIComponent(asset.ip_address)}`)
 }
 
@@ -246,19 +255,19 @@ const handleSelectAsset = (assetId, checked) => {
       selectedAssets.value.push(assetId)
     }
   } else {
-    selectedAssets.value = selectedAssets.value.filter((id) => id !== assetId)
+    selectedAssets.value = selectedAssets.value.filter(id => id !== assetId)
   }
 }
 
-const handleSelectAll = (checked) => {
+const handleSelectAll = checked => {
   if (checked) {
-    selectedAssets.value = displayedAssets.value.map((asset) => asset.id)
+    selectedAssets.value = displayedAssets.value.map(asset => asset.id)
   } else {
     selectedAssets.value = []
   }
 }
 
-const handleSort = (key) => {
+const handleSort = key => {
   if (sortKey.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
   } else {
@@ -268,7 +277,7 @@ const handleSort = (key) => {
 }
 
 const handleExport = () => {
-  const selectedAssetsData = displayedAssets.value.filter((asset) =>
+  const selectedAssetsData = displayedAssets.value.filter(asset =>
     selectedAssets.value.includes(asset.id)
   )
   exportAssetsToCSV(selectedAssetsData, 'selected-assets')
@@ -284,8 +293,17 @@ const exportAssetsToCSV = (assetsData, filename) => {
     return
   }
 
-  const headers = ['IP Address', 'Segment', 'VLAN', 'OS', 'Hostname', 'Environment', 'Status', 'Created']
-  const rows = assetsData.map((asset) => [
+  const headers = [
+    'IP Address',
+    'Segment',
+    'VLAN',
+    'OS',
+    'Hostname',
+    'Environment',
+    'Status',
+    'Created',
+  ]
+  const rows = assetsData.map(asset => [
     asset.ip_address,
     asset.segment || '',
     asset.vlan || '',
@@ -298,7 +316,7 @@ const exportAssetsToCSV = (assetsData, filename) => {
 
   const csvContent = [
     headers.join(','),
-    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
   ].join('\n')
 
   const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -316,7 +334,7 @@ const handlePageSizeChange = () => {
   fetchAssets()
 }
 
-const goToPage = (page) => {
+const goToPage = page => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
     fetchAssets()
@@ -337,4 +355,3 @@ onMounted(() => {
   fetchAssets()
 })
 </script>
-

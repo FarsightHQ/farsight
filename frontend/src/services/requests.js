@@ -57,7 +57,7 @@ export const requestsService = {
   // Get network graph for a single rule
   getRuleGraph(ruleId) {
     return apiClient.get(`/api/v1/rules/${ruleId}`, {
-      params: { include: 'graph' }
+      params: { include: 'graph' },
     })
   },
 
@@ -74,4 +74,3 @@ export const requestsService = {
     })
   },
 }
-

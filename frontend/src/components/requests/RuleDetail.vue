@@ -19,7 +19,11 @@
             variant="ghost"
             size="sm"
             :disabled="!hasNetworkData"
-            :title="!hasNetworkData ? 'This rule has no network data to visualize' : 'Visualize network topology'"
+            :title="
+              !hasNetworkData
+                ? 'This rule has no network data to visualize'
+                : 'Visualize network topology'
+            "
             @click="handleVisualize"
           >
             Visualize
@@ -33,9 +37,7 @@
           >
             Unified view
           </Button>
-          <Button variant="outline" size="sm" @click="handleBack">
-            Back to Rules
-          </Button>
+          <Button variant="outline" size="sm" @click="handleBack"> Back to Rules </Button>
         </div>
       </div>
     </Card>
@@ -44,132 +46,136 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Column: Network Endpoints and Services -->
       <div class="space-y-6">
-    <!-- Endpoints Section -->
-    <Card class="p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Endpoints</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Source Networks -->
-        <div>
-          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-            <ArrowRightIcon class="h-5 w-5 mr-2 text-info-600" />
-            Source Networks
-          </h4>
-          <div class="space-y-2">
-            <div
-              v-for="(endpoint, idx) in sourceEndpoints"
-              :key="idx"
-              class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
-              :title="endpoint.network_cidr || endpoint.cidr"
-            >
-              <div class="flex flex-col">
-                <code class="text-sm font-mono text-gray-900">
-                  {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
-                </code>
-                <span 
-                  v-if="endpoint.hostname"
-                  class="text-xs text-gray-500 mt-1"
+        <!-- Endpoints Section -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Endpoints</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Source Networks -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <ArrowRightIcon class="h-5 w-5 mr-2 text-info-600" />
+                Source Networks
+              </h4>
+              <div class="space-y-2">
+                <div
+                  v-for="(endpoint, idx) in sourceEndpoints"
+                  :key="idx"
+                  class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+                  :title="endpoint.network_cidr || endpoint.cidr"
                 >
-                  {{ endpoint.hostname }}
-                </span>
+                  <div class="flex flex-col">
+                    <code class="text-sm font-mono text-gray-900">
+                      {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+                    </code>
+                    <span v-if="endpoint.hostname" class="text-xs text-gray-500 mt-1">
+                      {{ endpoint.hostname }}
+                    </span>
+                  </div>
+                  <button
+                    class="text-gray-400 hover:text-gray-600"
+                    title="Copy CIDR to clipboard"
+                    @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
+                  >
+                    <DocumentDuplicateIcon class="h-4 w-4" />
+                  </button>
+                </div>
+                <p v-if="sourceEndpoints.length === 0" class="text-sm text-gray-500">
+                  No source networks
+                </p>
               </div>
-              <button
-                @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
-                class="text-gray-400 hover:text-gray-600"
-                title="Copy CIDR to clipboard"
-              >
-                <DocumentDuplicateIcon class="h-4 w-4" />
-              </button>
             </div>
-            <p v-if="sourceEndpoints.length === 0" class="text-sm text-gray-500">No source networks</p>
-          </div>
-        </div>
 
-        <!-- Destination Networks -->
-        <div>
-          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-            <ArrowLeftIcon class="h-5 w-5 mr-2 text-warning-600" />
-            Destination Networks
-          </h4>
-          <div class="space-y-2">
-            <div
-              v-for="(endpoint, idx) in destinationEndpoints"
-              :key="idx"
-              class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
-              :title="endpoint.network_cidr || endpoint.cidr"
-            >
-              <div class="flex flex-col">
-                <code class="text-sm font-mono text-gray-900">
-                  {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
-                </code>
-                <span 
-                  v-if="endpoint.hostname"
-                  class="text-xs text-gray-500 mt-1"
+            <!-- Destination Networks -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <ArrowLeftIcon class="h-5 w-5 mr-2 text-warning-600" />
+                Destination Networks
+              </h4>
+              <div class="space-y-2">
+                <div
+                  v-for="(endpoint, idx) in destinationEndpoints"
+                  :key="idx"
+                  class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+                  :title="endpoint.network_cidr || endpoint.cidr"
                 >
-                  {{ endpoint.hostname }}
-                </span>
+                  <div class="flex flex-col">
+                    <code class="text-sm font-mono text-gray-900">
+                      {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
+                    </code>
+                    <span v-if="endpoint.hostname" class="text-xs text-gray-500 mt-1">
+                      {{ endpoint.hostname }}
+                    </span>
+                  </div>
+                  <button
+                    class="text-gray-400 hover:text-gray-600"
+                    title="Copy CIDR to clipboard"
+                    @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
+                  >
+                    <DocumentDuplicateIcon class="h-4 w-4" />
+                  </button>
+                </div>
+                <p v-if="destinationEndpoints.length === 0" class="text-sm text-gray-500">
+                  No destination networks
+                </p>
               </div>
-              <button
-                @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
-                class="text-gray-400 hover:text-gray-600"
-                title="Copy CIDR to clipboard"
-              >
-                <DocumentDuplicateIcon class="h-4 w-4" />
-              </button>
             </div>
-            <p v-if="destinationEndpoints.length === 0" class="text-sm text-gray-500">
-              No destination networks
+          </div>
+        </Card>
+
+        <!-- Services Section -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Services</h3>
+          <div class="space-y-3">
+            <div
+              v-for="(service, idx) in rule.services"
+              :key="idx"
+              class="p-4 bg-gray-50 rounded-lg border border-gray-200"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-sm font-medium text-gray-700 uppercase">{{
+                    service.protocol
+                  }}</span>
+                  <span class="text-sm text-gray-600 ml-2">{{
+                    formatPortRanges(service.port_ranges || service.ports)
+                  }}</span>
+                </div>
+                <button
+                  class="text-gray-400 hover:text-gray-600"
+                  title="Copy to clipboard"
+                  @click="
+                    copyToClipboard(
+                      `${service.protocol}:${formatPortRanges(service.port_ranges || service.ports)}`
+                    )
+                  "
+                >
+                  <DocumentDuplicateIcon class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <p v-if="!rule.services || rule.services.length === 0" class="text-sm text-gray-500">
+              No services defined
             </p>
           </div>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Services Section -->
-    <Card class="p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Services</h3>
-      <div class="space-y-3">
-        <div
-          v-for="(service, idx) in rule.services"
-          :key="idx"
-          class="p-4 bg-gray-50 rounded-lg border border-gray-200"
-        >
-          <div class="flex items-center justify-between">
-            <div>
-              <span class="text-sm font-medium text-gray-700 uppercase">{{ service.protocol }}</span>
-              <span class="text-sm text-gray-600 ml-2">{{ formatPortRanges(service.port_ranges || service.ports) }}</span>
-            </div>
-            <button
-              @click="copyToClipboard(`${service.protocol}:${formatPortRanges(service.port_ranges || service.ports)}`)"
-              class="text-gray-400 hover:text-gray-600"
-              title="Copy to clipboard"
-            >
-              <DocumentDuplicateIcon class="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        <p v-if="!rule.services || rule.services.length === 0" class="text-sm text-gray-500">
-          No services defined
-        </p>
-      </div>
-    </Card>
+        </Card>
       </div>
 
       <!-- Right Column: Related Info, Major Facts, Detailed Facts -->
       <div class="space-y-6">
-    <!-- Related Information -->
-    <Card class="p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Related Information</h3>
-      <div class="space-y-2 text-sm">
-        <div class="flex justify-between">
-          <span class="font-medium text-gray-700">Request ID:</span>
-          <span class="text-gray-600">{{ rule.request_id || requestId || 'N/A' }}</span>
-        </div>
-        <div v-if="rule.canonical_hash" class="flex justify-between">
-          <span class="font-medium text-gray-700">Canonical Hash:</span>
-          <code class="text-xs font-mono text-gray-600">{{ rule.canonical_hash }}</code>
-        </div>
-      </div>
-    </Card>
+        <!-- Related Information -->
+        <Card class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Related Information</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="font-medium text-gray-700">Request ID:</span>
+              <span class="text-gray-600">{{ rule.request_id || requestId || 'N/A' }}</span>
+            </div>
+            <div v-if="rule.canonical_hash" class="flex justify-between">
+              <span class="font-medium text-gray-700">Canonical Hash:</span>
+              <code class="text-xs font-mono text-gray-600">{{ rule.canonical_hash }}</code>
+            </div>
+          </div>
+        </Card>
 
         <!-- Major Facts Section -->
         <Card class="p-6">
@@ -205,11 +211,7 @@
 <script setup>
 import { computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import {
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  DocumentDuplicateIcon,
-} from '@heroicons/vue/24/outline'
+import { ArrowRightIcon, ArrowLeftIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import StatusBadge from './StatusBadge.vue'
@@ -246,15 +248,13 @@ const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache
 // Base endpoint filters (not reactive to cache)
 const sourceEndpointsBase = computed(() => {
   if (!props.rule?.endpoints) return []
-  return props.rule.endpoints.filter(
-    (ep) => ep.endpoint_type === 'source' || ep.type === 'source'
-  )
+  return props.rule.endpoints.filter(ep => ep.endpoint_type === 'source' || ep.type === 'source')
 })
 
 const destinationEndpointsBase = computed(() => {
   if (!props.rule?.endpoints) return []
   return props.rule.endpoints.filter(
-    (ep) => ep.endpoint_type === 'destination' || ep.type === 'destination'
+    ep => ep.endpoint_type === 'destination' || ep.type === 'destination'
   )
 })
 
@@ -262,8 +262,8 @@ const destinationEndpointsBase = computed(() => {
 const sourceEndpoints = computed(() => {
   // Access cacheVersion to track changes
   const _ = cacheVersion.value
-  
-  return sourceEndpointsBase.value.map((ep) => {
+
+  return sourceEndpointsBase.value.map(ep => {
     const cidr = ep.network_cidr || ep.cidr
     const asset = getAssetForCidr(cidr)
     return {
@@ -280,8 +280,8 @@ const sourceEndpoints = computed(() => {
 const destinationEndpoints = computed(() => {
   // Access cacheVersion to track changes
   const _ = cacheVersion.value
-  
-  return destinationEndpointsBase.value.map((ep) => {
+
+  return destinationEndpointsBase.value.map(ep => {
     const cidr = ep.network_cidr || ep.cidr
     const asset = getAssetForCidr(cidr)
     return {
@@ -295,7 +295,7 @@ const destinationEndpoints = computed(() => {
   })
 })
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -307,7 +307,7 @@ const formatDate = (dateString) => {
   })
 }
 
-const copyToClipboard = async (text) => {
+const copyToClipboard = async text => {
   try {
     await navigator.clipboard.writeText(text)
     success('Copied to clipboard')
@@ -319,10 +319,11 @@ const copyToClipboard = async (text) => {
 // Check if rule has network data for visualization
 const hasNetworkData = computed(() => {
   if (!props.rule) return false
-  
+
   // Check if rule has endpoints array with source or destination entries
-  const hasEndpoints = props.rule.endpoints && Array.isArray(props.rule.endpoints) && props.rule.endpoints.length > 0
-  
+  const hasEndpoints =
+    props.rule.endpoints && Array.isArray(props.rule.endpoints) && props.rule.endpoints.length > 0
+
   // Rule needs at least endpoints to visualize
   return hasEndpoints
 })
@@ -369,9 +370,9 @@ const handleBack = () => {
 // Fetch asset info when rule changes
 watch(
   () => props.rule,
-  async (newRule) => {
+  async newRule => {
     if (!newRule || !newRule.endpoints) return
-    
+
     await fetchAssetsForEndpoints(newRule.endpoints)
   },
   { immediate: true }
@@ -384,4 +385,3 @@ onMounted(async () => {
   }
 })
 </script>
-

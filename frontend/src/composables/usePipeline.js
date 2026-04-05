@@ -8,12 +8,17 @@ export function usePipeline(requestId, request = null) {
   const pipelineSteps = ref([])
   const isProcessingPipeline = ref(false)
   const processing = ref(false)
-  
+
   // Use request status polling if requestId is provided
   const requestIdComputed = computed(() => {
     // Log what we receive
-    console.log('[usePipeline] requestIdComputed - requestId:', requestId, 'Type:', typeof requestId)
-    
+    console.log(
+      '[usePipeline] requestIdComputed - requestId:',
+      requestId,
+      'Type:',
+      typeof requestId
+    )
+
     let id
     if (typeof requestId === 'function') {
       // If it's a function (like a computed ref), call it
@@ -25,34 +30,39 @@ export function usePipeline(requestId, request = null) {
       // Otherwise use as-is
       id = requestId
     }
-    
+
     console.log('[usePipeline] requestIdComputed - extracted id:', id, 'Type:', typeof id)
-    
+
     // If id is an object, extract the ID property
     if (typeof id === 'object' && id !== null) {
       id = id.id || id.request_id || String(id)
       console.log('[usePipeline] requestIdComputed - after object extraction:', id)
     }
-    
+
     // Ensure it's a string or number, return null if invalid
     if (id === null || id === undefined) {
       console.warn('[usePipeline] requestIdComputed - null/undefined ID')
       return null
     }
-    
+
     // Convert to string for consistency (API expects string/number)
     const stringId = String(id)
-    
+
     // Validate it's not an invalid string representation
-    if (stringId === 'null' || stringId === 'undefined' || stringId === '[object Object]' || stringId === 'NaN') {
+    if (
+      stringId === 'null' ||
+      stringId === 'undefined' ||
+      stringId === '[object Object]' ||
+      stringId === 'NaN'
+    ) {
       console.warn('[usePipeline] Invalid request ID string:', stringId, 'Original:', id)
       return null
     }
-    
+
     console.log('[usePipeline] requestIdComputed - final stringId:', stringId)
     return stringId
   })
-  
+
   const {
     request: polledRequest,
     startPolling,
@@ -107,13 +117,13 @@ export function usePipeline(requestId, request = null) {
 
   // 2. Utility functions - updatePipelineStep
   const updatePipelineStep = (stepKey, updates) => {
-    const step = pipelineSteps.value.find((s) => s.key === stepKey)
+    const step = pipelineSteps.value.find(s => s.key === stepKey)
     if (step) {
       // Track start time if status changes to processing
       if (updates.status === 'processing' && !step.startedAt) {
         updates.startedAt = new Date().toISOString()
       }
-      
+
       // Calculate duration if step is completed
       if (updates.status === 'completed' || updates.status === 'error') {
         if (step.startedAt && !step.completedAt) {
@@ -123,7 +133,7 @@ export function usePipeline(requestId, request = null) {
           updates.duration = endTime - startTime
         }
       }
-      
+
       Object.assign(step, updates)
     }
   }
@@ -135,20 +145,20 @@ export function usePipeline(requestId, request = null) {
       console.warn('[usePipeline] Invalid request ID for fetchRequest:', id)
       return null
     }
-    
+
     try {
       const response = await requestsService.get(id)
       const result = response.data || response
-      
+
       if (request && typeof request.value !== 'undefined') {
         request.value = result
       }
-      
+
       // Update polled request
       if (polledRequest.value) {
         polledRequest.value = result
       }
-      
+
       return result
     } catch (err) {
       error(err.message || 'Failed to load request')
@@ -185,7 +195,7 @@ export function usePipeline(requestId, request = null) {
             'Rules created': result.rules_created || 0,
           },
         })
-        
+
         // Immediately check status after API call
         const updatedRequest = await fetchRequest()
         if (updatedRequest?.status?.toLowerCase() === 'ingested') {
@@ -194,7 +204,7 @@ export function usePipeline(requestId, request = null) {
             progress: 100,
           })
           // Auto-start facts computation
-          if (pipelineSteps.value.find((s) => s.key === 'facts')?.status === 'pending') {
+          if (pipelineSteps.value.find(s => s.key === 'facts')?.status === 'pending') {
             handleComputeFacts(true)
           }
         }
@@ -256,7 +266,7 @@ export function usePipeline(requestId, request = null) {
           },
         })
         // Auto-start hybrid facts
-        if (pipelineSteps.value.find((s) => s.key === 'hybrid')?.status === 'pending') {
+        if (pipelineSteps.value.find(s => s.key === 'hybrid')?.status === 'pending') {
           await handleComputeHybrid(true)
         } else {
           // Pipeline complete
@@ -350,9 +360,9 @@ export function usePipeline(requestId, request = null) {
   }
 
   // 7. updatePipelineStatus - defined AFTER handlers so it can call them
-  const updatePipelineStatus = (status) => {
+  const updatePipelineStatus = status => {
     const statusLower = status?.toLowerCase()
-    const ingestStep = pipelineSteps.value.find((s) => s.key === 'ingest')
+    const ingestStep = pipelineSteps.value.find(s => s.key === 'ingest')
 
     if (statusLower === 'ingested') {
       // Only update if not already completed
@@ -362,7 +372,7 @@ export function usePipeline(requestId, request = null) {
           progress: 100,
         })
         // Auto-start facts computation
-        if (pipelineSteps.value.find((s) => s.key === 'facts')?.status === 'pending') {
+        if (pipelineSteps.value.find(s => s.key === 'facts')?.status === 'pending') {
           handleComputeFacts(true)
         }
       }
@@ -381,7 +391,7 @@ export function usePipeline(requestId, request = null) {
   // 8. Watch for polled request - defined AFTER updatePipelineStatus
   watch(
     () => polledRequest.value,
-    (newRequest) => {
+    newRequest => {
       if (newRequest && isProcessingPipeline.value) {
         if (request && typeof request.value !== 'undefined') {
           request.value = newRequest
@@ -392,9 +402,9 @@ export function usePipeline(requestId, request = null) {
   )
 
   // 9. handleRetryStep
-  const handleRetryStep = async (stepKey) => {
+  const handleRetryStep = async stepKey => {
     // Reset step status
-    const step = pipelineSteps.value.find((s) => s.key === stepKey)
+    const step = pipelineSteps.value.find(s => s.key === stepKey)
     if (step) {
       step.status = 'pending'
       step.progress = 0
@@ -417,8 +427,8 @@ export function usePipeline(requestId, request = null) {
 
   // 10. startFullPipeline
   const startFullPipeline = async (currentRequest = null) => {
-    const requestStatus = currentRequest?.status || (request?.value?.status)
-    
+    const requestStatus = currentRequest?.status || request?.value?.status
+
     if (requestStatus !== 'submitted') {
       error('Request must be in submitted status to start pipeline')
       return false
@@ -445,7 +455,7 @@ export function usePipeline(requestId, request = null) {
     polledRequest,
     lastUpdated,
     isPolling,
-    
+
     // Methods
     initializePipelineSteps,
     updatePipelineStep,

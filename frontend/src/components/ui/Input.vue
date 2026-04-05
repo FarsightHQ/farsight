@@ -1,6 +1,10 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="inputId" class="block text-sm font-medium text-theme-text-content mb-1">
+    <label
+      v-if="label"
+      :for="inputId"
+      class="block text-sm font-medium text-theme-text-content mb-1"
+    >
       {{ label }}
       <span v-if="required" class="text-error-500">*</span>
     </label>
@@ -63,4 +67,3 @@ const emit = defineEmits(['update:modelValue', 'blur'])
 
 const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
 </script>
-

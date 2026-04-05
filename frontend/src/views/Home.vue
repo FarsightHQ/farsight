@@ -2,9 +2,7 @@
   <div class="max-w-6xl mx-auto">
     <div class="text-center mb-12">
       <h1 class="text-4xl font-bold text-theme-text-content mb-4">Welcome to Farsight</h1>
-      <p class="text-xl text-theme-text-content mb-8">
-        Firewall Access Rule Analysis System
-      </p>
+      <p class="text-xl text-theme-text-content mb-8">Firewall Access Rule Analysis System</p>
       <div class="flex gap-4 justify-center">
         <Button variant="primary" size="lg" @click="$router.push('/requests/new')">
           Create New Request
@@ -44,4 +42,3 @@
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 </script>
-

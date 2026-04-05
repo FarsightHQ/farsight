@@ -13,7 +13,7 @@ const apiClient = axios.create({
 
 // Request interceptor
 apiClient.interceptors.request.use(
-  async (config) => {
+  async config => {
     // Add auth token if available
     const token = getToken()
     if (token) {
@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
     }
     return config
   },
-  (error) => {
+  error => {
     return Promise.reject(error)
   }
 )
@@ -31,7 +31,7 @@ let isRefreshing = false
 let failedQueue = []
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
+  failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error)
     } else {
@@ -47,7 +47,7 @@ function normalizeApiDetail(detail) {
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
     return detail
-      .map((item) => {
+      .map(item => {
         if (typeof item === 'string') return item
         if (item && typeof item === 'object' && item.msg) return item.msg
         try {
@@ -69,14 +69,14 @@ function normalizeApiDetail(detail) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => {
+  response => {
     // Handle standardized response format
     if (response.data && response.data.data) {
       return response.data
     }
     return response
   },
-  async (error) => {
+  async error => {
     const originalRequest = error.config
 
     // Handle 401 Unauthorized - token expired or invalid
@@ -86,11 +86,11 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         })
-          .then((token) => {
+          .then(token => {
             originalRequest.headers.Authorization = `Bearer ${token}`
             return apiClient(originalRequest)
           })
-          .catch((err) => {
+          .catch(err => {
             return Promise.reject(err)
           })
       }
@@ -138,13 +138,8 @@ apiClient.interceptors.response.use(
       const data = error.response.data
       const detail = normalizeApiDetail(data?.detail)
       const errorMessage =
-        detail ||
-        data?.message ||
-        error.response.statusText ||
-        'An error occurred'
-      const err = new Error(
-        status === 503 ? `Service unavailable: ${errorMessage}` : errorMessage
-      )
+        detail || data?.message || error.response.statusText || 'An error occurred'
+      const err = new Error(status === 503 ? `Service unavailable: ${errorMessage}` : errorMessage)
       return Promise.reject(err)
     } else if (error.request) {
       // Request made but no response
@@ -157,4 +152,3 @@ apiClient.interceptors.response.use(
 )
 
 export default apiClient
-

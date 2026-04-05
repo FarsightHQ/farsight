@@ -1,7 +1,7 @@
 <template>
   <div ref="containerRef" class="w-full bg-gray-50 relative">
     <svg ref="svgRef" class="w-full"></svg>
-    
+
     <!-- Tooltip -->
     <div
       v-if="tooltip.visible"
@@ -10,12 +10,13 @@
       :style="{
         left: tooltip.x + 'px',
         top: tooltip.y + 'px',
-        transform: tooltip.position === 'below' 
-          ? 'translate(-50%, 0)' 
-          : 'translate(-50%, -100%)',
+        transform: tooltip.position === 'below' ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
       }"
     >
-      <div class="whitespace-pre-line font-mono leading-relaxed" v-html="formatTooltipText(tooltip.text)"></div>
+      <div
+        class="whitespace-pre-line font-mono leading-relaxed"
+        v-html="formatTooltipText(tooltip.text)"
+      ></div>
     </div>
   </div>
 </template>
@@ -24,7 +25,12 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
 import { useAssetCache } from '@/composables/useAssetCache'
-import { extractBaseIpFromCidr, formatCidrToCompact, formatCidrToRange, calculateIpCount } from '@/utils/ipUtils'
+import {
+  extractBaseIpFromCidr,
+  formatCidrToCompact,
+  formatCidrToRange,
+  calculateIpCount,
+} from '@/utils/ipUtils'
 
 const props = defineProps({
   graphData: {
@@ -84,13 +90,13 @@ const SEGMENT_SPACING = 6 // Spacing between segments (half of original)
 const VLAN_COLORS = {
   default: '#e8f4f8', // Light blue
   border: '#b8d4e0', // Medium blue border
-  text: '#5a7a8a' // Darker blue text
+  text: '#5a7a8a', // Darker blue text
 }
 
 const SEGMENT_COLORS = {
   default: '#f0f8f4', // Light green
   border: '#c8e0d4', // Medium green border
-  text: '#5a8a7a' // Darker green text
+  text: '#5a8a7a', // Darker green text
 }
 
 const UNCategorized_COLOR = '#f5f5f5' // Light gray for uncategorized
@@ -98,10 +104,10 @@ const UNCategorized_COLOR = '#f5f5f5' // Light gray for uncategorized
 // Fetch assets for all IPs in the graph
 const fetchAssetsForGraph = async () => {
   if (!props.graphData) return
-  
+
   const sources = props.graphData.sources || []
   const destinations = props.graphData.destinations || []
-  
+
   // Collect all unique IPs
   const uniqueIPs = new Set()
   sources.forEach(src => {
@@ -116,7 +122,7 @@ const fetchAssetsForGraph = async () => {
       if (baseIp) uniqueIPs.add(baseIp)
     }
   })
-  
+
   // Fetch assets for all unique IPs (in parallel)
   await Promise.all(Array.from(uniqueIPs).map(ip => fetchAsset(ip)))
 }
@@ -124,30 +130,30 @@ const fetchAssetsForGraph = async () => {
 // Group nodes by VLAN first, then by Segment
 const groupNodesByVlanAndSegment = (nodes, nodeType) => {
   const groups = {}
-  
+
   nodes.forEach(node => {
     const cidr = node.network_cidr
     const baseIp = extractBaseIpFromCidr(cidr)
     const asset = baseIp ? getAssetForCidr(cidr) : null
-    
+
     const vlan = asset?.vlan || 'Uncategorized'
     const segment = asset?.segment || 'Uncategorized'
-    
+
     if (!groups[vlan]) {
       groups[vlan] = {}
     }
     if (!groups[vlan][segment]) {
       groups[vlan][segment] = []
     }
-    
+
     // Store grouping metadata on node
     node.vlan = vlan
     node.segment = segment
     node.asset = asset
-    
+
     groups[vlan][segment].push(node)
   })
-  
+
   return groups
 }
 
@@ -155,18 +161,18 @@ const groupNodesByVlanAndSegment = (nodes, nodeType) => {
 const calculateGroupPositions = (groupedNodes, startX, startY) => {
   let currentY = startY
   const groupBounds = []
-  
+
   Object.entries(groupedNodes).forEach(([vlan, segments]) => {
     const vlanNodes = []
     const segmentBounds = []
     let vlanStartY = currentY
     let vlanCurrentY = currentY + GROUP_PADDING
-    
+
     Object.entries(segments).forEach(([segment, nodes]) => {
       const segmentStartY = vlanCurrentY
       // Start nodes after label height (16px for segment label) + label bottom padding (10px) = 26px from segment start
       let segmentCurrentY = vlanCurrentY + 16 + LABEL_BOTTOM_PADDING
-      
+
       // Position nodes within segment
       nodes.forEach((node, i) => {
         node.x = startX
@@ -175,7 +181,7 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
         node.height = RECT_HEIGHT
         segmentCurrentY += NODE_SPACING
       })
-      
+
       // Add bottom padding to segment end
       const segmentEndY = segmentCurrentY - NODE_SPACING + RECT_HEIGHT + SEGMENT_BOTTOM_PADDING
       segmentBounds.push({
@@ -183,15 +189,15 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
         startY: segmentStartY,
         endY: segmentEndY,
         nodes: nodes,
-        height: segmentEndY - segmentStartY
+        height: segmentEndY - segmentStartY,
       })
-      
+
       vlanNodes.push(...nodes)
       // Use SEGMENT_SPACING (6px) instead of SEGMENT_PADDING + GROUP_SPACING for segment-to-segment spacing
       // GROUP_SPACING is only used between VLAN groups
       vlanCurrentY = segmentEndY + SEGMENT_SPACING
     })
-    
+
     // vlanCurrentY points to where next segment would start, so subtract SEGMENT_SPACING to get actual end
     const vlanEndY = vlanCurrentY - SEGMENT_SPACING
     groupBounds.push({
@@ -200,19 +206,19 @@ const calculateGroupPositions = (groupedNodes, startX, startY) => {
       endY: vlanEndY,
       segments: segmentBounds,
       nodes: vlanNodes,
-      height: vlanEndY - vlanStartY
+      height: vlanEndY - vlanStartY,
     })
-    
+
     currentY = vlanEndY + GROUP_SPACING
   })
-  
+
   return groupBounds
 }
 
 // Helper function to detect if CIDR represents an IP range (not single IP)
-const isIpRange = (cidr) => {
+const isIpRange = cidr => {
   if (!cidr || typeof cidr !== 'string') return false
-  
+
   // Check if CIDR has prefix less than 32 (single IP)
   if (cidr.includes('/')) {
     const parts = cidr.split('/')
@@ -223,70 +229,70 @@ const isIpRange = (cidr) => {
       }
     }
   }
-  
+
   // If it's already in compact format, check for dash (range indicator)
   if (cidr.includes('-')) {
     return true
   }
-  
+
   // If it's in range format (contains " - ")
   if (cidr.includes(' - ')) {
     return true
   }
-  
+
   return false
 }
 
 // Build enhanced tooltip text with asset information
-const buildTooltipText = (nodeData) => {
+const buildTooltipText = nodeData => {
   const cidr = nodeData.network_cidr
-  
+
   if (!cidr) {
     return nodeData.tooltip || nodeData.formatted_label || nodeData.label || ''
   }
-  
+
   const baseIp = extractBaseIpFromCidr(cidr)
   const asset = baseIp ? getAssetForCidr(cidr) : null
-  
+
   // Get IP range details
   const ipRange = formatCidrToRange(cidr)
   const ipCount = calculateIpCount(cidr)
-  
+
   // Build tooltip sections
   const sections = []
-  
+
   // Section 1: Prominent Hostname and OS (if available)
   if (asset && (asset.hostname || asset.os_name)) {
     const prominentInfo = []
     if (asset.hostname) prominentInfo.push(asset.hostname)
     if (asset.os_name) prominentInfo.push(asset.os_name)
-    
+
     sections.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     sections.push(`${prominentInfo.join(' | ')}`)
     sections.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }
-  
+
   // Section 2: IP Range Details
   sections.push(`IP Range: ${ipRange}`)
   sections.push(`CIDR: ${cidr}`)
   if (ipCount) {
     sections.push(`IPs: ${ipCount}`)
   }
-  
+
   // Section 3: Network Information
   if (asset) {
     const networkInfo = []
     if (asset.segment) networkInfo.push(`Segment: ${asset.segment}`)
     if (asset.vlan) networkInfo.push(`VLAN: ${asset.vlan}`)
     if (asset.subnet) networkInfo.push(`Subnet: ${asset.subnet}`)
-    
+
     if (networkInfo.length > 0) {
       sections.push('')
       sections.push('Network:')
       networkInfo.forEach(info => sections.push(`  ${info}`))
     }
   }
-  
+
   // Section 4: Asset Metadata
   if (asset) {
     const assetInfo = []
@@ -294,32 +300,32 @@ const buildTooltipText = (nodeData) => {
     if (asset.location) assetInfo.push(`Location: ${asset.location}`)
     if (asset.availability) assetInfo.push(`Availability: ${asset.availability}`)
     if (asset.vm_display_name) assetInfo.push(`VM: ${asset.vm_display_name}`)
-    
+
     if (assetInfo.length > 0) {
       sections.push('')
       sections.push('Asset:')
       assetInfo.forEach(info => sections.push(`  ${info}`))
     }
   }
-  
+
   // Section 5: Security/Compliance
   if (asset) {
     const securityInfo = []
     if (asset.confidentiality) securityInfo.push(`Confidentiality: ${asset.confidentiality}`)
     if (asset.integrity) securityInfo.push(`Integrity: ${asset.integrity}`)
-    
+
     if (securityInfo.length > 0) {
       sections.push('')
       sections.push('Security:')
       securityInfo.forEach(info => sections.push(`  ${info}`))
     }
   }
-  
+
   // If no asset info, return basic IP details
   if (sections.length === 0) {
     return `IP Range: ${ipRange}\nCIDR: ${cidr}${ipCount ? `\nIPs: ${ipCount}` : ''}`
   }
-  
+
   return sections.join('\n')
 }
 
@@ -362,20 +368,20 @@ const initializeGraph = async () => {
   // Group sources and destinations by VLAN and Segment
   const groupedSources = groupNodesByVlanAndSegment(sources, 'source')
   const groupedDestinations = groupNodesByVlanAndSegment(destinations, 'destination')
-  
+
   // Calculate positions for grouped sources
   const sourceGroupBounds = calculateGroupPositions(groupedSources, leftX, startY)
-  
+
   // Calculate positions for grouped destinations
   const destinationGroupBounds = calculateGroupPositions(groupedDestinations, rightX, startY)
-  
+
   // Calculate height based on actual grouped content
-  const maxSourceHeight = sourceGroupBounds.length > 0 
-    ? Math.max(...sourceGroupBounds.map(g => g.endY))
-    : startY
-  const maxDestHeight = destinationGroupBounds.length > 0
-    ? Math.max(...destinationGroupBounds.map(g => g.endY))
-    : startY
+  const maxSourceHeight =
+    sourceGroupBounds.length > 0 ? Math.max(...sourceGroupBounds.map(g => g.endY)) : startY
+  const maxDestHeight =
+    destinationGroupBounds.length > 0
+      ? Math.max(...destinationGroupBounds.map(g => g.endY))
+      : startY
   const padding = 100 // Top and bottom padding
   height = Math.max(600, Math.max(maxSourceHeight, maxDestHeight) + padding)
 
@@ -384,7 +390,7 @@ const initializeGraph = async () => {
     .select(svgRef.value)
     .attr('width', width)
     .attr('height', height)
-    .on('click', (event) => {
+    .on('click', event => {
       // Clear selection when clicking blank SVG area
       if (event.target === svgRef.value || event.target.tagName === 'svg') {
         selectedIP.value = null
@@ -393,9 +399,9 @@ const initializeGraph = async () => {
     })
 
   // Calculate connection line positions
-  connections.forEach((conn) => {
-    const source = sources.find((s) => s.id === conn.source_id)
-    const dest = destinations.find((d) => d.id === conn.destination_id)
+  connections.forEach(conn => {
+    const source = sources.find(s => s.id === conn.source_id)
+    const dest = destinations.find(d => d.id === conn.destination_id)
 
     if (source && dest) {
       conn.x1 = source.x + source.width
@@ -417,7 +423,7 @@ const initializeGraph = async () => {
   const labelsGroup = svg.append('g').attr('class', 'labels')
   const vlanLabelsGroup = svg.append('g').attr('class', 'vlan-labels')
   const segmentLabelsGroup = svg.append('g').attr('class', 'segment-labels')
-  
+
   // Draw VLAN and Segment background rectangles for sources
   sourceGroupBounds.forEach(vlanGroup => {
     // Draw VLAN background (outer rectangle)
@@ -426,14 +432,14 @@ const initializeGraph = async () => {
       .attr('class', 'vlan-group source-vlan')
       .attr('x', leftX - GROUP_PADDING)
       .attr('y', vlanGroup.startY)
-      .attr('width', RECT_WIDTH + (GROUP_PADDING * 2))
+      .attr('width', RECT_WIDTH + GROUP_PADDING * 2)
       .attr('height', vlanGroup.height)
       .attr('fill', vlanGroup.vlan === 'Uncategorized' ? UNCategorized_COLOR : VLAN_COLORS.default)
       .attr('stroke', vlanGroup.vlan === 'Uncategorized' ? '#d0d0d0' : VLAN_COLORS.border)
       .attr('stroke-width', 2)
       .attr('rx', 6)
       .attr('opacity', 0.6)
-    
+
     // Draw VLAN label
     vlanLabelsGroup
       .append('text')
@@ -444,7 +450,7 @@ const initializeGraph = async () => {
       .attr('font-weight', '600')
       .attr('fill', vlanGroup.vlan === 'Uncategorized' ? '#888' : VLAN_COLORS.text)
       .text(`VLAN: ${vlanGroup.vlan}`)
-    
+
     // Draw Segment backgrounds (inner rectangles)
     vlanGroup.segments.forEach(segmentGroup => {
       backgroundsGroup
@@ -452,14 +458,17 @@ const initializeGraph = async () => {
         .attr('class', 'segment-group source-segment')
         .attr('x', leftX - SEGMENT_PADDING)
         .attr('y', segmentGroup.startY)
-        .attr('width', RECT_WIDTH + (SEGMENT_PADDING * 2))
+        .attr('width', RECT_WIDTH + SEGMENT_PADDING * 2)
         .attr('height', segmentGroup.height)
         .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#fafafa' : SEGMENT_COLORS.default)
-        .attr('stroke', segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border)
+        .attr(
+          'stroke',
+          segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border
+        )
         .attr('stroke-width', 1.5)
         .attr('rx', 4)
         .attr('opacity', 0.5)
-      
+
       // Draw Segment label
       segmentLabelsGroup
         .append('text')
@@ -472,7 +481,7 @@ const initializeGraph = async () => {
         .text(`Segment: ${segmentGroup.segment}`)
     })
   })
-  
+
   // Draw VLAN and Segment background rectangles for destinations
   destinationGroupBounds.forEach(vlanGroup => {
     // Draw VLAN background (outer rectangle)
@@ -481,14 +490,14 @@ const initializeGraph = async () => {
       .attr('class', 'vlan-group destination-vlan')
       .attr('x', rightX - GROUP_PADDING)
       .attr('y', vlanGroup.startY)
-      .attr('width', RECT_WIDTH + (GROUP_PADDING * 2))
+      .attr('width', RECT_WIDTH + GROUP_PADDING * 2)
       .attr('height', vlanGroup.height)
       .attr('fill', vlanGroup.vlan === 'Uncategorized' ? UNCategorized_COLOR : VLAN_COLORS.default)
       .attr('stroke', vlanGroup.vlan === 'Uncategorized' ? '#d0d0d0' : VLAN_COLORS.border)
       .attr('stroke-width', 2)
       .attr('rx', 6)
       .attr('opacity', 0.6)
-    
+
     // Draw VLAN label
     vlanLabelsGroup
       .append('text')
@@ -499,7 +508,7 @@ const initializeGraph = async () => {
       .attr('font-weight', '600')
       .attr('fill', vlanGroup.vlan === 'Uncategorized' ? '#888' : VLAN_COLORS.text)
       .text(`VLAN: ${vlanGroup.vlan}`)
-    
+
     // Draw Segment backgrounds (inner rectangles)
     vlanGroup.segments.forEach(segmentGroup => {
       backgroundsGroup
@@ -507,14 +516,17 @@ const initializeGraph = async () => {
         .attr('class', 'segment-group destination-segment')
         .attr('x', rightX - SEGMENT_PADDING)
         .attr('y', segmentGroup.startY)
-        .attr('width', RECT_WIDTH + (SEGMENT_PADDING * 2))
+        .attr('width', RECT_WIDTH + SEGMENT_PADDING * 2)
         .attr('height', segmentGroup.height)
         .attr('fill', segmentGroup.segment === 'Uncategorized' ? '#fafafa' : SEGMENT_COLORS.default)
-        .attr('stroke', segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border)
+        .attr(
+          'stroke',
+          segmentGroup.segment === 'Uncategorized' ? '#e0e0e0' : SEGMENT_COLORS.border
+        )
         .attr('stroke-width', 1.5)
         .attr('rx', 4)
         .attr('opacity', 0.5)
-      
+
       // Draw Segment label
       segmentLabelsGroup
         .append('text')
@@ -532,8 +544,8 @@ const initializeGraph = async () => {
   const lineGenerator = d3
     .line()
     .curve(d3.curveBasis)
-    .x((d) => d[0])
-    .y((d) => d[1])
+    .x(d => d[0])
+    .y(d => d[1])
 
   linksGroup
     .selectAll('path')
@@ -541,9 +553,9 @@ const initializeGraph = async () => {
     .enter()
     .append('path')
     .attr('class', 'connection')
-    .attr('data-source-id', (d) => d.source_id)
-    .attr('data-destination-id', (d) => d.destination_id)
-    .attr('d', (d) => {
+    .attr('data-source-id', d => d.source_id)
+    .attr('data-destination-id', d => d.destination_id)
+    .attr('d', d => {
       // Create curved path
       const midX = (d.x1 + d.x2) / 2
       return lineGenerator([
@@ -565,18 +577,18 @@ const initializeGraph = async () => {
     .enter()
     .append('rect')
     .attr('class', 'source')
-    .attr('data-id', (d) => d.id)
-    .attr('x', (d) => d.x)
-    .attr('y', (d) => d.y)
-    .attr('width', (d) => d.width)
-    .attr('height', (d) => d.height)
-    .attr('fill', (d) => {
+    .attr('data-id', d => d.id)
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .attr('width', d => d.width)
+    .attr('height', d => d.height)
+    .attr('fill', d => {
       const cidr = d.network_cidr
       return isIpRange(cidr) ? '#3ab8b0' : '#4ecdc4' // Darker for IP ranges
     })
     .attr('stroke', '#fff')
     .attr('stroke-width', 2)
-    .attr('rx', (d) => {
+    .attr('rx', d => {
       const cidr = d.network_cidr
       return isIpRange(cidr) ? 2 : 6 // Less rounded for ranges, more rounded for single IPs
     })
@@ -597,18 +609,18 @@ const initializeGraph = async () => {
     .enter()
     .append('rect')
     .attr('class', 'destination')
-    .attr('data-id', (d) => d.id)
-    .attr('x', (d) => d.x)
-    .attr('y', (d) => d.y)
-    .attr('width', (d) => d.width)
-    .attr('height', (d) => d.height)
-    .attr('fill', (d) => {
+    .attr('data-id', d => d.id)
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .attr('width', d => d.width)
+    .attr('height', d => d.height)
+    .attr('fill', d => {
       const cidr = d.network_cidr
       return isIpRange(cidr) ? '#3498b5' : '#45b7d1' // Darker for IP ranges
     })
     .attr('stroke', '#fff')
     .attr('stroke-width', 2)
-    .attr('rx', (d) => {
+    .attr('rx', d => {
       const cidr = d.network_cidr
       return isIpRange(cidr) ? 2 : 6 // Less rounded for ranges, more rounded for single IPs
     })
@@ -629,7 +641,7 @@ const initializeGraph = async () => {
     .enter()
     .append('g')
     .attr('class', 'badge')
-    .attr('transform', (d) => `translate(${d.badgeX}, ${d.badgeY})`)
+    .attr('transform', d => `translate(${d.badgeX}, ${d.badgeY})`)
     .append('circle')
     .attr('r', BADGE_RADIUS)
     .attr('fill', 'white')
@@ -638,7 +650,7 @@ const initializeGraph = async () => {
     .style('cursor', 'pointer')
     .on('mouseover', (event, d) => {
       const servicesText = d.services
-        .map((s) => `${s.protocol}/${s.formatted_ports || 'any'}`)
+        .map(s => `${s.protocol}/${s.formatted_ports || 'any'}`)
         .join('\n')
       showTooltip(event, `Ports: ${d.port_count}\n\n${servicesText}`)
     })
@@ -653,7 +665,7 @@ const initializeGraph = async () => {
     .attr('font-size', '11px')
     .attr('font-weight', 'bold')
     .attr('fill', '#333')
-    .text((d) => d.port_count.toString())
+    .text(d => d.port_count.toString())
     .style('pointer-events', 'none')
 
   // Draw labels for source rectangles
@@ -663,15 +675,15 @@ const initializeGraph = async () => {
     .enter()
     .append('text')
     .attr('class', 'source-label')
-    .attr('data-id', (d) => d.id)
-    .attr('x', (d) => d.x + d.width / 2)
-    .attr('y', (d) => d.y + d.height / 2)
+    .attr('data-id', d => d.id)
+    .attr('x', d => d.x + d.width / 2)
+    .attr('y', d => d.y + d.height / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', 'middle')
     .attr('font-size', '11px')
     .attr('fill', '#fff')
     .attr('font-weight', '500')
-    .text((d) => {
+    .text(d => {
       const cidr = d.network_cidr
       if (cidr) {
         return formatCidrToCompact(cidr)
@@ -687,15 +699,15 @@ const initializeGraph = async () => {
     .enter()
     .append('text')
     .attr('class', 'destination-label')
-    .attr('data-id', (d) => d.id)
-    .attr('x', (d) => d.x + d.width / 2)
-    .attr('y', (d) => d.y + d.height / 2)
+    .attr('data-id', d => d.id)
+    .attr('x', d => d.x + d.width / 2)
+    .attr('y', d => d.y + d.height / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', 'middle')
     .attr('font-size', '11px')
     .attr('fill', '#fff')
     .attr('font-weight', '500')
-    .text((d) => {
+    .text(d => {
       const cidr = d.network_cidr
       if (cidr) {
         return formatCidrToCompact(cidr)
@@ -735,146 +747,129 @@ const updateHighlighting = () => {
   }
 
   // Update source rectangles
-  svg
-    .selectAll('rect.source')
-    .each(function (d) {
-      const rect = d3.select(this)
-      const isSelected = d.id === selectedId
-      const isConnected = connectedIPIds.has(d.id)
-      
-      if (isSelected || isConnected) {
-        rect
-          .attr('opacity', 1)
-          .attr('stroke-width', 4)
-          .attr('stroke', '#ffd700') // Gold border for selected/connected
-      } else if (selectedId) {
-        rect.attr('opacity', 0.3)
-        rect.attr('stroke-width', 2)
-        rect.attr('stroke', '#fff')
-      } else {
-        rect.attr('opacity', 1)
-        rect.attr('stroke-width', 2)
-        rect.attr('stroke', '#fff')
-      }
-    })
+  svg.selectAll('rect.source').each(function (d) {
+    const rect = d3.select(this)
+    const isSelected = d.id === selectedId
+    const isConnected = connectedIPIds.has(d.id)
+
+    if (isSelected || isConnected) {
+      rect.attr('opacity', 1).attr('stroke-width', 4).attr('stroke', '#ffd700') // Gold border for selected/connected
+    } else if (selectedId) {
+      rect.attr('opacity', 0.3)
+      rect.attr('stroke-width', 2)
+      rect.attr('stroke', '#fff')
+    } else {
+      rect.attr('opacity', 1)
+      rect.attr('stroke-width', 2)
+      rect.attr('stroke', '#fff')
+    }
+  })
 
   // Update destination rectangles
-  svg
-    .selectAll('rect.destination')
-    .each(function (d) {
-      const rect = d3.select(this)
-      const isSelected = d.id === selectedId
-      const isConnected = connectedIPIds.has(d.id)
-      
-      if (isSelected || isConnected) {
-        rect
-          .attr('opacity', 1)
-          .attr('stroke-width', 4)
-          .attr('stroke', '#ffd700') // Gold border for selected/connected
-      } else if (selectedId) {
-        rect.attr('opacity', 0.3)
-        rect.attr('stroke-width', 2)
-        rect.attr('stroke', '#fff')
-      } else {
-        rect.attr('opacity', 1)
-        rect.attr('stroke-width', 2)
-        rect.attr('stroke', '#fff')
-      }
-    })
+  svg.selectAll('rect.destination').each(function (d) {
+    const rect = d3.select(this)
+    const isSelected = d.id === selectedId
+    const isConnected = connectedIPIds.has(d.id)
+
+    if (isSelected || isConnected) {
+      rect.attr('opacity', 1).attr('stroke-width', 4).attr('stroke', '#ffd700') // Gold border for selected/connected
+    } else if (selectedId) {
+      rect.attr('opacity', 0.3)
+      rect.attr('stroke-width', 2)
+      rect.attr('stroke', '#fff')
+    } else {
+      rect.attr('opacity', 1)
+      rect.attr('stroke-width', 2)
+      rect.attr('stroke', '#fff')
+    }
+  })
 
   // Update connection lines
-  svg
-    .selectAll('path.connection')
-    .each(function (d) {
-      const path = d3.select(this)
-      const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
-      
-      if (isRelated) {
-        path
-          .attr('stroke-opacity', 1)
-          .attr('stroke-width', 3)
-          .attr('stroke', '#666')
-      } else if (selectedId) {
-        path
-          .attr('stroke-opacity', 0.2)
-          .attr('stroke-width', 2)
-          .attr('stroke', '#999')
-      } else {
-        path
-          .attr('stroke-opacity', 0.6)
-          .attr('stroke-width', 2)
-          .attr('stroke', '#999')
-      }
-    })
+  svg.selectAll('path.connection').each(function (d) {
+    const path = d3.select(this)
+    const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
+
+    if (isRelated) {
+      path.attr('stroke-opacity', 1).attr('stroke-width', 3).attr('stroke', '#666')
+    } else if (selectedId) {
+      path.attr('stroke-opacity', 0.2).attr('stroke-width', 2).attr('stroke', '#999')
+    } else {
+      path.attr('stroke-opacity', 0.6).attr('stroke-width', 2).attr('stroke', '#999')
+    }
+  })
 
   // Update port count badges
-  svg
-    .selectAll('g.badge')
-    .each(function (d) {
-      const badge = d3.select(this)
-      const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
-      
-      if (isRelated) {
-        badge.select('circle').attr('opacity', 1)
-        badge.select('text').attr('opacity', 1)
-      } else if (selectedId) {
-        badge.select('circle').attr('opacity', 0.2)
-        badge.select('text').attr('opacity', 0.2)
-      } else {
-        badge.select('circle').attr('opacity', 1)
-        badge.select('text').attr('opacity', 1)
-      }
-    })
+  svg.selectAll('g.badge').each(function (d) {
+    const badge = d3.select(this)
+    const isRelated = selectedId && (d.source_id === selectedId || d.destination_id === selectedId)
+
+    if (isRelated) {
+      badge.select('circle').attr('opacity', 1)
+      badge.select('text').attr('opacity', 1)
+    } else if (selectedId) {
+      badge.select('circle').attr('opacity', 0.2)
+      badge.select('text').attr('opacity', 0.2)
+    } else {
+      badge.select('circle').attr('opacity', 1)
+      badge.select('text').attr('opacity', 1)
+    }
+  })
 
   // Update labels to match their rectangles
-  svg
-    .selectAll('text.source-label, text.destination-label')
-    .each(function (d) {
-      const label = d3.select(this)
-      const isSelected = d.id === selectedId
-      const isConnected = connectedIPIds.has(d.id)
-      
-      if (isSelected || isConnected) {
-        label.attr('opacity', 1)
-      } else if (selectedId) {
-        label.attr('opacity', 0.3)
-      } else {
-        label.attr('opacity', 1)
-      }
-    })
+  svg.selectAll('text.source-label, text.destination-label').each(function (d) {
+    const label = d3.select(this)
+    const isSelected = d.id === selectedId
+    const isConnected = connectedIPIds.has(d.id)
+
+    if (isSelected || isConnected) {
+      label.attr('opacity', 1)
+    } else if (selectedId) {
+      label.attr('opacity', 0.3)
+    } else {
+      label.attr('opacity', 1)
+    }
+  })
 }
 
 // Format tooltip text with better styling
-const formatTooltipText = (text) => {
+const formatTooltipText = text => {
   if (!text) return ''
-  
+
   // Split by lines and apply formatting
   const lines = text.split('\n')
-  return lines.map(line => {
-    // Bold prominent sections (hostname/OS line - first non-separator line after separator)
-    // Check if this is the prominent info line (between separators, not starting with separator or indented)
-    if (line && !line.startsWith('━━') && !line.startsWith('  ') && !line.includes(':') && line.trim().length > 0) {
-      // Check if previous line was separator to identify prominent section
-      const lineIndex = lines.indexOf(line)
-      if (lineIndex > 0 && lines[lineIndex - 1].startsWith('━━')) {
-        return `<div class="font-bold text-base mb-1 text-cyan-300">${line}</div>`
+  return lines
+    .map(line => {
+      // Bold prominent sections (hostname/OS line - first non-separator line after separator)
+      // Check if this is the prominent info line (between separators, not starting with separator or indented)
+      if (
+        line &&
+        !line.startsWith('━━') &&
+        !line.startsWith('  ') &&
+        !line.includes(':') &&
+        line.trim().length > 0
+      ) {
+        // Check if previous line was separator to identify prominent section
+        const lineIndex = lines.indexOf(line)
+        if (lineIndex > 0 && lines[lineIndex - 1].startsWith('━━')) {
+          return `<div class="font-bold text-base mb-1 text-cyan-300">${line}</div>`
+        }
       }
-    }
-    // Style separator lines
-    if (line.startsWith('━━')) {
-      return `<div class="text-gray-500 text-xs my-1">${line}</div>`
-    }
-    // Style section headers (lines ending with ':')
-    if (line.endsWith(':') && !line.startsWith('  ')) {
-      return `<div class="font-semibold text-gray-300 mt-2 mb-1">${line}</div>`
-    }
-    // Style indented lines (sub-items)
-    if (line.startsWith('  ')) {
-      return `<div class="text-gray-400 ml-2">${line}</div>`
-    }
-    // Regular lines
-    return `<div>${line}</div>`
-  }).join('')
+      // Style separator lines
+      if (line.startsWith('━━')) {
+        return `<div class="text-gray-500 text-xs my-1">${line}</div>`
+      }
+      // Style section headers (lines ending with ':')
+      if (line.endsWith(':') && !line.startsWith('  ')) {
+        return `<div class="font-semibold text-gray-300 mt-2 mb-1">${line}</div>`
+      }
+      // Style indented lines (sub-items)
+      if (line.startsWith('  ')) {
+        return `<div class="text-gray-400 ml-2">${line}</div>`
+      }
+      // Regular lines
+      return `<div>${line}</div>`
+    })
+    .join('')
 }
 
 // Tooltip functions
@@ -884,11 +879,11 @@ const showTooltip = (event, text) => {
     const tooltipWidth = 320 // max-w-sm = 384px, but we use smaller estimate
     const tooltipHeight = 200 // approximate height
     const padding = 10 // padding from edges
-    
+
     let x = event.clientX - rect.left
     let y = event.clientY - rect.top
     let position = 'above'
-    
+
     // Check right boundary
     if (x + tooltipWidth / 2 > rect.width - padding) {
       x = rect.width - tooltipWidth / 2 - padding
@@ -897,14 +892,14 @@ const showTooltip = (event, text) => {
     if (x - tooltipWidth / 2 < padding) {
       x = tooltipWidth / 2 + padding
     }
-    
+
     // Check top boundary (tooltip appears above cursor)
     if (y - tooltipHeight < padding) {
       // Show below cursor instead
       y = y + 20 // Offset below cursor
       position = 'below'
     }
-    
+
     tooltip.value = {
       visible: true,
       x: x,
@@ -948,12 +943,18 @@ onUnmounted(() => {
 .links path {
   stroke: #999;
   stroke-opacity: 0.6;
-  transition: stroke-opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
+  transition:
+    stroke-opacity 0.3s ease,
+    stroke-width 0.3s ease,
+    stroke 0.3s ease;
 }
 
 .rectangles rect {
   cursor: pointer;
-  transition: opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    stroke-width 0.3s ease,
+    stroke 0.3s ease;
 }
 
 .rectangles rect:hover {
@@ -970,7 +971,10 @@ onUnmounted(() => {
 }
 
 .labels text {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   pointer-events: none;
   user-select: none;
   transition: opacity 0.3s ease;

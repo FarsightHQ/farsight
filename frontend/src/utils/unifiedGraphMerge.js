@@ -49,7 +49,7 @@ export function mergeUnifiedGraphData(responses) {
         for (const r of l.rule_ids || []) rid.add(r)
         ex.rule_ids = [...rid].sort((a, b) => a - b)
 
-        const seenRules = new Set((ex.rules || []).map((r) => r.id))
+        const seenRules = new Set((ex.rules || []).map(r => r.id))
         for (const r of l.rules || []) {
           if (r && !seenRules.has(r.id)) {
             seenRules.add(r.id)

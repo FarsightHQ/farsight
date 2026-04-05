@@ -25,7 +25,7 @@ export function useRequestStatus(requestId) {
     } catch (err) {
       consecutiveErrors.value++
       error.value = err.message || 'Failed to fetch request status'
-      
+
       // Exponential backoff: increase interval on consecutive errors
       if (consecutiveErrors.value > 3) {
         stopPolling()
@@ -96,4 +96,3 @@ export function useRequestStatus(requestId) {
     hasError,
   }
 }
-

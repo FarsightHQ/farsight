@@ -4,9 +4,15 @@
     <div
       v-if="tooltip.visible"
       class="absolute pointer-events-none z-20 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md border border-gray-700"
-      :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px', transform: 'translate(-50%, -100%)' }"
+      :style="{
+        left: tooltip.x + 'px',
+        top: tooltip.y + 'px',
+        transform: 'translate(-50%, -100%)',
+      }"
     >
-      <pre class="whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{{ tooltip.text }}</pre>
+      <pre class="whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{{
+        tooltip.text
+      }}</pre>
     </div>
   </div>
 </template>
@@ -14,6 +20,8 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { filterUnifiedGraph } from '@/utils/unifiedGraphFilter'
+import { formatNodeDetailLines, formatLinkDetailLines } from '@/utils/unifiedGraphFormat'
 
 const props = defineProps({
   unifiedGraph: {
@@ -24,7 +32,25 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  segmentFocus: {
+    type: String,
+    default: '',
+  },
+  emphasizeCrossSegment: {
+    type: Boolean,
+    default: false,
+  },
+  selectedNodeId: {
+    type: [String, Number],
+    default: null,
+  },
+  selectedLinkKey: {
+    type: String,
+    default: null,
+  },
 })
+
+const emit = defineEmits(['update:selectedNodeId', 'update:selectedLinkKey'])
 
 const containerRef = ref(null)
 const svgRef = ref(null)
@@ -37,13 +63,14 @@ let simulation = null
 let resizeObserver = null
 let resizeRafId = null
 
-/** Unique defs ids so multiple graph instances (or rapid rebuilds) never clash. */
+/** Live D3 selections + data for selection / emphasis styling without full rebuild */
+let graphCtx = null
+
 let arrowMarkerSeq = 0
 
-function buildColorScale(nodes) {
-  const segments = [...new Set(nodes.map((n) => n.segment || 'Unknown'))].sort()
+function buildColorScale(segments) {
   const scale = d3.scaleOrdinal(d3.schemeTableau10).domain(segments)
-  return (n) => scale(n.segment || 'Unknown')
+  return seg => scale(seg || 'Unknown')
 }
 
 function clusterCenters(segments, width, height) {
@@ -57,33 +84,115 @@ function clusterCenters(segments, width, height) {
     map[seg] = {
       x: ((col + 0.5) / cols) * width,
       y: ((row + 0.5) / rows) * height,
+      col,
+      row,
+      cols,
+      rows,
     }
   })
   return map
 }
 
-function formatNodeTooltip(d) {
-  const lines = [d.label || d.network_cidr]
-  if (d.network_cidr) lines.push(`CIDR: ${d.network_cidr}`)
-  if (d.segment) lines.push(`Segment: ${d.segment}`)
-  if (d.vlan != null && d.vlan !== '') lines.push(`VLAN: ${d.vlan}`)
-  if (d.environment) lines.push(`Env: ${d.environment}`)
-  if (d.location) lines.push(`Location: ${d.location}`)
-  if (d.asset?.hostname) lines.push(`Hostname: ${d.asset.hostname}`)
-  return lines.join('\n')
+function segmentRegionLayout(segments, width, height, pad = 10) {
+  const n = Math.max(1, segments.length)
+  const cols = Math.ceil(Math.sqrt(n))
+  const rows = Math.ceil(n / cols)
+  const cellW = width / cols
+  const cellH = height / rows
+  const map = {}
+  segments.forEach((seg, i) => {
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    map[seg] = {
+      x: col * cellW + pad,
+      y: row * cellH + pad,
+      w: cellW - pad * 2,
+      h: cellH - pad * 2,
+    }
+  })
+  return map
 }
 
-function formatLinkTooltip(d) {
-  const lines = [d.label || 'Connection']
-  if (d.rule_ids?.length) lines.push(`Rules: ${d.rule_ids.join(', ')}`)
-  if (d.services?.length) {
-    const svc = d.services.map((s) => `${s.protocol}/${s.formatted_ports || s.port_ranges}`).join(', ')
-    lines.push(`Services: ${svc}`)
+function neighborIds(selId, linkData) {
+  const set = new Set([selId])
+  for (const l of linkData) {
+    const s = typeof l.source === 'object' ? l.source.id : l.source
+    const t = typeof l.target === 'object' ? l.target.id : l.target
+    if (s === selId) set.add(t)
+    if (t === selId) set.add(s)
   }
-  return lines.join('\n')
+  return set
+}
+
+function linkCrossSegment(d, segById) {
+  const s = typeof d.source === 'object' ? d.source.id : d.source
+  const t = typeof d.target === 'object' ? d.target.id : d.target
+  const a = segById.get(s) || 'Unknown'
+  const b = segById.get(t) || 'Unknown'
+  return a !== b
+}
+
+function linkKeyFromSim(d) {
+  const s = typeof d.source === 'object' ? d.source.id : d.source
+  const t = typeof d.target === 'object' ? d.target.id : d.target
+  return `${s}->${t}`
+}
+
+function updateVisualState() {
+  if (!graphCtx) return
+  const { linkSel, nodeSel, linkData, nodeData } = graphCtx
+  const selN = props.selectedNodeId != null ? String(props.selectedNodeId) : null
+  const selL = props.selectedLinkKey || null
+  const emph = props.emphasizeCrossSegment
+
+  const segById = new Map(nodeData.map(d => [d.id, d.segment || 'Unknown']))
+
+  let highlightEndpoints = null
+  if (selL) {
+    const [a, b] = selL.split('->')
+    highlightEndpoints = new Set([a, b])
+  }
+  const neighbors = selN ? neighborIds(selN, linkData) : null
+
+  linkSel.each(function (d) {
+    let op = 0.85
+    let sw = 1.5
+    if (emph && !selL && !selN) {
+      const cross = linkCrossSegment(d, segById)
+      op = cross ? 0.95 : 0.22
+      sw = cross ? 2.2 : 1.2
+    }
+    if (selL) {
+      const k = linkKeyFromSim(d)
+      const on = k === selL
+      op = on ? 1 : 0.12
+      sw = on ? 2.6 : 1
+    } else if (selN) {
+      const s = typeof d.source === 'object' ? d.source.id : d.source
+      const t = typeof d.target === 'object' ? d.target.id : d.target
+      const inc = s === selN || t === selN
+      op = inc ? 0.95 : 0.15
+      sw = inc ? 2.1 : 1.2
+    }
+    d3.select(this).attr('stroke-opacity', op).attr('stroke-width', sw)
+  })
+
+  nodeSel.each(function (d) {
+    let op = 1
+    if (selL && highlightEndpoints) {
+      op = highlightEndpoints.has(String(d.id)) ? 1 : 0.18
+    } else if (selN && neighbors) {
+      op = neighbors.has(String(d.id)) ? 1 : 0.2
+    }
+    const strokeW = selN && String(d.id) === selN ? 2.8 : 1.2
+    const g = d3.select(this)
+    g.style('opacity', op)
+    g.select('circle').attr('stroke-width', strokeW)
+  })
 }
 
 function destroyGraph() {
+  graphCtx = null
   if (simulation) {
     simulation.on('tick', null)
     simulation.on('end', null)
@@ -105,30 +214,12 @@ function runSimulation() {
 
   if (!svgRef.value || !containerRef.value || !props.unifiedGraph?.nodes?.length) return
 
-  const rawNodes = props.unifiedGraph.nodes
-  const rawLinks = props.unifiedGraph.links || []
-
-  const q = (props.filterText || '').trim().toLowerCase()
-  const nodes = rawNodes.filter((n) => {
-    if (!q) return true
-    const hay = [
-      n.network_cidr,
-      n.label,
-      n.segment,
-      n.vlan,
-      n.environment,
-      n.location,
-      n.asset?.hostname,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return hay.includes(q)
+  const { nodes: rawFiltered, links } = filterUnifiedGraph(props.unifiedGraph, {
+    filterText: props.filterText,
+    segmentFocus: props.segmentFocus,
   })
-  const idSet = new Set(nodes.map((d) => d.id))
-  const links = rawLinks.filter((l) => idSet.has(l.source) && idSet.has(l.target))
 
-  if (!nodes.length) {
+  if (!rawFiltered.length) {
     return
   }
 
@@ -136,20 +227,25 @@ function runSimulation() {
   const ch = containerRef.value.clientHeight
   const height = Math.max(320, ch > 0 ? ch : Math.min(900, width * 0.65))
 
-  svg = d3.select(svgRef.value).attr('viewBox', [0, 0, width, height]).attr('width', width).attr('height', height)
+  svg = d3
+    .select(svgRef.value)
+    .attr('viewBox', [0, 0, width, height])
+    .attr('width', width)
+    .attr('height', height)
 
   gMain = svg.append('g')
 
   zoomBehavior = d3
     .zoom()
     .scaleExtent([0.2, 4])
-    .on('zoom', (event) => {
+    .on('zoom', event => {
       gMain.attr('transform', event.transform)
     })
   svg.call(zoomBehavior)
 
   const arrowId = `arrowhead-unified-${++arrowMarkerSeq}`
-  svg.append('defs')
+  svg
+    .append('defs')
     .append('marker')
     .attr('id', arrowId)
     .attr('viewBox', '0 -5 10 10')
@@ -162,16 +258,67 @@ function runSimulation() {
     .attr('d', 'M0,-5L10,0L0,5')
     .attr('fill', '#64748b')
 
-  const segments = [...new Set(nodes.map((n) => n.segment || 'Unknown'))].sort()
+  const segments = [...new Set(rawFiltered.map(n => n.segment || 'Unknown'))].sort()
   const centers = clusterCenters(segments, width, height)
-  const colorFn = buildColorScale(nodes)
+  const regionLayout = segmentRegionLayout(segments, width, height)
+  const colorFn = buildColorScale(segments)
 
-  const nodeData = nodes.map((n) => ({ ...n }))
-  const linkData = links.map((l) => ({
+  const nodeData = rawFiltered.map(n => {
+    const seg = n.segment || 'Unknown'
+    const c = centers[seg] || { x: width / 2, y: height / 2 }
+    const jitter = () => (Math.random() - 0.5) * 48
+    return { ...n, x: c.x + jitter(), y: c.y + jitter() }
+  })
+
+  const linkData = links.map(l => ({
     ...l,
     source: l.source,
     target: l.target,
   }))
+
+  gMain
+    .append('rect')
+    .attr('class', 'graph-bg-hit')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('fill', 'transparent')
+    .style('pointer-events', 'all')
+    .on('click', event => {
+      event.stopPropagation()
+      emit('update:selectedNodeId', null)
+      emit('update:selectedLinkKey', null)
+    })
+
+  const regionG = gMain.append('g').attr('class', 'segment-regions').style('pointer-events', 'none')
+
+  segments.forEach(seg => {
+    const r = regionLayout[seg]
+    if (!r) return
+    const base = d3.color(colorFn(seg))
+    const fill = base ? base.copy({ opacity: 0.1 }) : null
+    regionG
+      .append('rect')
+      .attr('x', r.x)
+      .attr('y', r.y)
+      .attr('width', Math.max(0, r.w))
+      .attr('height', Math.max(0, r.h))
+      .attr('rx', 8)
+      .attr('ry', 8)
+      .attr('fill', fill ? fill.formatRgb() : 'rgba(148,163,184,0.1)')
+      .attr('stroke', '#cbd5e1')
+      .attr('stroke-opacity', 0.45)
+      .attr('stroke-width', 1)
+
+    const label = seg.length > 42 ? `${seg.slice(0, 40)}…` : seg
+    regionG
+      .append('text')
+      .attr('x', r.x + 8)
+      .attr('y', r.y + 14)
+      .attr('font-size', 10)
+      .attr('font-weight', 600)
+      .attr('fill', '#475569')
+      .text(label)
+  })
 
   simulation = d3
     .forceSimulation(nodeData)
@@ -179,41 +326,39 @@ function runSimulation() {
       'link',
       d3
         .forceLink(linkData)
-        .id((d) => d.id)
+        .id(d => d.id)
         .distance(90)
-        .strength(0.4),
+        .strength(0.4)
     )
     .force('charge', d3.forceManyBody().strength(-220))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force(
-      'x',
-      d3
-        .forceX((d) => centers[d.segment || 'Unknown']?.x ?? width / 2)
-        .strength(0.18),
-    )
-    .force(
-      'y',
-      d3
-        .forceY((d) => centers[d.segment || 'Unknown']?.y ?? height / 2)
-        .strength(0.18),
-    )
+    .force('x', d3.forceX(d => centers[d.segment || 'Unknown']?.x ?? width / 2).strength(0.38))
+    .force('y', d3.forceY(d => centers[d.segment || 'Unknown']?.y ?? height / 2).strength(0.38))
     .force('collision', d3.forceCollide().radius(32))
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
   const linkSel = linkLayer
     .attr('stroke', '#94a3b8')
-    .attr('stroke-opacity', 0.85)
     .selectAll('line')
     .data(linkData)
     .join('line')
     .attr('stroke-width', 1.5)
     .attr('marker-end', `url(#${arrowId})`)
+    .style('pointer-events', 'stroke')
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      emit('update:selectedLinkKey', linkKeyFromSim(d))
+      emit('update:selectedNodeId', null)
+      updateVisualState()
+    })
 
   const nodeLayer = gMain.append('g').attr('class', 'node-layer')
   const nodeSel = nodeLayer
     .selectAll('g')
     .data(nodeData)
     .join('g')
+    .style('cursor', 'pointer')
     .call(
       d3
         .drag()
@@ -230,13 +375,13 @@ function runSimulation() {
           if (!event.active) simulation.alphaTarget(0)
           d.fx = null
           d.fy = null
-        }),
+        })
     )
 
   nodeSel
     .append('circle')
     .attr('r', 14)
-    .attr('fill', (d) => colorFn(d))
+    .attr('fill', d => colorFn(d.segment || 'Unknown'))
     .attr('stroke', '#1e293b')
     .attr('stroke-width', 1.2)
 
@@ -246,22 +391,29 @@ function runSimulation() {
     .attr('dy', 28)
     .attr('font-size', 9)
     .attr('fill', '#334155')
-    .text((d) => {
+    .style('pointer-events', 'none')
+    .text(d => {
       const t = d.label || d.network_cidr || ''
       return t.length > 18 ? `${t.slice(0, 16)}…` : t
     })
 
   nodeSel
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      emit('update:selectedNodeId', d.id)
+      emit('update:selectedLinkKey', null)
+      updateVisualState()
+    })
     .on('mouseenter', (event, d) => {
       const rect = containerRef.value.getBoundingClientRect()
       tooltip.value = {
         visible: true,
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
-        text: formatNodeTooltip(d),
+        text: formatNodeDetailLines(d).join('\n'),
       }
     })
-    .on('mousemove', (event) => {
+    .on('mousemove', event => {
       const rect = containerRef.value.getBoundingClientRect()
       tooltip.value.x = event.clientX - rect.left
       tooltip.value.y = event.clientY - rect.top
@@ -277,10 +429,10 @@ function runSimulation() {
         visible: true,
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
-        text: formatLinkTooltip(d),
+        text: formatLinkDetailLines(d).join('\n'),
       }
     })
-    .on('mousemove', (event) => {
+    .on('mousemove', event => {
       const rect = containerRef.value.getBoundingClientRect()
       tooltip.value.x = event.clientX - rect.left
       tooltip.value.y = event.clientY - rect.top
@@ -289,19 +441,26 @@ function runSimulation() {
       tooltip.value.visible = false
     })
 
+  graphCtx = { linkSel, nodeSel, linkData, nodeData }
+
   simulation.on('tick', () => {
     linkSel
-      .attr('x1', (d) => d.source.x)
-      .attr('y1', (d) => d.source.y)
-      .attr('x2', (d) => d.target.x)
-      .attr('y2', (d) => d.target.y)
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y)
 
-    nodeSel.attr('transform', (d) => `translate(${d.x},${d.y})`)
+    nodeSel.attr('transform', d => `translate(${d.x},${d.y})`)
   })
 
   simulation.on('end', () => {
-    requestAnimationFrame(() => fitView(false))
+    requestAnimationFrame(() => {
+      fitView(false)
+      updateVisualState()
+    })
   })
+
+  updateVisualState()
 }
 
 function fitView(animated = true) {
@@ -341,11 +500,18 @@ function fitView(animated = true) {
 defineExpose({ fitView, restart: runSimulation })
 
 watch(
-  () => [props.unifiedGraph, props.filterText],
+  () => [props.unifiedGraph, props.filterText, props.segmentFocus],
   () => {
     nextTick(() => runSimulation())
   },
-  { deep: true },
+  { deep: true }
+)
+
+watch(
+  () => [props.selectedNodeId, props.selectedLinkKey, props.emphasizeCrossSegment],
+  () => {
+    nextTick(() => updateVisualState())
+  }
 )
 
 onMounted(() => {

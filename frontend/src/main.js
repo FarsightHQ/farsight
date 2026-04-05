@@ -11,13 +11,13 @@ async function initApp() {
   try {
     // Initialize Keycloak
     await initKeycloak()
-    
+
     // Set initial authentication state
     authenticated.value = isAuthenticated()
     if (authenticated.value) {
       user.value = getUserInfo()
     }
-    
+
     // Create and mount Vue app
     const app = createApp(App)
     app.use(router)
@@ -36,4 +36,3 @@ async function initApp() {
 
 // Start the application
 initApp()
-

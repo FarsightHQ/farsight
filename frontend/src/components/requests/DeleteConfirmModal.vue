@@ -1,5 +1,9 @@
 <template>
-  <Modal :model-value="modelValue" size="md" @update:model-value="$emit('update:modelValue', $event)">
+  <Modal
+    :model-value="modelValue"
+    size="md"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
     <template #header>
       <h3 class="text-lg font-semibold text-gray-900">Delete Request</h3>
     </template>
@@ -44,10 +48,8 @@
     </div>
 
     <template #footer>
-      <Button variant="outline" @click="$emit('cancel')" :disabled="deleting">
-        Cancel
-      </Button>
-      <Button variant="primary" @click="$emit('confirm')" :disabled="deleting">
+      <Button variant="outline" :disabled="deleting" @click="$emit('cancel')"> Cancel </Button>
+      <Button variant="primary" :disabled="deleting" @click="$emit('confirm')">
         <Spinner v-if="deleting" size="sm" class="mr-2" />
         {{ deleting ? 'Deleting...' : 'Delete Request' }}
       </Button>
@@ -78,4 +80,3 @@ const props = defineProps({
 
 defineEmits(['update:modelValue', 'confirm', 'cancel'])
 </script>
-

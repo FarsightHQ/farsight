@@ -89,9 +89,7 @@
           <p class="text-2xl font-bold text-gray-900 mt-1">
             {{ formatNumber(stats?.rules_with_facts || 0) }}
           </p>
-          <p class="text-xs text-gray-500 mt-1">
-            {{ factsPercentage }}% coverage
-          </p>
+          <p class="text-xs text-gray-500 mt-1">{{ factsPercentage }}% coverage</p>
         </div>
         <div class="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
           <InformationCircleIcon class="h-6 w-6 text-primary-600" />
@@ -152,7 +150,7 @@ const props = defineProps({
   },
 })
 
-const formatNumber = (num) => {
+const formatNumber = num => {
   if (typeof num !== 'number') return '0'
   return num.toLocaleString()
 }
@@ -168,4 +166,3 @@ const anyAnyCount = computed(() => {
   return (props.stats?.src_any_count || 0) + (props.stats?.dst_any_count || 0)
 })
 </script>
-

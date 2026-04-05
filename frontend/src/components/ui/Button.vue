@@ -1,10 +1,5 @@
 <template>
-  <button
-    :class="buttonClasses"
-    :disabled="disabled"
-    :type="type"
-    @click="$emit('click', $event)"
-  >
+  <button :class="buttonClasses" :disabled="disabled" :type="type" @click="$emit('click', $event)">
     <slot />
   </button>
 </template>
@@ -16,7 +11,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (value) => ['primary', 'secondary', 'outline', 'ghost'].includes(value),
+    validator: value => ['primary', 'secondary', 'outline', 'ghost'].includes(value),
   },
   disabled: {
     type: Boolean,
@@ -29,7 +24,7 @@ const props = defineProps({
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg'].includes(value),
+    validator: value => ['sm', 'md', 'lg'].includes(value),
   },
 })
 
@@ -47,4 +42,3 @@ const buttonClasses = computed(() => {
   return [base, variant, sizeClasses[props.size]].join(' ')
 })
 </script>
-

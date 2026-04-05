@@ -2,8 +2,8 @@
   <span
     v-if="asset"
     class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-info-100 text-info-800 cursor-pointer hover:bg-info-200"
-    @click.stop="handleClick"
     :title="`Asset: ${asset.hostname || asset.ip_address} (${asset.segment || 'N/A'})`"
+    @click.stop="handleClick"
   >
     <ServerIcon class="h-3 w-3 mr-1" />
     {{ asset.hostname || asset.ip_address }}
@@ -38,7 +38,7 @@ const router = useRouter()
 const asset = ref(null)
 const loading = ref(false)
 
-const extractIp = (cidr) => {
+const extractIp = cidr => {
   if (!cidr) return ''
   return cidr.split('/')[0]
 }
@@ -71,4 +71,3 @@ onMounted(() => {
   }
 })
 </script>
-

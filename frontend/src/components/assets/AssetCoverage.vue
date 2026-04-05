@@ -1,7 +1,7 @@
 <template>
   <Card class="p-6">
     <h3 class="text-lg font-semibold text-gray-900 mb-4">Rule Coverage</h3>
-    
+
     <div v-if="loading" class="space-y-4">
       <div class="h-20 bg-gray-200 rounded animate-pulse"></div>
     </div>
@@ -66,7 +66,10 @@
       </div>
 
       <!-- No Coverage -->
-      <div v-if="sourceRules.length === 0 && destinationRules.length === 0" class="text-center py-8">
+      <div
+        v-if="sourceRules.length === 0 && destinationRules.length === 0"
+        class="text-center py-8"
+      >
         <p class="text-sm text-gray-500">This asset is not referenced in any firewall rules</p>
       </div>
     </div>
@@ -102,4 +105,3 @@ const emit = defineEmits(['view-rule'])
 const sourceRulesCount = computed(() => props.sourceRules.length)
 const destinationRulesCount = computed(() => props.destinationRules.length)
 </script>
-

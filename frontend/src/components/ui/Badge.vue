@@ -11,13 +11,13 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'default',
-    validator: (value) =>
+    validator: value =>
       ['default', 'primary', 'success', 'error', 'warning', 'secondary'].includes(value),
   },
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg'].includes(value),
+    validator: value => ['sm', 'md', 'lg'].includes(value),
   },
 })
 
@@ -40,4 +40,3 @@ const badgeClasses = computed(() => {
   return [base, sizeClasses[props.size], variantClasses[props.variant]].join(' ')
 })
 </script>
-

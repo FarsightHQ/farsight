@@ -11,8 +11,8 @@
       <!-- Basic Filters Section -->
       <div>
         <button
-          @click="sections.basic = !sections.basic"
           class="flex items-center justify-between w-full mb-2 text-xs font-medium text-gray-700 hover:text-gray-900"
+          @click="sections.basic = !sections.basic"
         >
           <span>Basic Filters</span>
           <ChevronDownIcon
@@ -99,11 +99,7 @@
                 @change="updateFilters"
               >
                 <option :value="null">All Requests</option>
-                <option
-                  v-for="request in availableRequests"
-                  :key="request.id"
-                  :value="request.id"
-                >
+                <option v-for="request in availableRequests" :key="request.id" :value="request.id">
                   {{ request.title || `Request ${request.id}` }}
                   <span v-if="request.external_id"> ({{ request.external_id }})</span>
                 </option>
@@ -116,12 +112,15 @@
       <!-- Security Filters Section -->
       <div>
         <button
-          @click="sections.security = !sections.security"
           class="flex items-center justify-between w-full mb-2 text-xs font-medium text-gray-700 hover:text-gray-900"
+          @click="sections.security = !sections.security"
         >
           <span>Security Filters</span>
           <ChevronDownIcon
-            :class="['h-4 w-4 text-gray-500 transition-transform', sections.security && 'rotate-180']"
+            :class="[
+              'h-4 w-4 text-gray-500 transition-transform',
+              sections.security && 'rotate-180',
+            ]"
           />
         </button>
         <Transition
@@ -237,8 +236,8 @@
       <!-- Facts Filters Section -->
       <div>
         <button
-          @click="sections.facts = !sections.facts"
           class="flex items-center justify-between w-full mb-2 text-xs font-medium text-gray-700 hover:text-gray-900"
+          @click="sections.facts = !sections.facts"
         >
           <span>Facts Filters</span>
           <ChevronDownIcon
@@ -341,12 +340,12 @@ const loadingRequests = ref(false)
 
 const fetchRequests = async () => {
   if (!props.showRequestFilter) return
-  
+
   loadingRequests.value = true
   try {
     const response = await requestsService.list(0, 1000) // Fetch all requests
     const responseData = response.data || response
-    availableRequests.value = Array.isArray(responseData) ? responseData : (responseData.data || [])
+    availableRequests.value = Array.isArray(responseData) ? responseData : responseData.data || []
   } catch (err) {
     console.error('Failed to fetch requests:', err)
     availableRequests.value = []
@@ -361,15 +360,18 @@ onMounted(() => {
   }
 })
 
-watch(() => props.showRequestFilter, (newVal) => {
-  if (newVal && availableRequests.value.length === 0) {
-    fetchRequests()
+watch(
+  () => props.showRequestFilter,
+  newVal => {
+    if (newVal && availableRequests.value.length === 0) {
+      fetchRequests()
+    }
   }
-})
+)
 
 watch(
   () => props.filters,
-  (newFilters) => {
+  newFilters => {
     localFilters.value = {
       action: newFilters.action || '',
       protocol: newFilters.protocol || '',
@@ -405,11 +407,10 @@ const clearFilters = () => {
 }
 
 const hasActiveFilters = computed(() => {
-  return Object.values(localFilters.value).some((value) => value !== '' && value !== null)
+  return Object.values(localFilters.value).some(value => value !== '' && value !== null)
 })
 
 const activeFilterCount = computed(() => {
-  return Object.values(localFilters.value).filter((value) => value !== '' && value !== null).length
+  return Object.values(localFilters.value).filter(value => value !== '' && value !== null).length
 })
 </script>
-

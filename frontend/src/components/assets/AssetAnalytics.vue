@@ -1,7 +1,7 @@
 <template>
   <Card class="p-4">
     <h3 class="text-sm font-medium text-gray-900 mb-4">Analytics</h3>
-    
+
     <div v-if="loading" class="space-y-3">
       <div v-for="i in 3" :key="i" class="h-16 bg-gray-200 rounded animate-pulse"></div>
     </div>
@@ -15,27 +15,36 @@
       <div class="space-y-2">
         <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-xs text-gray-600">Total Assets</div>
-          <div class="text-xl font-bold text-gray-900 mt-0.5">{{ analytics.total_assets || 0 }}</div>
+          <div class="text-xl font-bold text-gray-900 mt-0.5">
+            {{ analytics.total_assets || 0 }}
+          </div>
         </div>
         <div class="bg-success-50 rounded-lg p-3">
           <div class="text-xs text-success-600">Active Assets</div>
-          <div class="text-xl font-bold text-success-700 mt-0.5">{{ analytics.active_assets || 0 }}</div>
+          <div class="text-xl font-bold text-success-700 mt-0.5">
+            {{ analytics.active_assets || 0 }}
+          </div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-xs text-gray-600">Inactive Assets</div>
-          <div class="text-xl font-bold text-gray-900 mt-0.5">{{ analytics.inactive_assets || 0 }}</div>
+          <div class="text-xl font-bold text-gray-900 mt-0.5">
+            {{ analytics.inactive_assets || 0 }}
+          </div>
         </div>
       </div>
 
-      <p
-        v-if="(analytics.total_assets || 0) === 0"
-        class="text-xs text-gray-500 pt-1"
-      >
+      <p v-if="(analytics.total_assets || 0) === 0" class="text-xs text-gray-500 pt-1">
         No assets in the registry yet. Upload a CSV to populate analytics.
       </p>
 
       <!-- Environment Distribution -->
-      <div v-if="analytics.environments && typeof analytics.environments === 'object' && Object.keys(analytics.environments).length > 0">
+      <div
+        v-if="
+          analytics.environments &&
+          typeof analytics.environments === 'object' &&
+          Object.keys(analytics.environments).length > 0
+        "
+      >
         <h4 class="text-xs font-medium text-gray-700 mb-2">By Environment</h4>
         <div class="space-y-1.5">
           <div
@@ -60,7 +69,13 @@
       </div>
 
       <!-- OS Distribution -->
-      <div v-if="analytics.operating_systems && typeof analytics.operating_systems === 'object' && Object.keys(analytics.operating_systems).length > 0">
+      <div
+        v-if="
+          analytics.operating_systems &&
+          typeof analytics.operating_systems === 'object' &&
+          Object.keys(analytics.operating_systems).length > 0
+        "
+      >
         <h4 class="text-xs font-medium text-gray-700 mb-2">By OS</h4>
         <div class="space-y-1.5">
           <div
@@ -90,7 +105,9 @@
         <div class="space-y-1.5">
           <div>
             <div class="text-xs text-gray-600">Average vCPU</div>
-            <div class="text-sm font-semibold text-gray-900">{{ formatVcpu(analytics.average_vcpu) }}</div>
+            <div class="text-sm font-semibold text-gray-900">
+              {{ formatVcpu(analytics.average_vcpu) }}
+            </div>
           </div>
           <div>
             <div class="text-xs text-gray-600">Total vCPU</div>
@@ -146,7 +163,11 @@ function normalizeAnalytics(raw) {
 
 function unwrapApiPayload(body) {
   if (!body || typeof body !== 'object') return null
-  if (Object.prototype.hasOwnProperty.call(body, 'data') && body.data !== undefined && body.data !== null) {
+  if (
+    Object.prototype.hasOwnProperty.call(body, 'data') &&
+    body.data !== undefined &&
+    body.data !== null
+  ) {
     return body.data
   }
   return body
@@ -189,7 +210,7 @@ const fetchAnalytics = async () => {
   }
 }
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   if (Number.isNaN(date.getTime())) return 'N/A'
@@ -206,4 +227,3 @@ onMounted(() => {
   fetchAnalytics()
 })
 </script>
-

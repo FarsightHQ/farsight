@@ -1,5 +1,8 @@
 <template>
-  <Card class="p-4 hover:shadow-md transition-shadow cursor-pointer" @click="$emit('view-asset', asset)">
+  <Card
+    class="p-4 hover:shadow-md transition-shadow cursor-pointer"
+    @click="$emit('view-asset', asset)"
+  >
     <div class="flex items-start justify-between">
       <div class="flex-1">
         <div class="flex items-center space-x-2 mb-2">
@@ -24,7 +27,12 @@
           </div>
           <div>
             <span class="text-gray-500">Environment:</span>
-            <Badge v-if="asset.environment" :label="asset.environment" variant="info" class="ml-2" />
+            <Badge
+              v-if="asset.environment"
+              :label="asset.environment"
+              variant="info"
+              class="ml-2"
+            />
             <span v-else class="ml-2 text-gray-400">—</span>
           </div>
           <div v-if="asset.hostname" class="col-span-2">
@@ -43,9 +51,7 @@
       </div>
     </div>
     <div class="mt-4 flex items-center justify-between">
-      <span class="text-xs text-gray-500">
-        Created {{ formatDate(asset.created_at) }}
-      </span>
+      <span class="text-xs text-gray-500"> Created {{ formatDate(asset.created_at) }} </span>
       <Button variant="ghost" size="sm" @click.stop="$emit('view-asset', asset)">
         View Details
       </Button>
@@ -72,7 +78,7 @@ const props = defineProps({
 
 const emit = defineEmits(['view-asset', 'select-asset'])
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -82,4 +88,3 @@ const formatDate = (dateString) => {
   })
 }
 </script>
-

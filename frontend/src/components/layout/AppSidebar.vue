@@ -2,18 +2,18 @@
   <aside
     :class="[
       'bg-theme-sidebar border-r border-theme-border-sidebar flex-shrink-0 flex flex-col h-full transition-all duration-300 ease-in-out relative',
-      isCollapsed ? 'w-16' : 'w-64'
+      isCollapsed ? 'w-16' : 'w-64',
     ]"
   >
     <!-- Floating Collapse Button on Border -->
     <button
-      @click="toggleSidebar"
       :class="[
         'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-theme-sidebar border border-theme-border-sidebar rounded-full shadow-sm hover:shadow-md hover:bg-theme-sidebar-hover transition-all duration-300 ease-in-out',
-        isCollapsed ? 'right-2' : '-right-3'
+        isCollapsed ? 'right-2' : '-right-3',
       ]"
       aria-label="Toggle sidebar"
       :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      @click="toggleSidebar"
     >
       <ChevronLeftIcon v-if="!isCollapsed" class="h-4 w-4 text-theme-text-sidebar" />
       <ChevronRightIcon v-else class="h-4 w-4 text-theme-text-sidebar" />
@@ -28,7 +28,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             exact-active-class="bg-theme-nav-selected text-theme-text-sidebar"
@@ -38,7 +38,7 @@
             <span
               :class="[
                 'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs'
+                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
               ]"
             >
               Home
@@ -51,7 +51,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Requests' : ''"
@@ -60,7 +60,7 @@
             <span
               :class="[
                 'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs'
+                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
               ]"
             >
               Requests
@@ -73,7 +73,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'All Rules' : ''"
@@ -82,7 +82,7 @@
             <span
               :class="[
                 'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs'
+                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
               ]"
             >
               All Rules
@@ -95,7 +95,7 @@
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
               isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover'
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
             ]"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Assets' : ''"
@@ -104,7 +104,7 @@
             <span
               :class="[
                 'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs'
+                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
               ]"
             >
               Assets
@@ -129,4 +129,3 @@ import { useSidebar } from '@/composables/useSidebar'
 
 const { isCollapsed, toggleSidebar } = useSidebar()
 </script>
-

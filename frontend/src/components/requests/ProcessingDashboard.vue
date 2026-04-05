@@ -4,12 +4,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-900">Processing Pipeline</h2>
-        <Button
-          v-if="canCancel"
-          variant="outline"
-          size="sm"
-          @click="$emit('cancel')"
-        >
+        <Button v-if="canCancel" variant="outline" size="sm" @click="$emit('cancel')">
           Cancel
         </Button>
       </div>
@@ -65,8 +60,8 @@ const emit = defineEmits(['cancel', 'retry'])
 
 const overallProgress = computed(() => {
   const totalSteps = props.steps.length
-  const completedSteps = props.steps.filter((s) => s.status === 'completed').length
-  const processingStep = props.steps.find((s) => s.status === 'processing')
+  const completedSteps = props.steps.filter(s => s.status === 'completed').length
+  const processingStep = props.steps.find(s => s.status === 'processing')
   const processingProgress = processingStep?.progress || 0
 
   if (completedSteps === totalSteps) return 100
@@ -78,16 +73,15 @@ const overallProgress = computed(() => {
 })
 
 const currentStepData = computed(() => {
-  return props.steps.find((s) => s.status === 'processing') || null
+  return props.steps.find(s => s.status === 'processing') || null
 })
 
 const completedSteps = computed(() => {
-  return props.steps.filter((s) => s.status === 'completed')
+  return props.steps.filter(s => s.status === 'completed')
 })
 
 // Expose retry functionality if needed
-const handleRetry = (stepKey) => {
+const handleRetry = stepKey => {
   emit('retry', stepKey)
 }
 </script>
-

@@ -19,9 +19,7 @@
     <Card v-else-if="error" class="p-6">
       <div class="text-center py-12">
         <p class="text-error-600 mb-4">{{ error }}</p>
-        <Button variant="outline" @click="$router.push('/assets')">
-          Back to Assets
-        </Button>
+        <Button variant="outline" @click="$router.push('/assets')"> Back to Assets </Button>
       </div>
     </Card>
 
@@ -42,9 +40,7 @@
             </div>
           </div>
           <div class="flex items-center space-x-2">
-            <Button variant="outline" @click="$router.push('/assets')">
-              Back to Assets
-            </Button>
+            <Button variant="outline" @click="$router.push('/assets')"> Back to Assets </Button>
           </div>
         </div>
       </Card>
@@ -140,11 +136,11 @@ const fetchRelatedRules = async () => {
   }
 }
 
-const handleViewRule = (rule) => {
+const handleViewRule = rule => {
   router.push(`/rules/${rule.id}`)
 }
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -163,4 +159,3 @@ onMounted(async () => {
   }
 })
 </script>
-

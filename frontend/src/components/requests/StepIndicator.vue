@@ -1,10 +1,6 @@
 <template>
   <div class="flex items-center justify-between">
-    <div
-      v-for="(step, index) in steps"
-      :key="step.key"
-      class="flex items-center flex-1"
-    >
+    <div v-for="(step, index) in steps" :key="step.key" class="flex items-center flex-1">
       <!-- Step Circle -->
       <div class="flex flex-col items-center flex-1">
         <div
@@ -13,15 +9,8 @@
             getStepClasses(step, index),
           ]"
         >
-          <CheckIcon
-            v-if="step.status === 'completed'"
-            class="h-6 w-6 text-white"
-          />
-          <Spinner
-            v-else-if="step.status === 'processing'"
-            size="sm"
-            color="white"
-          />
+          <CheckIcon v-if="step.status === 'completed'" class="h-6 w-6 text-white" />
+          <Spinner v-else-if="step.status === 'processing'" size="sm" color="white" />
           <span v-else class="text-sm font-medium">{{ index + 1 }}</span>
         </div>
         <div class="mt-2 text-center">
@@ -72,4 +61,3 @@ const getStepClasses = (step, index) => {
   }
 }
 </script>
-

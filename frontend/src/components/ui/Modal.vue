@@ -11,16 +11,20 @@
           :class="[
             sizeClasses,
             'bg-theme-card rounded-lg shadow-xl',
-            size === 'full' ? 'flex flex-col h-[calc(100vh-2rem)]' : 'max-h-[90vh] overflow-y-auto'
+            size === 'full' ? 'flex flex-col h-[calc(100vh-2rem)]' : 'max-h-[90vh] overflow-y-auto',
           ]"
           @click.stop
         >
-          <div v-if="title || $slots.header" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-between p-6 border-b border-theme-border-card">
+          <div
+            v-if="title || $slots.header"
+            :class="{ 'flex-shrink-0': size === 'full' }"
+            class="flex items-center justify-between p-6 border-b border-theme-border-card"
+          >
             <h3 v-if="title" class="text-lg font-semibold text-theme-text-content">{{ title }}</h3>
             <slot name="header" />
             <button
-              @click="$emit('update:modelValue', false)"
               class="text-theme-text-muted hover:text-theme-text-content"
+              @click="$emit('update:modelValue', false)"
             >
               <XMarkIcon class="h-6 w-6" />
             </button>
@@ -28,7 +32,11 @@
           <div :class="{ 'flex-1 overflow-auto': size === 'full', 'p-6': size !== 'full' }">
             <slot />
           </div>
-          <div v-if="$slots.footer" :class="{ 'flex-shrink-0': size === 'full' }" class="flex items-center justify-end gap-3 p-6 border-t border-theme-border-card">
+          <div
+            v-if="$slots.footer"
+            :class="{ 'flex-shrink-0': size === 'full' }"
+            class="flex items-center justify-end gap-3 p-6 border-t border-theme-border-card"
+          >
             <slot name="footer" />
           </div>
         </div>
@@ -53,7 +61,7 @@ const props = defineProps({
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg', 'xl', 'full'].includes(value),
+    validator: value => ['sm', 'md', 'lg', 'xl', 'full'].includes(value),
   },
 })
 
@@ -92,4 +100,3 @@ const sizeClasses = computed(() => {
   transform: scale(0.95);
 }
 </style>
-

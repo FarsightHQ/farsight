@@ -18,7 +18,10 @@
       <div class="shrink-0 p-3 sm:p-4 border-b border-gray-200 flex items-start gap-2">
         <div class="min-w-0 flex-1">
           <slot name="heading">
-            <h1 v-if="title" class="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words">
+            <h1
+              v-if="title"
+              class="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words"
+            >
               {{ title }}
             </h1>
             <p v-if="subtitle" class="text-xs sm:text-sm text-gray-600 mt-1 break-words">
@@ -29,7 +32,11 @@
         <button
           type="button"
           class="shrink-0 p-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          :title="hideAppChrome ? 'Exit full screen (show app navigation)' : 'Full screen (hide navigation)'"
+          :title="
+            hideAppChrome
+              ? 'Exit full screen (show app navigation)'
+              : 'Full screen (hide navigation)'
+          "
           :aria-label="hideAppChrome ? 'Exit full screen' : 'Enter full screen'"
           :aria-pressed="hideAppChrome"
           @click="toggleVizFullscreen"
@@ -62,5 +69,4 @@ defineProps({
     default: '',
   },
 })
-
 </script>

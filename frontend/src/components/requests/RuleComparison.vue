@@ -16,7 +16,9 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Property
+              </th>
               <th
                 v-for="rule in selectedRules"
                 :key="rule.id"
@@ -84,11 +86,7 @@
             </tr>
             <tr>
               <td class="px-4 py-3 text-sm font-medium text-gray-700">Has Facts</td>
-              <td
-                v-for="rule in selectedRules"
-                :key="rule.id"
-                class="px-4 py-3 text-sm"
-              >
+              <td v-for="rule in selectedRules" :key="rule.id" class="px-4 py-3 text-sm">
                 {{ rule.facts ? 'Yes' : 'No' }}
               </td>
             </tr>
@@ -98,9 +96,7 @@
 
       <!-- Export Comparison -->
       <div class="flex justify-end">
-        <Button variant="outline" @click="handleExport">
-          Export Comparison
-        </Button>
+        <Button variant="outline" @click="handleExport"> Export Comparison </Button>
       </div>
     </div>
   </Card>
@@ -127,15 +123,15 @@ const { success, error: showError } = useToast()
 const formatNetworks = (endpoints, type) => {
   if (!endpoints || !Array.isArray(endpoints)) return ''
   const networks = endpoints
-    .filter((ep) => ep.endpoint_type === type || ep.type === type)
-    .map((ep) => ep.network_cidr || ep.cidr)
+    .filter(ep => ep.endpoint_type === type || ep.type === type)
+    .map(ep => ep.network_cidr || ep.cidr)
   return networks.length > 0 ? networks.join(', ') : ''
 }
 
-const formatServices = (services) => {
+const formatServices = services => {
   if (!services || !Array.isArray(services)) return ''
   return services
-    .map((svc) => {
+    .map(svc => {
       const protocol = (svc.protocol || '').toUpperCase()
       const ports = svc.port_ranges || svc.ports || ''
       return ports ? `${protocol}: ${ports}` : protocol
@@ -145,10 +141,10 @@ const formatServices = (services) => {
 
 const getDifferenceClass = (property, rule) => {
   if (props.selectedRules.length < 2) return ''
-  
+
   const firstValue = getPropertyValue(props.selectedRules[0], property)
   const currentValue = getPropertyValue(rule, property)
-  
+
   if (firstValue !== currentValue) {
     return 'bg-yellow-50 text-yellow-900'
   }
@@ -176,7 +172,7 @@ const handleExport = () => {
   try {
     const comparisonData = {
       compared_at: new Date().toISOString(),
-      rules: props.selectedRules.map((rule) => ({
+      rules: props.selectedRules.map(rule => ({
         id: rule.id,
         action: rule.action,
         direction: rule.direction,
@@ -186,7 +182,7 @@ const handleExport = () => {
         facts: rule.facts,
       })),
     }
-    
+
     exportToJSON(comparisonData, `rule-comparison-${new Date().toISOString().split('T')[0]}`, true)
     success('Comparison exported successfully')
   } catch (err) {
@@ -194,4 +190,3 @@ const handleExport = () => {
   }
 }
 </script>
-

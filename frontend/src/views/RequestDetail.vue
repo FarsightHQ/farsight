@@ -9,7 +9,7 @@
     </div>
 
     <!-- Request Details -->
-    <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 12rem);">
+    <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 12rem)">
       <!-- Header -->
       <div class="mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
         <div class="flex items-start justify-between">
@@ -95,7 +95,9 @@
     <NetworkGraphModal
       v-model="showGraphModal"
       :rule-id="selectedRuleForVisualization?.id"
-      :rule-title="selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`"
+      :rule-title="
+        selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`
+      "
       :graph-data="mergedGraphData"
     />
   </div>
@@ -151,7 +153,7 @@ const fetchRequest = async () => {
   }
 }
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -163,7 +165,7 @@ const formatDate = (dateString) => {
   })
 }
 
-const formatFileSize = (bytes) => {
+const formatFileSize = bytes => {
   if (!bytes) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
@@ -182,7 +184,7 @@ const confirmDelete = async () => {
   try {
     await requestsService.delete(request.value.id)
     success(`Request "${request.value.title}" deleted successfully`)
-    
+
     // Redirect to list page
     router.push('/requests')
   } catch (err) {
@@ -195,34 +197,34 @@ const cancelDelete = () => {
   showDeleteModal.value = false
 }
 
-const handleViewRule = async (rule) => {
+const handleViewRule = async rule => {
   // Navigate to nested route for rule detail
   router.push(`/requests/${route.params.id}/rules/${rule.id}`)
 }
 
-const handleFilterUpdate = (newFilters) => {
+const handleFilterUpdate = newFilters => {
   filters.value = { ...newFilters }
 }
 
-const handleStatsUpdated = (stats) => {
+const handleStatsUpdated = stats => {
   rulesStats.value = stats
 }
 
-const handleRulesLoaded = (rules) => {
+const handleRulesLoaded = rules => {
   rulesData.value = rules || []
 }
 
-const handleVisualizeRule = (rule) => {
+const handleVisualizeRule = rule => {
   selectedRuleForVisualization.value = rule
   mergedGraphData.value = null // Clear merged data for single rule
   showGraphModal.value = true
 }
 
-const handleVisualizeMultipleRules = (data) => {
+const handleVisualizeMultipleRules = data => {
   mergedGraphData.value = data.graphData
-  selectedRuleForVisualization.value = { 
-    id: data.ruleIds.join(', '), 
-    title: `${data.ruleIds.length} Selected Rules` 
+  selectedRuleForVisualization.value = {
+    id: data.ruleIds.join(', '),
+    title: `${data.ruleIds.length} Selected Rules`,
   }
   showGraphModal.value = true
 }

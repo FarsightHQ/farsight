@@ -5,7 +5,7 @@
       <Card
         :class="[
           'p-3 inline-flex items-center space-x-2',
-          getHealthStatusClass(facts.health_status)
+          getHealthStatusClass(facts.health_status),
         ]"
       >
         <component
@@ -22,16 +22,21 @@
           v-if="facts.tuple_summary?.problem_count > 0"
           :class="[
             'ml-2 px-2 py-1 rounded-full text-xs font-medium',
-            getHealthStatusBadgeClass(facts.health_status)
+            getHealthStatusBadgeClass(facts.health_status),
           ]"
         >
-          {{ facts.tuple_summary.problem_count }} problem{{ facts.tuple_summary.problem_count !== 1 ? 's' : '' }}
+          {{ facts.tuple_summary.problem_count }} problem{{
+            facts.tuple_summary.problem_count !== 1 ? 's' : ''
+          }}
         </span>
       </Card>
     </div>
 
     <!-- Hybrid Facts Summary (if available) - Show in major facts only -->
-    <div v-if="facts?.tuple_summary && !showOnlyDetailed" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div
+      v-if="facts?.tuple_summary && !showOnlyDetailed"
+      class="grid grid-cols-1 md:grid-cols-3 gap-3"
+    >
       <Card
         :class="[
           'p-3',
@@ -46,9 +51,7 @@
             <p
               :class="[
                 'text-lg font-semibold mt-1',
-                facts.tuple_summary.problem_count > 0
-                  ? 'text-error-700'
-                  : 'text-success-700',
+                facts.tuple_summary.problem_count > 0 ? 'text-error-700' : 'text-success-700',
               ]"
             >
               {{ formatNumber(facts.tuple_summary.problem_count || 0) }}
@@ -57,9 +60,7 @@
           <ExclamationTriangleIcon
             :class="[
               'h-6 w-6',
-              facts.tuple_summary.problem_count > 0
-                ? 'text-error-600'
-                : 'text-success-600',
+              facts.tuple_summary.problem_count > 0 ? 'text-error-600' : 'text-success-600',
             ]"
           />
         </div>
@@ -96,9 +97,7 @@
       <Card
         :class="[
           'p-3',
-          isSelfFlow
-            ? 'bg-error-50 border-error-200'
-            : 'bg-success-50 border-success-200',
+          isSelfFlow ? 'bg-error-50 border-error-200' : 'bg-success-50 border-success-200',
         ]"
       >
         <div class="flex items-center justify-between">
@@ -113,9 +112,7 @@
               {{ isSelfFlow ? 'Yes' : 'No' }}
             </p>
           </div>
-          <ArrowPathIcon
-            :class="['h-6 w-6', isSelfFlow ? 'text-error-600' : 'text-success-600']"
-          />
+          <ArrowPathIcon :class="['h-6 w-6', isSelfFlow ? 'text-error-600' : 'text-success-600']" />
         </div>
       </Card>
 
@@ -123,9 +120,7 @@
       <Card
         :class="[
           'p-3',
-          isSrcAny
-            ? 'bg-warning-50 border-warning-200'
-            : 'bg-gray-50 border-gray-200',
+          isSrcAny ? 'bg-warning-50 border-warning-200' : 'bg-gray-50 border-gray-200',
         ]"
       >
         <div class="flex items-center justify-between">
@@ -140,9 +135,7 @@
               {{ isSrcAny ? 'Yes' : 'No' }}
             </p>
           </div>
-          <GlobeAltIcon
-            :class="['h-6 w-6', isSrcAny ? 'text-warning-600' : 'text-gray-400']"
-          />
+          <GlobeAltIcon :class="['h-6 w-6', isSrcAny ? 'text-warning-600' : 'text-gray-400']" />
         </div>
       </Card>
 
@@ -150,9 +143,7 @@
       <Card
         :class="[
           'p-3',
-          isDstAny
-            ? 'bg-warning-50 border-warning-200'
-            : 'bg-gray-50 border-gray-200',
+          isDstAny ? 'bg-warning-50 border-warning-200' : 'bg-gray-50 border-gray-200',
         ]"
       >
         <div class="flex items-center justify-between">
@@ -167,9 +158,7 @@
               {{ isDstAny ? 'Yes' : 'No' }}
             </p>
           </div>
-          <GlobeAltIcon
-            :class="['h-6 w-6', isDstAny ? 'text-warning-600' : 'text-gray-400']"
-          />
+          <GlobeAltIcon :class="['h-6 w-6', isDstAny ? 'text-warning-600' : 'text-gray-400']" />
         </div>
       </Card>
 
@@ -196,12 +185,10 @@
             :key="key"
             :class="[
               'flex flex-col p-2 rounded',
-              isProblematicField(key, value) ? 'bg-error-50 border border-error-200' : ''
+              isProblematicField(key, value) ? 'bg-error-50 border border-error-200' : '',
             ]"
           >
-            <span class="font-medium text-gray-700 capitalize mb-1">
-              {{ formatKey(key) }}:
-            </span>
+            <span class="font-medium text-gray-700 capitalize mb-1"> {{ formatKey(key) }}: </span>
             <span class="text-gray-600 font-mono text-xs">
               {{ formatValue(value) }}
             </span>
@@ -213,8 +200,8 @@
     <!-- Expandable Details - Original behavior when neither prop is set -->
     <div v-if="!showOnlyMajor && !showOnlyDetailed && facts && Object.keys(facts).length > 0">
       <button
-        @click="expanded = !expanded"
         class="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+        @click="expanded = !expanded"
       >
         <span class="text-sm font-medium text-gray-700">
           {{ expanded ? 'Hide' : 'Show' }} Detailed Facts
@@ -239,12 +226,10 @@
               :key="key"
               :class="[
                 'flex flex-col p-2 rounded',
-                isProblematicField(key, value) ? 'bg-error-50 border border-error-200' : ''
+                isProblematicField(key, value) ? 'bg-error-50 border border-error-200' : '',
               ]"
             >
-              <span class="font-medium text-gray-700 capitalize mb-1">
-                {{ formatKey(key) }}:
-              </span>
+              <span class="font-medium text-gray-700 capitalize mb-1"> {{ formatKey(key) }}: </span>
               <span class="text-gray-600 font-mono text-xs">
                 {{ formatValue(value) }}
               </span>
@@ -304,16 +289,16 @@ const isDstAny = computed(() => {
   return Boolean(props.facts?.dst_is_any)
 })
 
-const formatKey = (key) => {
+const formatKey = key => {
   return key
     .replace(/_/g, ' ')
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .toLowerCase()
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatValue = (value) => {
+const formatValue = value => {
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No'
   }
@@ -326,12 +311,12 @@ const formatValue = (value) => {
   return String(value)
 }
 
-const formatNumber = (num) => {
+const formatNumber = num => {
   if (typeof num !== 'number') return '0'
   return num.toLocaleString()
 }
 
-const formatHealthStatus = (status) => {
+const formatHealthStatus = status => {
   const statusMap = {
     critical: 'Critical',
     warning: 'Warning',
@@ -340,7 +325,7 @@ const formatHealthStatus = (status) => {
   return statusMap[status] || status
 }
 
-const getHealthStatusClass = (status) => {
+const getHealthStatusClass = status => {
   const classMap = {
     critical: 'bg-error-50 border-error-200',
     warning: 'bg-warning-50 border-warning-200',
@@ -349,7 +334,7 @@ const getHealthStatusClass = (status) => {
   return classMap[status] || 'bg-gray-50 border-gray-200'
 }
 
-const getHealthStatusTextClass = (status) => {
+const getHealthStatusTextClass = status => {
   const classMap = {
     critical: 'text-error-700',
     warning: 'text-warning-700',
@@ -358,7 +343,7 @@ const getHealthStatusTextClass = (status) => {
   return classMap[status] || 'text-gray-700'
 }
 
-const getHealthStatusIconClass = (status) => {
+const getHealthStatusIconClass = status => {
   const classMap = {
     critical: 'text-error-600',
     warning: 'text-warning-600',
@@ -367,13 +352,13 @@ const getHealthStatusIconClass = (status) => {
   return classMap[status] || 'text-gray-600'
 }
 
-const getHealthStatusIcon = (status) => {
+const getHealthStatusIcon = status => {
   if (status === 'critical') return XCircleIcon
   if (status === 'warning') return ExclamationTriangleIcon
   return CheckCircleIcon
 }
 
-const getHealthStatusBadgeClass = (status) => {
+const getHealthStatusBadgeClass = status => {
   const classMap = {
     critical: 'bg-error-200 text-error-800',
     warning: 'bg-warning-200 text-warning-800',
@@ -391,17 +376,16 @@ const isProblematicField = (key, value) => {
     'src_has_public',
     'dst_has_public',
   ]
-  
+
   if (problematicKeys.includes(key)) {
     return value === true
   }
-  
+
   // Check tuple_summary for problem_count
   if (key === 'tuple_summary' && typeof value === 'object') {
     return value?.problem_count > 0
   }
-  
+
   return false
 }
 </script>
-

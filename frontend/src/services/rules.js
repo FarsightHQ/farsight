@@ -37,4 +37,3 @@ export const rulesService = {
     return this.getRules(requestId, { ...params, limit: 1000 })
   },
 }
-

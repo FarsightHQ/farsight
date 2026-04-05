@@ -20,8 +20,8 @@
     <!-- Expandable Details -->
     <div v-if="hasDetails" class="mt-4">
       <button
-        @click="expanded = !expanded"
         class="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+        @click="expanded = !expanded"
       >
         <span class="text-sm font-medium text-gray-700">
           {{ expanded ? 'Hide' : 'Show' }} Details
@@ -73,16 +73,16 @@ const props = defineProps({
 
 const expanded = ref(false)
 
-const formatKey = (key) => {
+const formatKey = key => {
   return key
     .replace(/_/g, ' ')
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .toLowerCase()
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatValue = (value) => {
+const formatValue = value => {
   if (typeof value === 'number') {
     return value.toLocaleString()
   }
@@ -95,7 +95,7 @@ const formatValue = (value) => {
   return String(value)
 }
 
-const formatDuration = (ms) => {
+const formatDuration = ms => {
   if (typeof ms !== 'number') return ms
   if (ms < 1000) return `${ms}ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
@@ -112,22 +112,29 @@ const formattedMetrics = computed(() => {
 
   // Extract key metrics based on result type
   if (props.resultType === 'ingestion') {
-    if (results.rules_created !== undefined) metrics['Rules Created'] = formatNumber(results.rules_created)
-    if (results.rules_total !== undefined) metrics['Total Rules'] = formatNumber(results.rules_total)
+    if (results.rules_created !== undefined)
+      metrics['Rules Created'] = formatNumber(results.rules_created)
+    if (results.rules_total !== undefined)
+      metrics['Total Rules'] = formatNumber(results.rules_total)
     if (results.duration_ms !== undefined) metrics['Duration'] = formatDuration(results.duration_ms)
   } else if (props.resultType === 'facts') {
-    if (results.rules_updated !== undefined) metrics['Rules Updated'] = formatNumber(results.rules_updated)
-    if (results.rules_total !== undefined) metrics['Total Rules'] = formatNumber(results.rules_total)
-    if (results.self_flow_count !== undefined) metrics['Self Flows'] = formatNumber(results.self_flow_count)
+    if (results.rules_updated !== undefined)
+      metrics['Rules Updated'] = formatNumber(results.rules_updated)
+    if (results.rules_total !== undefined)
+      metrics['Total Rules'] = formatNumber(results.rules_total)
+    if (results.self_flow_count !== undefined)
+      metrics['Self Flows'] = formatNumber(results.self_flow_count)
     if (results.duration_ms !== undefined) metrics['Duration'] = formatDuration(results.duration_ms)
   } else if (props.resultType === 'hybrid') {
-    if (results.rules_processed !== undefined) metrics['Rules Processed'] = formatNumber(results.rules_processed)
-    if (results.tuples_created !== undefined) metrics['Tuples Created'] = formatNumber(results.tuples_created)
+    if (results.rules_processed !== undefined)
+      metrics['Rules Processed'] = formatNumber(results.rules_processed)
+    if (results.tuples_created !== undefined)
+      metrics['Tuples Created'] = formatNumber(results.tuples_created)
     if (results.duration_ms !== undefined) metrics['Duration'] = formatDuration(results.duration_ms)
   } else {
     // General: show first 6 key metrics
     const keys = Object.keys(results).slice(0, 6)
-    keys.forEach((key) => {
+    keys.forEach(key => {
       const value = results[key]
       if (key.includes('duration') || key.includes('time')) {
         metrics[formatKey(key)] = formatDuration(value)
@@ -142,7 +149,7 @@ const formattedMetrics = computed(() => {
   return metrics
 })
 
-const formatNumber = (num) => {
+const formatNumber = num => {
   if (typeof num !== 'number') return num
   return num.toLocaleString()
 }
@@ -176,4 +183,3 @@ const getMetricValueClass = (key, value) => {
   return 'text-gray-900'
 }
 </script>
-

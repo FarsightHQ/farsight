@@ -1,11 +1,12 @@
 <template>
   <div class="space-y-6">
-
     <!-- Search -->
     <Card class="p-4">
       <div class="flex items-center space-x-4">
         <div class="flex-1 relative">
-          <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-theme-text-muted pointer-events-none z-10" />
+          <MagnifyingGlassIcon
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-theme-text-muted pointer-events-none z-10"
+          />
           <input
             v-model="searchQuery"
             type="text"
@@ -23,22 +24,25 @@
 
     <!-- Rules Table -->
     <Card>
-      <div v-if="selectedRules.length > 0" class="p-4 border-b border-theme-border-card bg-theme-content">
+      <div
+        v-if="selectedRules.length > 0"
+        class="p-4 border-b border-theme-border-card bg-theme-content"
+      >
         <div class="flex items-center justify-between">
           <span class="text-sm text-theme-text-content">
             {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
           </span>
           <Button
             variant="outline"
-            @click="openUnifiedSelectedInNewTab"
             :disabled="selectedRules.length === 0"
+            @click="openUnifiedSelectedInNewTab"
           >
             Unified view (new tab)
           </Button>
-          <Button 
-            variant="primary" 
-            @click="handleVisualizeSelected"
+          <Button
+            variant="primary"
             :disabled="selectedRules.length === 0"
+            @click="handleVisualizeSelected"
           >
             Visualize Selected
           </Button>
@@ -64,7 +68,12 @@
     <div v-if="!loading && filteredRules.length > 0" class="mt-6 flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="text-sm text-theme-text-content">Show</span>
-        <select v-model="pageSize" class="input text-sm" style="width: auto" @change="handlePageSizeChange">
+        <select
+          v-model="pageSize"
+          class="input text-sm"
+          style="width: auto"
+          @change="handlePageSizeChange"
+        >
           <option :value="10">10</option>
           <option :value="25">25</option>
           <option :value="50">50</option>
@@ -73,12 +82,7 @@
         <span class="text-sm text-theme-text-content">per page</span>
       </div>
       <div class="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="currentPage === 1"
-          @click="currentPage--"
-        >
+        <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
           Previous
         </Button>
         <span class="text-sm text-theme-text-content">
@@ -144,7 +148,13 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded', 'visualize-rule', 'visualize-multiple-rules'])
+const emit = defineEmits([
+  'view-rule',
+  'stats-updated',
+  'rules-loaded',
+  'visualize-rule',
+  'visualize-multiple-rules',
+])
 
 const router = useRouter()
 const { error: showError } = useToast()
@@ -189,7 +199,7 @@ const clearSearch = () => {
 // Watch props.filters for external updates
 watch(
   () => props.filters,
-  (newFilters) => {
+  newFilters => {
     localFilters.value = {
       action: newFilters.action || '',
       protocol: newFilters.protocol || '',
@@ -207,7 +217,7 @@ watch(
   { deep: true }
 )
 
-const handleSort = (key) => {
+const handleSort = key => {
   if (sortKey.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
   } else {
@@ -236,11 +246,11 @@ const clearAll = () => {
   currentPage.value = 1
 }
 
-const handleVisualizeRule = (rule) => {
+const handleVisualizeRule = rule => {
   emit('visualize-rule', rule)
 }
 
-const handleSelectRule = (ruleId) => {
+const handleSelectRule = ruleId => {
   const index = selectedRules.value.indexOf(ruleId)
   if (index > -1) {
     selectedRules.value.splice(index, 1)
@@ -249,7 +259,7 @@ const handleSelectRule = (ruleId) => {
   }
 }
 
-const handleSelectAll = (ruleIds) => {
+const handleSelectAll = ruleIds => {
   selectedRules.value = [...ruleIds]
 }
 
@@ -257,37 +267,37 @@ const handleDeselectAll = () => {
   selectedRules.value = []
 }
 
-const mergeGraphData = (responses) => {
+const mergeGraphData = responses => {
   const allSources = []
   const allDestinations = []
   const allConnections = []
   const sourceMap = new Map() // key: network_cidr
   const destMap = new Map() // key: network_cidr
-  
+
   responses.forEach((response, index) => {
     const data = response.data?.data || response.data || response
     const graph = data.graph || data
-    
+
     if (!graph.sources || !graph.destinations) return
-    
+
     // Merge sources (deduplicate by network_cidr)
     graph.sources.forEach(src => {
       if (!sourceMap.has(src.network_cidr)) {
         sourceMap.set(src.network_cidr, {
           ...src,
-          id: `src_merged_${sourceMap.size}`
+          id: `src_merged_${sourceMap.size}`,
         })
         allSources.push(sourceMap.get(src.network_cidr))
       }
     })
-    
+
     // Merge destinations (deduplicate by network_cidr, merge ports)
     graph.destinations.forEach(dest => {
       if (!destMap.has(dest.network_cidr)) {
         destMap.set(dest.network_cidr, {
           ...dest,
           id: `dst_merged_${destMap.size}`,
-          ports: [...(dest.ports || [])]
+          ports: [...(dest.ports || [])],
         })
         allDestinations.push(destMap.get(dest.network_cidr))
       } else {
@@ -298,28 +308,28 @@ const mergeGraphData = (responses) => {
         }
       }
     })
-    
+
     // Map connections to merged source/dest IDs
     graph.connections?.forEach(conn => {
       const source = graph.sources.find(s => s.id === conn.source_id)
       const dest = graph.destinations.find(d => d.id === conn.destination_id)
-      
+
       if (source && dest) {
         const mergedSource = sourceMap.get(source.network_cidr)
         const mergedDest = destMap.get(dest.network_cidr)
-        
+
         if (mergedSource && mergedDest) {
           allConnections.push({
             source_id: mergedSource.id,
             destination_id: mergedDest.id,
             port_count: conn.port_count,
-            services: conn.services
+            services: conn.services,
           })
         }
       }
     })
   })
-  
+
   return {
     sources: allSources,
     destinations: allDestinations,
@@ -328,8 +338,8 @@ const mergeGraphData = (responses) => {
       rule_count: selectedRules.value.length,
       source_count: allSources.length,
       destination_count: allDestinations.length,
-      connection_count: allConnections.length
-    }
+      connection_count: allConnections.length,
+    },
   }
 }
 
@@ -347,22 +357,20 @@ const openUnifiedSelectedInNewTab = () => {
 
 const handleVisualizeSelected = async () => {
   if (selectedRules.value.length === 0) return
-  
+
   try {
     // Fetch graph data for each selected rule
-    const graphPromises = selectedRules.value.map(ruleId => 
-      requestsService.getRuleGraph(ruleId)
-    )
-    
+    const graphPromises = selectedRules.value.map(ruleId => requestsService.getRuleGraph(ruleId))
+
     const responses = await Promise.all(graphPromises)
-    
+
     // Merge graph data from all selected rules
     const mergedGraph = mergeGraphData(responses)
-    
+
     // Emit event with merged graph data
     emit('visualize-multiple-rules', {
       ruleIds: selectedRules.value,
-      graphData: mergedGraph
+      graphData: mergedGraph,
     })
   } catch (err) {
     showError(err.message || 'Failed to load graph data')
@@ -370,7 +378,7 @@ const handleVisualizeSelected = async () => {
 }
 
 const hasActiveFilters = computed(() => {
-  return Object.values(localFilters.value).some((value) => value !== '') || searchQuery.value !== ''
+  return Object.values(localFilters.value).some(value => value !== '') || searchQuery.value !== ''
 })
 
 // Filter rules based on search and filters
@@ -380,13 +388,15 @@ const filteredRules = computed(() => {
   // Search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter((rule) => {
+    filtered = filtered.filter(rule => {
       const idMatch = String(rule.id).includes(query)
-      const sourceMatch = rule.endpoints
-        ?.some((ep) => (ep.network_cidr || ep.cidr || '').toLowerCase().includes(query))
-      const destMatch = rule.endpoints
-        ?.some((ep) => (ep.network_cidr || ep.cidr || '').toLowerCase().includes(query))
-      const portMatch = rule.services?.some((svc) =>
+      const sourceMatch = rule.endpoints?.some(ep =>
+        (ep.network_cidr || ep.cidr || '').toLowerCase().includes(query)
+      )
+      const destMatch = rule.endpoints?.some(ep =>
+        (ep.network_cidr || ep.cidr || '').toLowerCase().includes(query)
+      )
+      const portMatch = rule.services?.some(svc =>
         (svc.port_ranges || svc.ports || '').includes(query)
       )
       return idMatch || sourceMatch || destMatch || portMatch
@@ -395,67 +405,63 @@ const filteredRules = computed(() => {
 
   // Action filter
   if (localFilters.value.action) {
-    filtered = filtered.filter((rule) => rule.action === localFilters.value.action)
+    filtered = filtered.filter(rule => rule.action === localFilters.value.action)
   }
 
   // Protocol filter
   if (localFilters.value.protocol) {
-    filtered = filtered.filter((rule) =>
-      rule.services?.some((svc) => svc.protocol?.toLowerCase() === localFilters.value.protocol)
+    filtered = filtered.filter(rule =>
+      rule.services?.some(svc => svc.protocol?.toLowerCase() === localFilters.value.protocol)
     )
   }
 
   // Has Facts filter
   if (localFilters.value.hasFacts === 'yes') {
-    filtered = filtered.filter((rule) => rule.facts && Object.keys(rule.facts).length > 0)
+    filtered = filtered.filter(rule => rule.facts && Object.keys(rule.facts).length > 0)
   } else if (localFilters.value.hasFacts === 'no') {
-    filtered = filtered.filter((rule) => !rule.facts || Object.keys(rule.facts).length === 0)
+    filtered = filtered.filter(rule => !rule.facts || Object.keys(rule.facts).length === 0)
   }
 
   // Self-Flow filter
   if (localFilters.value.selfFlow === 'yes') {
-    filtered = filtered.filter((rule) => rule.facts?.is_self_flow === true)
+    filtered = filtered.filter(rule => rule.facts?.is_self_flow === true)
   } else if (localFilters.value.selfFlow === 'no') {
-    filtered = filtered.filter((rule) => !rule.facts?.is_self_flow)
+    filtered = filtered.filter(rule => !rule.facts?.is_self_flow)
   }
 
   // Any/Any filter
   if (localFilters.value.anyAny) {
     if (localFilters.value.anyAny === 'source') {
-      filtered = filtered.filter((rule) => rule.facts?.src_is_any === true)
+      filtered = filtered.filter(rule => rule.facts?.src_is_any === true)
     } else if (localFilters.value.anyAny === 'destination') {
-      filtered = filtered.filter((rule) => rule.facts?.dst_is_any === true)
+      filtered = filtered.filter(rule => rule.facts?.dst_is_any === true)
     } else if (localFilters.value.anyAny === 'both') {
       filtered = filtered.filter(
-        (rule) => rule.facts?.src_is_any === true && rule.facts?.dst_is_any === true
+        rule => rule.facts?.src_is_any === true && rule.facts?.dst_is_any === true
       )
     } else if (localFilters.value.anyAny === 'none') {
-      filtered = filtered.filter(
-        (rule) => !rule.facts?.src_is_any && !rule.facts?.dst_is_any
-      )
+      filtered = filtered.filter(rule => !rule.facts?.src_is_any && !rule.facts?.dst_is_any)
     }
   }
 
   // Public IP filter
   if (localFilters.value.publicIP) {
     if (localFilters.value.publicIP === 'src') {
-      filtered = filtered.filter((rule) => rule.facts?.src_has_public === true)
+      filtered = filtered.filter(rule => rule.facts?.src_has_public === true)
     } else if (localFilters.value.publicIP === 'dst') {
-      filtered = filtered.filter((rule) => rule.facts?.dst_has_public === true)
+      filtered = filtered.filter(rule => rule.facts?.dst_has_public === true)
     } else if (localFilters.value.publicIP === 'either') {
       filtered = filtered.filter(
-        (rule) => rule.facts?.src_has_public === true || rule.facts?.dst_has_public === true
+        rule => rule.facts?.src_has_public === true || rule.facts?.dst_has_public === true
       )
     } else if (localFilters.value.publicIP === 'none') {
-      filtered = filtered.filter(
-        (rule) => !rule.facts?.src_has_public && !rule.facts?.dst_has_public
-      )
+      filtered = filtered.filter(rule => !rule.facts?.src_has_public && !rule.facts?.dst_has_public)
     }
   }
 
   // Direction filter
   if (localFilters.value.direction) {
-    filtered = filtered.filter((rule) => {
+    filtered = filtered.filter(rule => {
       const ruleDirection = (rule.direction || 'bidirectional').toLowerCase()
       return ruleDirection === localFilters.value.direction.toLowerCase()
     })
@@ -463,7 +469,7 @@ const filteredRules = computed(() => {
 
   // Has Issues filter (combines self-flow, any/any, public IPs)
   if (localFilters.value.hasIssues === 'yes') {
-    filtered = filtered.filter((rule) => {
+    filtered = filtered.filter(rule => {
       const facts = rule.facts || {}
       return (
         facts.is_self_flow ||
@@ -474,7 +480,7 @@ const filteredRules = computed(() => {
       )
     })
   } else if (localFilters.value.hasIssues === 'no') {
-    filtered = filtered.filter((rule) => {
+    filtered = filtered.filter(rule => {
       const facts = rule.facts || {}
       return (
         !facts.is_self_flow &&
@@ -488,7 +494,7 @@ const filteredRules = computed(() => {
 
   // Request ID filter (for global view)
   if (localFilters.value.requestId) {
-    filtered = filtered.filter((rule) => {
+    filtered = filtered.filter(rule => {
       const ruleRequestId = rule.request?.id || rule.request_id
       return ruleRequestId === parseInt(localFilters.value.requestId)
     })
@@ -512,7 +518,7 @@ const filteredRules = computed(() => {
 
     if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1
-    
+
     // Secondary sort by criticality (critical first, then warning, then clean, then no data)
     // Only use this if primary sort is not already by criticality
     if (sortKey.value !== 'criticality_score') {
@@ -522,14 +528,14 @@ const filteredRules = computed(() => {
         return bCriticality - aCriticality // Descending: higher criticality first
       }
     }
-    
+
     // Tertiary sort by ID for consistent ordering
     const aId = a.id ?? 0
     const bId = b.id ?? 0
     if (aId !== bId) {
       return aId - bId // Ascending by ID for consistency
     }
-    
+
     return 0
   })
 
@@ -548,16 +554,16 @@ const paginatedRules = computed(() => {
 })
 
 // Transform rules from getAllRules format to expected format
-const transformRuleForDisplay = (rule) => {
+const transformRuleForDisplay = rule => {
   // If rule already has endpoints and services, return as-is (backward compatibility)
   if (rule.endpoints && rule.services) {
     return rule
   }
-  
+
   // Transform from new format (source_networks, destination_networks, protocols, port_ranges)
   // to expected format (endpoints, services)
   const transformed = { ...rule }
-  
+
   // Build endpoints array
   const endpoints = []
   if (rule.source_networks && Array.isArray(rule.source_networks)) {
@@ -565,7 +571,7 @@ const transformRuleForDisplay = (rule) => {
       endpoints.push({
         endpoint_type: 'source',
         network_cidr: network,
-        cidr: network
+        cidr: network,
       })
     })
   }
@@ -574,27 +580,32 @@ const transformRuleForDisplay = (rule) => {
       endpoints.push({
         endpoint_type: 'destination',
         network_cidr: network,
-        cidr: network
+        cidr: network,
       })
     })
   }
   transformed.endpoints = endpoints
-  
+
   // Build services array
   const services = []
-  if (rule.protocols && Array.isArray(rule.protocols) && rule.port_ranges && Array.isArray(rule.port_ranges)) {
+  if (
+    rule.protocols &&
+    Array.isArray(rule.protocols) &&
+    rule.port_ranges &&
+    Array.isArray(rule.port_ranges)
+  ) {
     // Match protocols with port_ranges by index
     const maxLength = Math.max(rule.protocols.length, rule.port_ranges.length)
     for (let i = 0; i < maxLength; i++) {
       services.push({
         protocol: rule.protocols[i] || '',
         port_ranges: rule.port_ranges[i] || '',
-        ports: rule.port_ranges[i] || ''
+        ports: rule.port_ranges[i] || '',
       })
     }
   }
   transformed.services = services
-  
+
   return transformed
 }
 
@@ -624,7 +635,7 @@ const fetchRules = async () => {
     // Handle standardized response format
     const responseData = response.data || response
     const data = responseData.data || responseData
-    
+
     if (data) {
       if (data.rules) {
         // Transform rules to expected format
@@ -656,4 +667,3 @@ watch(
   { immediate: true }
 )
 </script>
-

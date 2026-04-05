@@ -79,7 +79,7 @@ const router = createRouter({
 // Navigation guard to check authentication
 router.beforeEach(async (to, from, next) => {
   // Require authentication by default, unless route is explicitly marked as public
-  const isPublicRoute = to.matched.some((record) => record.meta.public === true)
+  const isPublicRoute = to.matched.some(record => record.meta.public === true)
   const requiresAuth = !isPublicRoute // Require auth by default
 
   if (requiresAuth) {
@@ -112,4 +112,3 @@ router.beforeEach(async (to, from, next) => {
 })
 
 export default router
-

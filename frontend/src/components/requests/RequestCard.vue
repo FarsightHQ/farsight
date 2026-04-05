@@ -24,12 +24,8 @@
       </div>
 
       <div class="flex items-center space-x-2 ml-4" @click.stop>
-        <Button variant="ghost" size="sm" @click="$emit('view', request)">
-          View
-        </Button>
-        <Button variant="ghost" size="sm" @click="$emit('delete', request)">
-          Delete
-        </Button>
+        <Button variant="ghost" size="sm" @click="$emit('view', request)"> View </Button>
+        <Button variant="ghost" size="sm" @click="$emit('delete', request)"> Delete </Button>
       </div>
     </div>
   </Card>
@@ -50,7 +46,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click', 'view', 'delete'])
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -62,4 +58,3 @@ const formatDate = (dateString) => {
   })
 }
 </script>
-

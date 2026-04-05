@@ -35,7 +35,7 @@ export const assetsService = {
    * @returns {Promise} - Available filter options (segments, vlans, os_names, etc.)
    */
   getFilterOptions() {
-    return apiClient.get('/api/v1/assets/filter-options').catch((error) => {
+    return apiClient.get('/api/v1/assets/filter-options').catch(error => {
       // If endpoint doesn't exist, return empty options
       if (error.response?.status === 404) {
         console.warn('Filter options endpoint not available, returning empty options')
@@ -58,4 +58,3 @@ export const assetsService = {
     })
   },
 }
-

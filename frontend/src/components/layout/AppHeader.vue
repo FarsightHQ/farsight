@@ -21,18 +21,20 @@
               {{ user.email }}
             </p>
           </div>
-          <div class="h-10 w-10 rounded-full bg-theme-text-header/20 flex items-center justify-center">
+          <div
+            class="h-10 w-10 rounded-full bg-theme-text-header/20 flex items-center justify-center"
+          >
             <span class="text-sm font-medium text-theme-text-header">
               {{ getUserInitials(user) }}
             </span>
           </div>
         </div>
-        
+
         <!-- Logout Button (shown when authenticated) -->
         <button
           v-if="authenticated"
-          @click="handleLogout"
           class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-theme-text-header hover:text-theme-text-header/80 hover:bg-theme-text-header/10 rounded-lg transition-colors"
+          @click="handleLogout"
         >
           <ArrowRightOnRectangleIcon class="h-5 w-5" />
           <span>Logout</span>
@@ -53,7 +55,7 @@ const handleLogout = () => {
   logout()
 }
 
-const getUserInitials = (user) => {
+const getUserInitials = user => {
   if (user.name) {
     const names = user.name.split(' ')
     if (names.length >= 2) {
@@ -70,4 +72,3 @@ const getUserInitials = (user) => {
   return 'U'
 }
 </script>
-

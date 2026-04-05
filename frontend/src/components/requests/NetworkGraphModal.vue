@@ -1,5 +1,9 @@
 <template>
-  <Modal :model-value="modelValue" size="full" @update:model-value="$emit('update:modelValue', $event)">
+  <Modal
+    :model-value="modelValue"
+    size="full"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
     <template #header>
       <div class="flex items-center justify-between w-full">
         <div>
@@ -48,7 +52,16 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!graphData || (!graphData.sources || graphData.sources.length === 0) || (!graphData.destinations || graphData.destinations.length === 0)" class="flex items-center justify-center h-96">
+    <div
+      v-else-if="
+        !graphData ||
+        !graphData.sources ||
+        graphData.sources.length === 0 ||
+        !graphData.destinations ||
+        graphData.destinations.length === 0
+      "
+      class="flex items-center justify-center h-96"
+    >
       <div class="text-center max-w-md">
         <InformationCircleIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h4 class="text-lg font-semibold text-gray-900 mb-2">No Network Data</h4>
@@ -65,7 +78,10 @@
     <template #footer>
       <div class="flex items-center justify-between w-full">
         <div class="text-xs text-gray-500">
-          <p>Hover over elements to see details • Port count badges show number of ports per connection</p>
+          <p>
+            Hover over elements to see details • Port count badges show number of ports per
+            connection
+          </p>
         </div>
         <Button variant="outline" @click="$emit('update:modelValue', false)">Close</Button>
       </div>
@@ -149,13 +165,13 @@ const fetchTopology = async () => {
     if (props.ruleId) {
       // Debug logging
       console.log('[NetworkGraphModal] Fetching graph for rule:', props.ruleId)
-      
+
       // Fetch rule-specific graph data
       response = await requestsService.getRuleGraph(props.ruleId)
-      
+
       // Debug logging - log full response structure
       console.log('[NetworkGraphModal] Full API response:', response)
-      
+
       // Extract response data - handle multiple wrapper formats
       let data = response
       if (response.data) {
@@ -166,15 +182,15 @@ const fetchTopology = async () => {
         }
       }
       responseData = data
-      
+
       // Debug logging - log extracted responseData
       console.log('[NetworkGraphModal] Extracted responseData:', responseData)
       console.log('[NetworkGraphModal] responseData.graph:', responseData.graph)
-      
+
       // Graph data is nested in responseData.graph when include=graph
       if (responseData.graph) {
         const graph = responseData.graph
-        
+
         // Validate graph structure
         if (!graph.sources || !Array.isArray(graph.sources)) {
           console.error('[NetworkGraphModal] Graph missing sources array:', graph)
@@ -184,7 +200,7 @@ const fetchTopology = async () => {
           emptyStateMessage.value = 'Graph data structure is invalid (missing sources).'
           return
         }
-        
+
         if (!graph.destinations || !Array.isArray(graph.destinations)) {
           console.error('[NetworkGraphModal] Graph missing destinations array:', graph)
           error.value = `Invalid graph data: missing destinations array for rule ${props.ruleId}`
@@ -193,7 +209,7 @@ const fetchTopology = async () => {
           emptyStateMessage.value = 'Graph data structure is invalid (missing destinations).'
           return
         }
-        
+
         // Check if arrays are empty
         if (graph.sources.length === 0) {
           console.warn('[NetworkGraphModal] Graph has empty sources array')
@@ -207,7 +223,7 @@ const fetchTopology = async () => {
           }
           return
         }
-        
+
         if (graph.destinations.length === 0) {
           console.warn('[NetworkGraphModal] Graph has empty destinations array')
           emptyStateMessage.value = 'This rule has no destination networks to visualize.'
@@ -220,20 +236,23 @@ const fetchTopology = async () => {
           }
           return
         }
-        
+
         // New flow-style format: sources, destinations, connections
         graphData.value = graph
         summary.value = {
           rule_count: 1,
           source_count: graph.metadata?.source_count || graph.sources.length || 0,
           destination_count: graph.metadata?.destination_count || graph.destinations.length || 0,
-          service_count: graph.metadata?.service_count || graph.connections?.reduce((sum, conn) => sum + (conn.port_count || 0), 0) || 0,
+          service_count:
+            graph.metadata?.service_count ||
+            graph.connections?.reduce((sum, conn) => sum + (conn.port_count || 0), 0) ||
+            0,
         }
-        
+
         console.log('[NetworkGraphModal] Successfully loaded graph data:', {
           sources: graph.sources.length,
           destinations: graph.destinations.length,
-          connections: graph.connections?.length || 0
+          connections: graph.connections?.length || 0,
         })
       } else if (responseData.topology) {
         // Fallback for request-level topology format (old format)
@@ -245,15 +264,20 @@ const fetchTopology = async () => {
         }
       } else {
         // Check if responseData itself has the graph structure (direct format)
-        if (responseData.sources && Array.isArray(responseData.sources) && 
-            responseData.destinations && Array.isArray(responseData.destinations)) {
+        if (
+          responseData.sources &&
+          Array.isArray(responseData.sources) &&
+          responseData.destinations &&
+          Array.isArray(responseData.destinations)
+        ) {
           console.log('[NetworkGraphModal] Found graph data in direct format')
           graphData.value = responseData
           summary.value = {
             rule_count: 1,
             source_count: responseData.sources.length || 0,
             destination_count: responseData.destinations.length || 0,
-            service_count: responseData.metadata?.service_count || responseData.connections?.length || 0,
+            service_count:
+              responseData.metadata?.service_count || responseData.connections?.length || 0,
           }
         } else {
           console.error('[NetworkGraphModal] No graph data found in response:', responseData)
@@ -278,7 +302,10 @@ const fetchTopology = async () => {
         summary.value = responseData.summary || {
           total_rules: responseData.topology?.metadata?.rule_count || 0,
           network_nodes: responseData.topology?.metadata?.network_count || 0,
-          connections: responseData.topology?.metadata?.connection_count || responseData.topology?.links?.length || 0,
+          connections:
+            responseData.topology?.metadata?.connection_count ||
+            responseData.topology?.links?.length ||
+            0,
         }
       }
     }
@@ -295,7 +322,7 @@ const fetchTopology = async () => {
 // Watch for modal opening
 watch(
   () => props.modelValue,
-  (isOpen) => {
+  isOpen => {
     if (isOpen && (props.ruleId || props.requestId)) {
       fetchTopology()
     }
@@ -306,7 +333,7 @@ watch(
 // Watch for ruleId changes
 watch(
   () => props.ruleId,
-  (newId) => {
+  newId => {
     if (props.modelValue && newId) {
       fetchTopology()
     }
@@ -316,7 +343,7 @@ watch(
 // Watch for requestId changes (backward compatibility)
 watch(
   () => props.requestId,
-  (newId) => {
+  newId => {
     if (props.modelValue && newId && !props.ruleId) {
       fetchTopology()
     }
@@ -326,7 +353,7 @@ watch(
 // Watch for graphData prop changes
 watch(
   () => props.graphData,
-  (newData) => {
+  newData => {
     if (newData && props.modelValue) {
       graphData.value = newData
       summary.value = {
@@ -342,4 +369,3 @@ watch(
   { immediate: true, deep: true }
 )
 </script>
-

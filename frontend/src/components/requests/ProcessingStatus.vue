@@ -40,8 +40,8 @@
           <p class="text-sm text-error-700 whitespace-pre-wrap">{{ currentStep.error }}</p>
           <button
             v-if="currentStep.error"
-            @click="copyError(currentStep.error)"
             class="mt-2 text-xs text-error-600 hover:text-error-800 flex items-center space-x-1"
+            @click="copyError(currentStep.error)"
           >
             <DocumentDuplicateIcon class="h-4 w-4" />
             <span>Copy error message</span>
@@ -87,7 +87,7 @@ const props = defineProps({
 
 const { success } = useToast()
 
-const getResultType = (stepKey) => {
+const getResultType = stepKey => {
   if (!stepKey) return 'general'
   if (stepKey === 'ingest') return 'ingestion'
   if (stepKey === 'facts') return 'facts'
@@ -95,7 +95,7 @@ const getResultType = (stepKey) => {
   return 'general'
 }
 
-const formatDuration = (duration) => {
+const formatDuration = duration => {
   if (typeof duration === 'number') {
     if (duration < 1000) return `${duration}ms`
     if (duration < 60000) return `${(duration / 1000).toFixed(1)}s`
@@ -106,7 +106,7 @@ const formatDuration = (duration) => {
   return duration || 'N/A'
 }
 
-const copyError = async (errorText) => {
+const copyError = async errorText => {
   try {
     await navigator.clipboard.writeText(errorText)
     success('Error message copied to clipboard')
@@ -115,4 +115,3 @@ const copyError = async (errorText) => {
   }
 }
 </script>
-

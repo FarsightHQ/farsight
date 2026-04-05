@@ -19,10 +19,10 @@ let listenersSetup = false
 
 function setupKeycloakListeners() {
   if (listenersSetup) return
-  
+
   const keycloak = getKeycloakInstance()
   if (!keycloak) return
-  
+
   // Update state when authentication succeeds
   keycloak.onAuthSuccess = () => {
     authenticated.value = isAuthenticated()
@@ -30,19 +30,19 @@ function setupKeycloakListeners() {
       user.value = getUserInfo()
     }
   }
-  
+
   // Update state on authentication error
   keycloak.onAuthError = () => {
     authenticated.value = false
     user.value = null
   }
-  
+
   // Update state on logout
   keycloak.onAuthLogout = () => {
     authenticated.value = false
     user.value = null
   }
-  
+
   // Update state when token is refreshed
   keycloak.onTokenExpired = () => {
     // Token refresh will be handled by the refresh function
@@ -51,7 +51,7 @@ function setupKeycloakListeners() {
       user.value = getUserInfo()
     }
   }
-  
+
   listenersSetup = true
 }
 
@@ -71,7 +71,6 @@ function checkAuth() {
  * Composable for authentication state and methods
  */
 export function useAuth() {
-
   /**
    * Login function
    */
@@ -91,7 +90,7 @@ export function useAuth() {
   /**
    * Check if user has a specific role
    */
-  const userHasRole = (role) => {
+  const userHasRole = role => {
     return hasRole(role)
   }
 
@@ -116,7 +115,7 @@ export function useAuth() {
     authenticated: computed(() => authenticated.value),
     user: computed(() => user.value),
     loading: computed(() => loading.value),
-    
+
     // Methods
     checkAuth,
     login: handleLogin,

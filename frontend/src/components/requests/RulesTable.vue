@@ -3,7 +3,9 @@
     <table class="min-w-full divide-y divide-theme-border-default">
       <thead class="bg-theme-content">
         <tr>
-          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider w-12">
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider w-12"
+          >
             <input
               type="checkbox"
               :checked="allSelected"
@@ -29,32 +31,42 @@
               <ChevronUpIcon v-else class="h-4 w-4 text-theme-text-muted" />
             </div>
           </th>
-          <th 
+          <th
             v-if="showRequestColumn"
             class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
           >
             Request
           </th>
-          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Source Networks
           </th>
-          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Dest Networks
           </th>
-          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Services
           </th>
-          <th class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Assessment
           </th>
-          <th class="px-4 py-2 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Actions
           </th>
         </tr>
       </thead>
       <tbody class="bg-theme-card divide-y divide-theme-border-default">
         <!-- Loading Skeleton -->
-        <tr v-if="loading" v-for="i in 5" :key="i">
+        <tr v-for="i in 5" v-if="loading" :key="i">
           <td class="px-4 py-2 whitespace-nowrap">
             <div class="h-4 bg-gray-200 rounded animate-pulse w-4"></div>
           </td>
@@ -83,14 +95,14 @@
 
         <!-- Rules Rows -->
         <tr
-          v-else
           v-for="rule in rules"
+          v-else
           :key="rule.id"
           class="hover:bg-theme-hover transition-colors"
           :class="{
             'bg-theme-selected': selectedRules.includes(rule.id),
             'bg-red-50': rule.health_status === 'critical' && !selectedRules.includes(rule.id),
-            'bg-yellow-50': rule.health_status === 'warning' && !selectedRules.includes(rule.id)
+            'bg-yellow-50': rule.health_status === 'warning' && !selectedRules.includes(rule.id),
           }"
         >
           <td class="px-4 py-2 whitespace-nowrap" @click.stop>
@@ -101,13 +113,13 @@
               @change="toggleRule(rule.id)"
             />
           </td>
-          <td 
+          <td
             class="px-4 py-2 whitespace-nowrap text-sm font-medium text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             {{ rule.id }}
           </td>
-          <td 
+          <td
             v-if="showRequestColumn"
             class="px-4 py-2 text-sm text-theme-text-content"
             @click.stop
@@ -121,29 +133,23 @@
             </router-link>
             <span v-else class="text-theme-text-muted">—</span>
           </td>
-          <td 
+          <td
             class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
-            <div 
-              class="max-w-xs truncate" 
-              :title="getOriginalCidr(rule.endpoints, 'source')"
-            >
+            <div class="max-w-xs truncate" :title="getOriginalCidr(rule.endpoints, 'source')">
               {{ getFormattedNetworks(rule.id, 'source') || '—' }}
             </div>
           </td>
-          <td 
+          <td
             class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
-            <div 
-              class="max-w-xs truncate" 
-              :title="getOriginalCidr(rule.endpoints, 'destination')"
-            >
+            <div class="max-w-xs truncate" :title="getOriginalCidr(rule.endpoints, 'destination')">
               {{ getFormattedNetworks(rule.id, 'destination') || '—' }}
             </div>
           </td>
-          <td 
+          <td
             class="px-4 py-2 text-sm text-theme-text-content cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
@@ -151,19 +157,16 @@
               {{ formatServices(rule.services) || '—' }}
             </div>
           </td>
-          <td 
-            class="px-4 py-2 text-sm cursor-pointer"
-            @click="$emit('view-rule', rule)"
-          >
+          <td class="px-4 py-2 text-sm cursor-pointer" @click="$emit('view-rule', rule)">
             <div class="flex items-center space-x-2">
-              <span 
+              <span
                 v-if="rule.health_status"
                 :class="getAssessmentBadgeClass(rule.health_status)"
                 class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
               >
                 {{ getAssessmentBadgeText(rule.health_status) }}
               </span>
-              <span 
+              <span
                 v-if="rule.problem_count && rule.problem_count > 0"
                 class="text-theme-text-content"
               >
@@ -174,11 +177,15 @@
           </td>
           <td class="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 :disabled="!hasNetworkData(rule)"
-                :title="!hasNetworkData(rule) ? 'This rule has no network data to visualize' : 'Visualize network topology'"
+                :title="
+                  !hasNetworkData(rule)
+                    ? 'This rule has no network data to visualize'
+                    : 'Visualize network topology'
+                "
                 @click.stop="handleVisualize(rule)"
               >
                 Visualize
@@ -230,7 +237,7 @@ const props = defineProps({
   sortDirection: {
     type: String,
     default: 'asc',
-    validator: (value) => ['asc', 'desc'].includes(value),
+    validator: value => ['asc', 'desc'].includes(value),
   },
   showRequestColumn: {
     type: Boolean,
@@ -255,34 +262,37 @@ const toggleSelectAll = () => {
   if (allSelected.value) {
     emit('deselect-all')
   } else {
-    emit('select-all', props.rules.map(r => r.id))
+    emit(
+      'select-all',
+      props.rules.map(r => r.id)
+    )
   }
 }
 
-const toggleRule = (ruleId) => {
+const toggleRule = ruleId => {
   emit('select-rule', ruleId)
 }
 
-const handleSort = (key) => {
+const handleSort = key => {
   emit('sort', key)
 }
 
 // Check if rule has network data for visualization
-const hasNetworkData = (rule) => {
+const hasNetworkData = rule => {
   if (!rule) return false
-  
+
   // Check if rule has endpoints array with source or destination entries
   const hasEndpoints = rule.endpoints && Array.isArray(rule.endpoints) && rule.endpoints.length > 0
-  
+
   // Check if rule has services array
   const hasServices = rule.services && Array.isArray(rule.services) && rule.services.length > 0
-  
+
   // Rule needs at least endpoints to visualize
   return hasEndpoints
 }
 
 // Handle visualize button click with validation
-const handleVisualize = (rule) => {
+const handleVisualize = rule => {
   if (!hasNetworkData(rule)) {
     console.warn('[RulesTable] Rule has no network data for visualization:', rule.id)
     // Still emit the event - let the modal handle showing appropriate message
@@ -294,17 +304,17 @@ const handleVisualize = (rule) => {
 const formatNetworks = (endpoints, type) => {
   if (!endpoints || !Array.isArray(endpoints)) return ''
   const networks = endpoints
-    .filter((ep) => ep.endpoint_type === type || ep.type === type)
-    .map((ep) => {
+    .filter(ep => ep.endpoint_type === type || ep.type === type)
+    .map(ep => {
       const cidr = ep.network_cidr || ep.cidr
       const ipRange = formatCidrToRange(cidr)
-      
+
       // Try to get hostname from asset cache
       // Access cacheVersion to make this reactive
       const _ = cacheVersion.value
       const asset = getAssetForCidr(cidr)
       const hostname = asset?.hostname
-      
+
       // Display format: "192.168.1.0 - 192.168.1.255 (hostname)" or just IP range if no hostname
       return hostname ? `${ipRange} (${hostname})` : ipRange
     })
@@ -316,9 +326,9 @@ const formatNetworks = (endpoints, type) => {
 const formattedNetworksByRule = computed(() => {
   // Access cacheVersion to track changes
   const _ = cacheVersion.value
-  
+
   const result = new Map()
-  props.rules.forEach((rule) => {
+  props.rules.forEach(rule => {
     if (rule.endpoints) {
       result.set(rule.id, {
         source: formatNetworks(rule.endpoints, 'source'),
@@ -339,15 +349,15 @@ const getFormattedNetworks = (ruleId, type) => {
 const getOriginalCidr = (endpoints, type) => {
   if (!endpoints || !Array.isArray(endpoints)) return ''
   const networks = endpoints
-    .filter((ep) => ep.endpoint_type === type || ep.type === type)
-    .map((ep) => ep.network_cidr || ep.cidr)
+    .filter(ep => ep.endpoint_type === type || ep.type === type)
+    .map(ep => ep.network_cidr || ep.cidr)
   return networks.length > 0 ? networks.join(', ') : ''
 }
 
-const formatServices = (services) => {
+const formatServices = services => {
   if (!services || !Array.isArray(services)) return ''
   return services
-    .map((svc) => {
+    .map(svc => {
       const protocol = (svc.protocol || '').toUpperCase()
       const ports = svc.port_ranges || svc.ports || ''
       const formattedPorts = formatPortRanges(ports)
@@ -357,20 +367,20 @@ const formatServices = (services) => {
 }
 
 // Assessment helper functions
-const getAssessmentBadgeClass = (healthStatus) => {
+const getAssessmentBadgeClass = healthStatus => {
   const classes = {
-    'critical': 'bg-red-100 text-red-800',
-    'warning': 'bg-yellow-100 text-yellow-800',
-    'clean': 'bg-green-100 text-green-800'
+    critical: 'bg-red-100 text-red-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    clean: 'bg-green-100 text-green-800',
   }
   return classes[healthStatus] || 'bg-theme-active text-theme-text-content'
 }
 
-const getAssessmentBadgeText = (healthStatus) => {
+const getAssessmentBadgeText = healthStatus => {
   const texts = {
-    'critical': 'Critical',
-    'warning': 'Warning',
-    'clean': 'Clean'
+    critical: 'Critical',
+    warning: 'Warning',
+    clean: 'Clean',
   }
   return texts[healthStatus] || healthStatus
 }
@@ -378,17 +388,17 @@ const getAssessmentBadgeText = (healthStatus) => {
 // Fetch asset info for all unique IPs when rules change
 watch(
   () => props.rules,
-  async (newRules) => {
+  async newRules => {
     if (!newRules || newRules.length === 0) return
-    
+
     // Collect all endpoints from all rules
     const allEndpoints = []
-    newRules.forEach((rule) => {
+    newRules.forEach(rule => {
       if (rule.endpoints && Array.isArray(rule.endpoints)) {
         allEndpoints.push(...rule.endpoints)
       }
     })
-    
+
     // Fetch asset info for all unique IPs
     await fetchAssetsForEndpoints(allEndpoints)
   },
@@ -399,7 +409,7 @@ watch(
 onMounted(async () => {
   if (props.rules && props.rules.length > 0) {
     const allEndpoints = []
-    props.rules.forEach((rule) => {
+    props.rules.forEach(rule => {
       if (rule.endpoints && Array.isArray(rule.endpoints)) {
         allEndpoints.push(...rule.endpoints)
       }
@@ -408,4 +418,3 @@ onMounted(async () => {
   }
 })
 </script>
-

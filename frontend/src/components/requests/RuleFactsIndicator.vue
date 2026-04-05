@@ -46,13 +46,7 @@
     </span>
 
     <!-- No Facts -->
-    <span
-      v-else-if="!facts"
-      class="text-xs text-gray-400"
-      title="No facts computed"
-    >
-      —
-    </span>
+    <span v-else-if="!facts" class="text-xs text-gray-400" title="No facts computed"> — </span>
   </div>
   <span v-else class="text-xs text-gray-400">—</span>
 </template>
@@ -79,4 +73,3 @@ const hasIssues = computed(() => {
   )
 })
 </script>
-

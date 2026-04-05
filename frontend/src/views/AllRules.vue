@@ -1,10 +1,14 @@
 <template>
-  <div class="flex flex-col" style="height: calc(100vh - 12rem);">
+  <div class="flex flex-col" style="height: calc(100vh - 12rem)">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6 pb-4 border-b border-theme-border-default flex-shrink-0">
+    <div
+      class="flex items-center justify-between mb-6 pb-4 border-b border-theme-border-default flex-shrink-0"
+    >
       <div>
         <h1 class="text-3xl font-bold mb-2">All Rules</h1>
-        <p class="text-sm text-theme-text-content">View and analyze firewall rules across all FAR requests</p>
+        <p class="text-sm text-theme-text-content">
+          View and analyze firewall rules across all FAR requests
+        </p>
       </div>
     </div>
 
@@ -12,11 +16,11 @@
     <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
       <!-- Left Sidebar: Filters -->
       <aside class="w-72 flex-shrink-0 overflow-y-auto">
-        <RulesFilter 
-          :filters="filters" 
-          :rules="rulesData" 
+        <RulesFilter
+          :filters="filters"
+          :rules="rulesData"
           :show-request-filter="true"
-          @update:filters="handleFilterUpdate" 
+          @update:filters="handleFilterUpdate"
         />
       </aside>
 
@@ -41,7 +45,9 @@
           <div class="space-y-3 text-sm">
             <div class="flex items-center justify-between">
               <span class="font-medium text-theme-text-content">Total Rules:</span>
-              <span class="text-theme-text-content font-semibold">{{ summary.total_rules || 0 }}</span>
+              <span class="text-theme-text-content font-semibold">{{
+                summary.total_rules || 0
+              }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="font-medium text-theme-text-content">Allow Rules:</span>
@@ -53,17 +59,26 @@
             </div>
             <div class="flex items-center justify-between">
               <span class="font-medium text-theme-text-content">Unique Sources:</span>
-              <span class="text-theme-text-content font-semibold">{{ summary.unique_sources || 0 }}</span>
+              <span class="text-theme-text-content font-semibold">{{
+                summary.unique_sources || 0
+              }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="font-medium text-theme-text-content">Unique Destinations:</span>
-              <span class="text-theme-text-content font-semibold">{{ summary.unique_destinations || 0 }}</span>
+              <span class="text-theme-text-content font-semibold">{{
+                summary.unique_destinations || 0
+              }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="font-medium text-theme-text-content">Protocols:</span>
-              <span class="text-theme-text-content font-semibold">{{ summary.protocols_used?.length || 0 }}</span>
+              <span class="text-theme-text-content font-semibold">{{
+                summary.protocols_used?.length || 0
+              }}</span>
             </div>
-            <div v-if="summary.protocols_used && summary.protocols_used.length > 0" class="mt-4 pt-4 border-t border-theme-border-card">
+            <div
+              v-if="summary.protocols_used && summary.protocols_used.length > 0"
+              class="mt-4 pt-4 border-t border-theme-border-card"
+            >
               <span class="font-medium text-theme-text-content block mb-2">Protocols Used:</span>
               <div class="flex flex-wrap gap-2">
                 <span
@@ -89,7 +104,9 @@
     <NetworkGraphModal
       v-model="showGraphModal"
       :rule-id="selectedRuleForVisualization?.id"
-      :rule-title="selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`"
+      :rule-title="
+        selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`
+      "
       :graph-data="mergedGraphData"
     />
   </div>
@@ -123,40 +140,40 @@ const showGraphModal = ref(false)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
 
-const handleFilterUpdate = (newFilters) => {
+const handleFilterUpdate = newFilters => {
   filters.value = { ...filters.value, ...newFilters }
 }
 
-const handleViewRule = (rule) => {
+const handleViewRule = rule => {
   // Navigate to standalone route for rule detail
   router.push(`/rules/${rule.id}`)
 }
 
-const handleStatsUpdated = (stats) => {
+const handleStatsUpdated = stats => {
   summary.value = stats
 }
 
-const handleRulesLoaded = (rules) => {
+const handleRulesLoaded = rules => {
   rulesData.value = rules
 }
 
-const handleVisualizeRule = (rule) => {
+const handleVisualizeRule = rule => {
   selectedRuleForVisualization.value = rule
   mergedGraphData.value = null
   showGraphModal.value = true
 }
 
-const handleVisualizeMultipleRules = (data) => {
+const handleVisualizeMultipleRules = data => {
   // RulesList emits { ruleIds: [...], graphData: mergedGraph }
   // Extract graphData from the emitted object structure
   const graphData = data.graphData || data
-  
+
   // Validate graph data structure
   if (!graphData || (!graphData.sources && !graphData.destinations)) {
     console.warn('[AllRules] Invalid graph data structure:', data)
     // Still try to show modal with error state
   }
-  
+
   mergedGraphData.value = graphData
   selectedRuleForVisualization.value = {
     id: 'multiple',
@@ -165,4 +182,3 @@ const handleVisualizeMultipleRules = (data) => {
   showGraphModal.value = true
 }
 </script>
-

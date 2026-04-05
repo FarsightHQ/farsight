@@ -4,8 +4,8 @@
       <h3 class="text-sm font-medium text-gray-900">Processing History</h3>
       <button
         v-if="hasCompletedSteps"
-        @click="expanded = !expanded"
         class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+        @click="expanded = !expanded"
       >
         {{ expanded ? 'Collapse All' : 'Expand All' }}
       </button>
@@ -20,29 +20,15 @@
 
       <!-- Timeline Items -->
       <div class="space-y-4">
-        <div
-          v-for="(step, index) in steps"
-          :key="step.key"
-          class="relative pl-12"
-        >
+        <div v-for="(step, index) in steps" :key="step.key" class="relative pl-12">
           <!-- Timeline Dot -->
           <div
             class="absolute left-0 top-1 h-10 w-10 rounded-full flex items-center justify-center border-2 z-10"
             :class="getStepDotClass(step)"
           >
-            <CheckIcon
-              v-if="step.status === 'completed'"
-              class="h-5 w-5 text-white"
-            />
-            <XMarkIcon
-              v-else-if="step.status === 'error'"
-              class="h-5 w-5 text-white"
-            />
-            <Spinner
-              v-else-if="step.status === 'processing'"
-              size="sm"
-              color="white"
-            />
+            <CheckIcon v-if="step.status === 'completed'" class="h-5 w-5 text-white" />
+            <XMarkIcon v-else-if="step.status === 'error'" class="h-5 w-5 text-white" />
+            <Spinner v-else-if="step.status === 'processing'" size="sm" color="white" />
             <span v-else class="text-xs font-medium text-gray-400">{{ index + 1 }}</span>
           </div>
 
@@ -91,7 +77,10 @@
             >
               <div v-if="expandedSteps.has(step.key) || expanded" class="mt-4 pt-4 border-t">
                 <!-- Progress (if processing) -->
-                <div v-if="step.status === 'processing' && step.progress !== undefined" class="mb-4">
+                <div
+                  v-if="step.status === 'processing' && step.progress !== undefined"
+                  class="mb-4"
+                >
                   <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
                     <span>Progress</span>
                     <span>{{ step.progress }}%</span>
@@ -116,16 +105,19 @@
                 </div>
 
                 <!-- Error Details -->
-                <div v-if="step.error" class="mt-4 p-3 bg-error-50 border border-error-200 rounded-lg">
+                <div
+                  v-if="step.error"
+                  class="mt-4 p-3 bg-error-50 border border-error-200 rounded-lg"
+                >
                   <div class="flex items-start justify-between">
                     <div class="flex-1">
                       <h5 class="text-xs font-medium text-error-800 mb-1">Error:</h5>
                       <p class="text-sm text-error-700">{{ step.error }}</p>
                     </div>
                     <button
-                      @click.stop="copyError(step.error)"
                       class="ml-2 text-error-600 hover:text-error-800"
                       title="Copy error message"
+                      @click.stop="copyError(step.error)"
                     >
                       <DocumentDuplicateIcon class="h-4 w-4" />
                     </button>
@@ -156,7 +148,12 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { CheckIcon, XMarkIcon, ChevronDownIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline'
+import {
+  CheckIcon,
+  XMarkIcon,
+  ChevronDownIcon,
+  DocumentDuplicateIcon,
+} from '@heroicons/vue/24/outline'
 import StatusBadge from './StatusBadge.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import ResultsSummary from './ResultsSummary.vue'
@@ -174,10 +171,10 @@ const expandedSteps = ref(new Set())
 const expanded = ref(false)
 
 const hasCompletedSteps = computed(() => {
-  return props.steps.some((s) => s.status === 'completed' || s.status === 'error')
+  return props.steps.some(s => s.status === 'completed' || s.status === 'error')
 })
 
-const toggleStep = (stepKey) => {
+const toggleStep = stepKey => {
   if (expandedSteps.value.has(stepKey)) {
     expandedSteps.value.delete(stepKey)
   } else {
@@ -185,7 +182,7 @@ const toggleStep = (stepKey) => {
   }
 }
 
-const hasStepDetails = (step) => {
+const hasStepDetails = step => {
   return (
     step.description ||
     (step.results && Object.keys(step.results).length > 0) ||
@@ -195,7 +192,7 @@ const hasStepDetails = (step) => {
   )
 }
 
-const getStepDotClass = (step) => {
+const getStepDotClass = step => {
   if (step.status === 'completed') {
     return 'bg-primary-600 border-primary-600'
   } else if (step.status === 'error') {
@@ -207,7 +204,7 @@ const getStepDotClass = (step) => {
   }
 }
 
-const getStepCardClass = (step) => {
+const getStepCardClass = step => {
   if (step.status === 'error') {
     return 'border-error-200'
   } else if (step.status === 'completed') {
@@ -219,7 +216,7 @@ const getStepCardClass = (step) => {
   }
 }
 
-const formatTimestamp = (timestamp) => {
+const formatTimestamp = timestamp => {
   if (!timestamp) return ''
   const date = new Date(timestamp)
   return date.toLocaleTimeString('en-US', {
@@ -229,7 +226,7 @@ const formatTimestamp = (timestamp) => {
   })
 }
 
-const formatDuration = (duration) => {
+const formatDuration = duration => {
   if (typeof duration === 'number') {
     if (duration < 1000) return `${duration}ms`
     if (duration < 60000) return `${(duration / 1000).toFixed(1)}s`
@@ -240,14 +237,14 @@ const formatDuration = (duration) => {
   return duration || 'N/A'
 }
 
-const getResultType = (stepKey) => {
+const getResultType = stepKey => {
   if (stepKey === 'ingest') return 'ingestion'
   if (stepKey === 'facts') return 'facts'
   if (stepKey === 'hybrid') return 'hybrid'
   return 'general'
 }
 
-const copyError = async (errorText) => {
+const copyError = async errorText => {
   try {
     await navigator.clipboard.writeText(errorText)
     success('Error message copied to clipboard')
@@ -256,4 +253,3 @@ const copyError = async (errorText) => {
   }
 }
 </script>
-

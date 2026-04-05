@@ -12,11 +12,7 @@
             isVizWorkspaceRoute ? 'overflow-hidden flex flex-col' : 'overflow-y-auto',
           ]"
         >
-          <div
-            :class="[
-              isVizWorkspaceRoute ? 'flex-1 min-h-0 p-0 flex flex-col' : 'p-6',
-            ]"
-          >
+          <div :class="[isVizWorkspaceRoute ? 'flex-1 min-h-0 p-0 flex flex-col' : 'p-6']">
             <slot />
           </div>
         </main>
@@ -41,12 +37,14 @@ import { useVizAppChrome } from '@/composables/useVizAppChrome'
 const route = useRoute()
 const { hideAppChrome, resetVizChrome } = useVizAppChrome()
 
-const isVizWorkspaceRoute = computed(() => route.matched.some((record) => record.meta.vizWorkspace === true))
+const isVizWorkspaceRoute = computed(() =>
+  route.matched.some(record => record.meta.vizWorkspace === true)
+)
 
 watch(
   () => route.fullPath,
   () => {
     if (!isVizWorkspaceRoute.value) resetVizChrome()
-  },
+  }
 )
 </script>

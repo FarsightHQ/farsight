@@ -15,7 +15,9 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900">Firewall Rules</h1>
-        <p class="text-gray-600 mt-1">Manage and explore firewall rules for request {{ requestId }}</p>
+        <p class="text-gray-600 mt-1">
+          Manage and explore firewall rules for request {{ requestId }}
+        </p>
       </div>
       <div class="flex items-center space-x-2">
         <Button variant="outline" @click="$router.push(`/requests/${requestId}`)">
@@ -41,8 +43,7 @@ const router = useRouter()
 
 const requestId = computed(() => route.params.id)
 
-const handleViewRule = (rule) => {
+const handleViewRule = rule => {
   router.push(`/rules/${rule.id}`)
 }
 </script>
-

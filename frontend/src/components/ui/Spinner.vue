@@ -32,7 +32,7 @@ const props = defineProps({
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg', 'xl'].includes(value),
+    validator: value => ['sm', 'md', 'lg', 'xl'].includes(value),
   },
   showText: {
     type: Boolean,
@@ -41,7 +41,7 @@ const props = defineProps({
   color: {
     type: String,
     default: 'primary',
-    validator: (value) => ['primary', 'white', 'gray'].includes(value),
+    validator: value => ['primary', 'white', 'gray'].includes(value),
   },
 })
 
@@ -64,4 +64,3 @@ const spinnerClasses = computed(() => {
   return ['inline-block', colorClasses[props.color]].join(' ')
 })
 </script>
-

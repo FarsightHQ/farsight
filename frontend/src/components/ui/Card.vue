@@ -17,7 +17,7 @@ const props = defineProps({
   padding: {
     type: String,
     default: 'normal',
-    validator: (value) => ['none', 'sm', 'normal', 'lg'].includes(value),
+    validator: value => ['none', 'sm', 'normal', 'lg'].includes(value),
   },
   shadow: {
     type: Boolean,
@@ -38,4 +38,3 @@ const cardClasses = computed(() => {
   return [base, paddingClasses[props.padding], shadowClass].filter(Boolean).join(' ')
 })
 </script>
-

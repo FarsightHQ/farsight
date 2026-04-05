@@ -3,7 +3,9 @@
     <table class="min-w-full divide-y divide-theme-border-default">
       <thead class="bg-theme-content">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             <input
               type="checkbox"
               :checked="allSelected"
@@ -46,7 +48,9 @@
               <ChevronUpIcon v-else class="h-4 w-4 text-theme-text-muted" />
             </div>
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             VLAN
           </th>
           <th
@@ -66,16 +70,24 @@
               <ChevronUpIcon v-else class="h-4 w-4 text-theme-text-muted" />
             </div>
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Hostname
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Environment
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Status
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Uploaded by
           </th>
           <th
@@ -95,14 +107,16 @@
               <ChevronUpIcon v-else class="h-4 w-4 text-theme-text-muted" />
             </div>
           </th>
-          <th class="px-6 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Actions
           </th>
         </tr>
       </thead>
       <tbody class="bg-theme-card divide-y divide-theme-border-default">
         <!-- Loading Skeleton -->
-        <tr v-if="loading" v-for="i in 5" :key="i">
+        <tr v-for="i in 5" v-if="loading" :key="i">
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="h-4 bg-theme-active/30 rounded animate-pulse w-16"></div>
           </td>
@@ -140,8 +154,8 @@
 
         <!-- Assets Rows -->
         <tr
-          v-else
           v-for="asset in assets"
+          v-else
           :key="asset.id"
           class="hover:bg-theme-hover/50 cursor-pointer transition-colors"
           @click="$emit('view-asset', asset)"
@@ -172,7 +186,11 @@
             </div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <Badge v-if="asset.environment && String(asset.environment).trim()" :label="String(asset.environment).trim()" variant="info" />
+            <Badge
+              v-if="asset.environment && String(asset.environment).trim()"
+              :label="String(asset.environment).trim()"
+              variant="info"
+            />
             <span v-else class="text-theme-text-muted">—</span>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
@@ -240,17 +258,16 @@ const props = defineProps({
 const emit = defineEmits(['view-asset', 'select-asset', 'select-all', 'sort'])
 
 const allSelected = computed(() => {
-  return props.assets.length > 0 && props.assets.every((asset) => props.selectedAssets.includes(asset.id))
-})
-
-const someSelected = computed(() => {
   return (
-    props.selectedAssets.length > 0 &&
-    props.selectedAssets.length < props.assets.length
+    props.assets.length > 0 && props.assets.every(asset => props.selectedAssets.includes(asset.id))
   )
 })
 
-const isSelected = (assetId) => {
+const someSelected = computed(() => {
+  return props.selectedAssets.length > 0 && props.selectedAssets.length < props.assets.length
+})
+
+const isSelected = assetId => {
   return props.selectedAssets.includes(assetId)
 }
 
@@ -258,15 +275,15 @@ const handleSelectAsset = (assetId, checked) => {
   emit('select-asset', assetId, checked)
 }
 
-const handleSelectAllChange = (event) => {
+const handleSelectAllChange = event => {
   emit('select-all', event.target.checked)
 }
 
-const handleSort = (key) => {
+const handleSort = key => {
   emit('sort', key)
 }
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -276,4 +293,3 @@ const formatDate = (dateString) => {
   })
 }
 </script>
-

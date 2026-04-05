@@ -31,7 +31,9 @@
     <NetworkGraphModal
       v-model="showGraphModal"
       :rule-id="selectedRuleForVisualization?.id"
-      :rule-title="selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`"
+      :rule-title="
+        selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`
+      "
       :graph-data="mergedGraphData"
     />
   </div>
@@ -69,7 +71,7 @@ const handleBack = () => {
   }
 }
 
-const handleVisualizeRule = (rule) => {
+const handleVisualizeRule = rule => {
   selectedRuleForVisualization.value = rule
   mergedGraphData.value = null // Clear merged data for single rule
   showGraphModal.value = true
@@ -81,10 +83,10 @@ const fetchRule = async () => {
     const response = await rulesService.getRule(ruleId.value, {
       include: 'all',
     })
-    
+
     const responseData = response.data || response
     const data = responseData.data || responseData
-    
+
     // Transform the data to match component expectations
     if (data) {
       rule.value = {
@@ -95,12 +97,12 @@ const fetchRule = async () => {
         canonical_hash: data.rule_details?.canonical_hash || data.canonical_hash,
         request_id: data.request?.id,
         endpoints: [
-          ...(data.endpoints?.sources || []).map((ep) => ({
+          ...(data.endpoints?.sources || []).map(ep => ({
             ...ep,
             endpoint_type: 'source',
             network_cidr: ep.network_cidr || ep.cidr,
           })),
-          ...(data.endpoints?.destinations || []).map((ep) => ({
+          ...(data.endpoints?.destinations || []).map(ep => ({
             ...ep,
             endpoint_type: 'destination',
             network_cidr: ep.network_cidr || ep.cidr,
@@ -131,4 +133,3 @@ watch([() => route.params.ruleId, () => route.params.id, () => route.params.requ
   }
 })
 </script>
-

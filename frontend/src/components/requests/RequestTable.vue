@@ -50,7 +50,9 @@
               </span>
             </div>
           </th>
-          <th class="px-4 py-2 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider">
+          <th
+            class="px-4 py-2 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+          >
             Actions
           </th>
         </tr>
@@ -98,12 +100,8 @@
           </td>
           <td class="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
             <div class="flex items-center justify-end space-x-2">
-              <Button variant="ghost" size="sm" @click="$emit('view', request)">
-                View
-              </Button>
-              <Button variant="ghost" size="sm" @click="$emit('delete', request)">
-                Delete
-              </Button>
+              <Button variant="ghost" size="sm" @click="$emit('view', request)"> View </Button>
+              <Button variant="ghost" size="sm" @click="$emit('delete', request)"> Delete </Button>
             </div>
           </td>
         </tr>
@@ -144,17 +142,17 @@ const props = defineProps({
   sortDirection: {
     type: String,
     default: 'desc',
-    validator: (value) => ['asc', 'desc'].includes(value),
+    validator: value => ['asc', 'desc'].includes(value),
   },
 })
 
 const emit = defineEmits(['sort', 'view', 'delete'])
 
-const handleSort = (key) => {
+const handleSort = key => {
   emit('sort', key)
 }
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -166,4 +164,3 @@ const formatDate = (dateString) => {
   })
 }
 </script>
-

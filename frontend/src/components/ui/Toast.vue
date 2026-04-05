@@ -14,8 +14,8 @@
       <component :is="iconComponent(toast.type)" class="h-5 w-5 flex-shrink-0" />
       <p class="flex-1 text-sm font-medium">{{ toast.message }}</p>
       <button
-        @click="removeToast(toast.id)"
         class="flex-shrink-0 text-gray-400 hover:text-gray-600"
+        @click="removeToast(toast.id)"
       >
         <XMarkIcon class="h-5 w-5" />
       </button>
@@ -36,7 +36,7 @@ import { useToast } from '@/composables/useToast'
 
 const { toasts, removeToast } = useToast()
 
-const toastClasses = (type) => {
+const toastClasses = type => {
   const classes = {
     success: 'bg-success-50 text-success-800 border border-success-200',
     error: 'bg-error-50 text-error-800 border border-error-200',
@@ -53,7 +53,7 @@ const iconMap = {
   info: InformationCircleIcon,
 }
 
-const iconComponent = (type) => {
+const iconComponent = type => {
   return iconMap[type] || InformationCircleIcon
 }
 </script>
@@ -74,4 +74,3 @@ const iconComponent = (type) => {
   transform: translateX(100%);
 }
 </style>
-

@@ -69,8 +69,8 @@
           </div>
           <button
             type="button"
-            @click.stop="clearFile"
             class="ml-2 text-gray-400 hover:text-error-500"
+            @click.stop="clearFile"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -149,7 +149,7 @@ const triggerFileInput = () => {
   fileInput.value?.click()
 }
 
-const validateFile = (file) => {
+const validateFile = file => {
   // Check if file is provided
   if (!file) {
     emit('error', 'No file selected')
@@ -185,7 +185,7 @@ const validateFile = (file) => {
   return true
 }
 
-const handleFileSelect = (event) => {
+const handleFileSelect = event => {
   const file = event.target.files[0]
   if (file) {
     // Always allow file selection, but validate and show error if invalid
@@ -200,7 +200,7 @@ const handleFileSelect = (event) => {
   }
 }
 
-const handleDragOver = (event) => {
+const handleDragOver = event => {
   isDragging.value = true
   event.preventDefault()
 }
@@ -209,7 +209,7 @@ const handleDragLeave = () => {
   isDragging.value = false
 }
 
-const handleDrop = (event) => {
+const handleDrop = event => {
   isDragging.value = false
   const file = event.dataTransfer.files[0]
   if (file) {
@@ -233,31 +233,33 @@ const clearFile = () => {
   }
 }
 
-const formatFileSize = (bytes) => {
+const formatFileSize = bytes => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
 // Watch for file changes via v-model and re-validate
 // Only validate when file actually changes (not on every render)
-watch(() => props.modelValue, (newFile, oldFile) => {
-  // Only validate if file actually changed
-  if (newFile !== oldFile) {
-    if (newFile) {
-      // Re-validate when file changes
-      const isValid = validateFile(newFile)
-      // Explicitly clear error if validation passes
-      if (isValid) {
+watch(
+  () => props.modelValue,
+  (newFile, oldFile) => {
+    // Only validate if file actually changed
+    if (newFile !== oldFile) {
+      if (newFile) {
+        // Re-validate when file changes
+        const isValid = validateFile(newFile)
+        // Explicitly clear error if validation passes
+        if (isValid) {
+          emit('error', '')
+        }
+      } else {
+        // Clear error when file is removed
         emit('error', '')
       }
-    } else {
-      // Clear error when file is removed
-      emit('error', '')
     }
   }
-})
+)
 </script>
-

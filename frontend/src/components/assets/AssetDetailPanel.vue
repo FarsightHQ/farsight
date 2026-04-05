@@ -76,7 +76,11 @@
         <div>
           <label class="text-xs font-medium text-gray-700">Environment</label>
           <p class="mt-0.5">
-            <Badge v-if="asset.environment && String(asset.environment).trim()" :label="String(asset.environment).trim()" variant="info" />
+            <Badge
+              v-if="asset.environment && String(asset.environment).trim()"
+              :label="String(asset.environment).trim()"
+              variant="info"
+            />
             <span v-else class="text-xs text-gray-400">—</span>
           </p>
         </div>
@@ -154,7 +158,7 @@ const props = defineProps({
   },
 })
 
-const formatDate = (dateString) => {
+const formatDate = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -166,4 +170,3 @@ const formatDate = (dateString) => {
   })
 }
 </script>
-

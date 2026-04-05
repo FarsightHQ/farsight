@@ -3,9 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-3xl font-bold">FAR Requests</h1>
-      <Button variant="primary" @click="$router.push('/requests/new')">
-        New Request
-      </Button>
+      <Button variant="primary" @click="$router.push('/requests/new')"> New Request </Button>
     </div>
 
     <!-- Search and Filters -->
@@ -19,11 +17,7 @@
           />
         </div>
         <div>
-          <select
-            v-model="statusFilter"
-            class="input"
-            @change="handleFilter"
-          >
+          <select v-model="statusFilter" class="input" @change="handleFilter">
             <option value="">All Statuses</option>
             <option value="submitted">Submitted</option>
             <option value="processing">Processing</option>
@@ -72,7 +66,11 @@
         </svg>
         <h3 class="mt-2 text-sm font-medium text-theme-text-content">No requests found</h3>
         <p class="mt-1 text-sm text-theme-text-muted">
-          {{ searchQuery || statusFilter ? 'Try adjusting your filters.' : 'Get started by creating a new request.' }}
+          {{
+            searchQuery || statusFilter
+              ? 'Try adjusting your filters.'
+              : 'Get started by creating a new request.'
+          }}
         </p>
         <div class="mt-6">
           <Button variant="primary" @click="$router.push('/requests/new')">
@@ -96,7 +94,10 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="!loading && filteredRequests.length > 0" class="mt-6 flex items-center justify-between">
+    <div
+      v-if="!loading && filteredRequests.length > 0"
+      class="mt-6 flex items-center justify-between"
+    >
       <div class="flex items-center space-x-2">
         <span class="text-sm text-theme-text-content">Show</span>
         <select v-model="pageSize" class="input text-sm" style="width: auto">
@@ -108,12 +109,7 @@
         <span class="text-sm text-theme-text-content">per page</span>
       </div>
       <div class="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="currentPage === 1"
-          @click="currentPage--"
-        >
+        <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
           Previous
         </Button>
         <span class="text-sm text-theme-text-content">
@@ -175,15 +171,14 @@ const filteredRequests = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(
-      (req) =>
-        req.title?.toLowerCase().includes(query) ||
-        req.external_id?.toLowerCase().includes(query)
+      req =>
+        req.title?.toLowerCase().includes(query) || req.external_id?.toLowerCase().includes(query)
     )
   }
 
   // Status filter
   if (statusFilter.value) {
-    filtered = filtered.filter((req) => req.status === statusFilter.value)
+    filtered = filtered.filter(req => req.status === statusFilter.value)
   }
 
   // Sort
@@ -246,7 +241,7 @@ const clearFilters = () => {
   currentPage.value = 1
 }
 
-const handleSort = (key) => {
+const handleSort = key => {
   if (sortKey.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
   } else {
@@ -255,11 +250,11 @@ const handleSort = (key) => {
   }
 }
 
-const handleView = (request) => {
+const handleView = request => {
   router.push(`/requests/${request.id}`)
 }
 
-const handleDelete = (request) => {
+const handleDelete = request => {
   requestToDelete.value = request
   showDeleteModal.value = true
 }
@@ -271,17 +266,17 @@ const confirmDelete = async () => {
   try {
     await requestsService.delete(requestToDelete.value.id)
     success(`Request "${requestToDelete.value.title}" deleted successfully`)
-    
+
     // Remove from local list immediately for better UX
-    const index = requests.value.findIndex((r) => r.id === requestToDelete.value.id)
+    const index = requests.value.findIndex(r => r.id === requestToDelete.value.id)
     if (index > -1) {
       requests.value.splice(index, 1)
       totalRequests.value--
     }
-    
+
     // Refresh list to ensure consistency
     await fetchRequests()
-    
+
     // Close modal
     showDeleteModal.value = false
     requestToDelete.value = null
