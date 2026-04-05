@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 import Modal from '@/components/ui/Modal.vue'
 import Button from '@/components/ui/Button.vue'
@@ -98,6 +98,7 @@ import Spinner from '@/components/ui/Spinner.vue'
 import NetworkGraph from './NetworkGraph.vue'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
+import { normalizeRuleGraphApiResponse } from '@/utils/ruleGraphNormalize'
 
 const props = defineProps({
   modelValue: {
@@ -121,13 +122,14 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  graphData: {
+  /** Merged graph from parent (e.g. multi-rule visualize); skips API fetch when set */
+  prefetchedGraph: {
     type: Object,
     default: null,
   },
 })
 
-const emit = defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue'])
 
 const { error: showError } = useToast()
 
@@ -138,14 +140,14 @@ const summary = ref(null)
 const emptyStateMessage = ref('This rule has no network topology data to visualize.')
 
 const fetchTopology = async () => {
-  // If graphData is provided directly, use it
-  if (props.graphData) {
-    graphData.value = props.graphData
+  // If prefetched graph is provided directly, use it
+  if (props.prefetchedGraph) {
+    graphData.value = props.prefetchedGraph
     summary.value = {
-      rule_count: props.graphData.metadata?.rule_count || 0,
-      source_count: props.graphData.metadata?.source_count || 0,
-      destination_count: props.graphData.metadata?.destination_count || 0,
-      service_count: props.graphData.metadata?.service_count || 0,
+      rule_count: props.prefetchedGraph.metadata?.rule_count || 0,
+      source_count: props.prefetchedGraph.metadata?.source_count || 0,
+      destination_count: props.prefetchedGraph.metadata?.destination_count || 0,
+      service_count: props.prefetchedGraph.metadata?.service_count || 0,
     }
     loading.value = false
     return
@@ -163,130 +165,12 @@ const fetchTopology = async () => {
     let responseData
 
     if (props.ruleId) {
-      // Debug logging
-      console.log('[NetworkGraphModal] Fetching graph for rule:', props.ruleId)
-
-      // Fetch rule-specific graph data
       response = await requestsService.getRuleGraph(props.ruleId)
-
-      // Debug logging - log full response structure
-      console.log('[NetworkGraphModal] Full API response:', response)
-
-      // Extract response data - handle multiple wrapper formats
-      let data = response
-      if (response.data) {
-        data = response.data
-        // Check if there's another nested data layer
-        if (data.data) {
-          data = data.data
-        }
-      }
-      responseData = data
-
-      // Debug logging - log extracted responseData
-      console.log('[NetworkGraphModal] Extracted responseData:', responseData)
-      console.log('[NetworkGraphModal] responseData.graph:', responseData.graph)
-
-      // Graph data is nested in responseData.graph when include=graph
-      if (responseData.graph) {
-        const graph = responseData.graph
-
-        // Validate graph structure
-        if (!graph.sources || !Array.isArray(graph.sources)) {
-          console.error('[NetworkGraphModal] Graph missing sources array:', graph)
-          error.value = `Invalid graph data: missing sources array for rule ${props.ruleId}`
-          graphData.value = null
-          summary.value = null
-          emptyStateMessage.value = 'Graph data structure is invalid (missing sources).'
-          return
-        }
-
-        if (!graph.destinations || !Array.isArray(graph.destinations)) {
-          console.error('[NetworkGraphModal] Graph missing destinations array:', graph)
-          error.value = `Invalid graph data: missing destinations array for rule ${props.ruleId}`
-          graphData.value = null
-          summary.value = null
-          emptyStateMessage.value = 'Graph data structure is invalid (missing destinations).'
-          return
-        }
-
-        // Check if arrays are empty
-        if (graph.sources.length === 0) {
-          console.warn('[NetworkGraphModal] Graph has empty sources array')
-          emptyStateMessage.value = 'This rule has no source networks to visualize.'
-          graphData.value = graph
-          summary.value = {
-            rule_count: 1,
-            source_count: 0,
-            destination_count: graph.destinations.length || 0,
-            service_count: graph.metadata?.service_count || graph.connections?.length || 0,
-          }
-          return
-        }
-
-        if (graph.destinations.length === 0) {
-          console.warn('[NetworkGraphModal] Graph has empty destinations array')
-          emptyStateMessage.value = 'This rule has no destination networks to visualize.'
-          graphData.value = graph
-          summary.value = {
-            rule_count: 1,
-            source_count: graph.sources.length || 0,
-            destination_count: 0,
-            service_count: graph.metadata?.service_count || graph.connections?.length || 0,
-          }
-          return
-        }
-
-        // New flow-style format: sources, destinations, connections
-        graphData.value = graph
-        summary.value = {
-          rule_count: 1,
-          source_count: graph.metadata?.source_count || graph.sources.length || 0,
-          destination_count: graph.metadata?.destination_count || graph.destinations.length || 0,
-          service_count:
-            graph.metadata?.service_count ||
-            graph.connections?.reduce((sum, conn) => sum + (conn.port_count || 0), 0) ||
-            0,
-        }
-
-        console.log('[NetworkGraphModal] Successfully loaded graph data:', {
-          sources: graph.sources.length,
-          destinations: graph.destinations.length,
-          connections: graph.connections?.length || 0,
-        })
-      } else if (responseData.topology) {
-        // Fallback for request-level topology format (old format)
-        graphData.value = responseData
-        summary.value = responseData.summary || {
-          source_count: responseData.endpoints?.source_count || 0,
-          destination_count: responseData.endpoints?.destination_count || 0,
-          service_count: responseData.service_count || 0,
-        }
-      } else {
-        // Check if responseData itself has the graph structure (direct format)
-        if (
-          responseData.sources &&
-          Array.isArray(responseData.sources) &&
-          responseData.destinations &&
-          Array.isArray(responseData.destinations)
-        ) {
-          console.log('[NetworkGraphModal] Found graph data in direct format')
-          graphData.value = responseData
-          summary.value = {
-            rule_count: 1,
-            source_count: responseData.sources.length || 0,
-            destination_count: responseData.destinations.length || 0,
-            service_count:
-              responseData.metadata?.service_count || responseData.connections?.length || 0,
-          }
-        } else {
-          console.error('[NetworkGraphModal] No graph data found in response:', responseData)
-          error.value = `No graph data available for rule ${props.ruleId}. The rule may not have any endpoints or services.`
-          graphData.value = null
-          summary.value = null
-          emptyStateMessage.value = 'This rule has no source or destination networks to visualize.'
-        }
-      }
+      const n = normalizeRuleGraphApiResponse(response, props.ruleId)
+      error.value = n.error
+      graphData.value = n.graphData
+      summary.value = n.summary
+      emptyStateMessage.value = n.emptyStateMessage
     } else {
       // Fallback to request-level topology
       response = await requestsService.getNetworkTopology(props.requestId)
@@ -350,9 +234,9 @@ watch(
   }
 )
 
-// Watch for graphData prop changes
+// Watch for prefetched graph prop changes
 watch(
-  () => props.graphData,
+  () => props.prefetchedGraph,
   newData => {
     if (newData && props.modelValue) {
       graphData.value = newData

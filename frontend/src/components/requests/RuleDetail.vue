@@ -37,6 +37,19 @@
           >
             Unified view
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!hasNetworkData"
+            :title="
+              !hasNetworkData
+                ? 'No network data'
+                : 'Open classic rule topology workspace in a new tab'
+            "
+            @click="handleOpenClassicInNewTab"
+          >
+            Classic view (new tab)
+          </Button>
           <Button variant="outline" size="sm" @click="handleBack"> Back to Rules </Button>
         </div>
       </div>
@@ -341,6 +354,18 @@ const handleOpenUnifiedInNewTab = () => {
   if (!props.rule?.id) return
   const href = router.resolve({
     name: 'UnifiedGraph',
+    query: {
+      ruleIds: String(props.rule.id),
+      title: `Rule #${props.rule.id}`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+const handleOpenClassicInNewTab = () => {
+  if (!props.rule?.id) return
+  const href = router.resolve({
+    name: 'ClassicRuleTopology',
     query: {
       ruleIds: String(props.rule.id),
       title: `Rule #${props.rule.id}`,

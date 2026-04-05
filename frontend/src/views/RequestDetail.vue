@@ -98,7 +98,7 @@
       :rule-title="
         selectedRuleForVisualization?.title || `Rule ${selectedRuleForVisualization?.id}`
       "
-      :graph-data="mergedGraphData"
+      :prefetched-graph="mergedGraphData"
     />
   </div>
 </template>

@@ -69,6 +69,12 @@ const routes = [
     component: () => import('../views/UnifiedGraphView.vue'),
     meta: { requiresAuth: true, vizWorkspace: true },
   },
+  {
+    path: '/visualize/classic',
+    name: 'ClassicRuleTopology',
+    component: () => import('../views/ClassicRuleTopologyView.vue'),
+    meta: { requiresAuth: true, vizWorkspace: true },
+  },
 ]
 
 const router = createRouter({

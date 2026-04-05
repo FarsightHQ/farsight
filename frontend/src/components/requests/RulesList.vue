@@ -40,6 +40,13 @@
             Unified view (new tab)
           </Button>
           <Button
+            variant="outline"
+            :disabled="selectedRules.length === 0"
+            @click="openClassicSelectedInNewTab"
+          >
+            Classic view (new tab)
+          </Button>
+          <Button
             variant="primary"
             :disabled="selectedRules.length === 0"
             @click="handleVisualizeSelected"
@@ -119,11 +126,11 @@ import { useRouter } from 'vue-router'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
-import Input from '@/components/ui/Input.vue'
 import RulesTable from './RulesTable.vue'
 import { rulesService } from '@/services/rules'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
+import { mergeRuleGraphResponses } from '@/utils/ruleGraphMerge'
 
 const props = defineProps({
   requestId: {
@@ -267,86 +274,22 @@ const handleDeselectAll = () => {
   selectedRules.value = []
 }
 
-const mergeGraphData = responses => {
-  const allSources = []
-  const allDestinations = []
-  const allConnections = []
-  const sourceMap = new Map() // key: network_cidr
-  const destMap = new Map() // key: network_cidr
-
-  responses.forEach((response, index) => {
-    const data = response.data?.data || response.data || response
-    const graph = data.graph || data
-
-    if (!graph.sources || !graph.destinations) return
-
-    // Merge sources (deduplicate by network_cidr)
-    graph.sources.forEach(src => {
-      if (!sourceMap.has(src.network_cidr)) {
-        sourceMap.set(src.network_cidr, {
-          ...src,
-          id: `src_merged_${sourceMap.size}`,
-        })
-        allSources.push(sourceMap.get(src.network_cidr))
-      }
-    })
-
-    // Merge destinations (deduplicate by network_cidr, merge ports)
-    graph.destinations.forEach(dest => {
-      if (!destMap.has(dest.network_cidr)) {
-        destMap.set(dest.network_cidr, {
-          ...dest,
-          id: `dst_merged_${destMap.size}`,
-          ports: [...(dest.ports || [])],
-        })
-        allDestinations.push(destMap.get(dest.network_cidr))
-      } else {
-        // Merge ports if destination already exists
-        const existing = destMap.get(dest.network_cidr)
-        if (dest.ports) {
-          existing.ports.push(...dest.ports)
-        }
-      }
-    })
-
-    // Map connections to merged source/dest IDs
-    graph.connections?.forEach(conn => {
-      const source = graph.sources.find(s => s.id === conn.source_id)
-      const dest = graph.destinations.find(d => d.id === conn.destination_id)
-
-      if (source && dest) {
-        const mergedSource = sourceMap.get(source.network_cidr)
-        const mergedDest = destMap.get(dest.network_cidr)
-
-        if (mergedSource && mergedDest) {
-          allConnections.push({
-            source_id: mergedSource.id,
-            destination_id: mergedDest.id,
-            port_count: conn.port_count,
-            services: conn.services,
-          })
-        }
-      }
-    })
-  })
-
-  return {
-    sources: allSources,
-    destinations: allDestinations,
-    connections: allConnections,
-    metadata: {
-      rule_count: selectedRules.value.length,
-      source_count: allSources.length,
-      destination_count: allDestinations.length,
-      connection_count: allConnections.length,
-    },
-  }
-}
-
 const openUnifiedSelectedInNewTab = () => {
   if (selectedRules.value.length === 0) return
   const href = router.resolve({
     name: 'UnifiedGraph',
+    query: {
+      ruleIds: selectedRules.value.join(','),
+      title: `Selected rules (${selectedRules.value.length})`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+const openClassicSelectedInNewTab = () => {
+  if (selectedRules.value.length === 0) return
+  const href = router.resolve({
+    name: 'ClassicRuleTopology',
     query: {
       ruleIds: selectedRules.value.join(','),
       title: `Selected rules (${selectedRules.value.length})`,
@@ -365,7 +308,9 @@ const handleVisualizeSelected = async () => {
     const responses = await Promise.all(graphPromises)
 
     // Merge graph data from all selected rules
-    const mergedGraph = mergeGraphData(responses)
+    const mergedGraph = mergeRuleGraphResponses(responses, {
+      ruleCount: selectedRules.value.length,
+    })
 
     // Emit event with merged graph data
     emit('visualize-multiple-rules', {
