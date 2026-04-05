@@ -153,9 +153,10 @@
             class="rounded border-gray-300 mt-0.5 shrink-0"
           />
           <span>
-            Show VLAN outlines
+            Show VLAN regions
             <span class="block text-[11px] text-gray-500 font-normal leading-snug mt-0.5">
-              Dashed hulls from asset VLAN (larger than segment); turn off if too busy.
+              Light gray fill per asset VLAN (behind segments); name at the top of each region. Turn
+              off if too busy.
             </span>
           </span>
         </label>

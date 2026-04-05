@@ -9,11 +9,6 @@ export function buildSegmentColorScale(segments) {
   return seg => scale(seg || 'Unknown')
 }
 
-export function buildVlanColorScale(vlanIds) {
-  const scheme = d3.schemeObservable10.concat(d3.schemeSet3)
-  return d3.scaleOrdinal(scheme).domain(vlanIds)
-}
-
 function expandHullFromCentroid(hull, pad) {
   let cx = 0
   let cy = 0
@@ -101,8 +96,22 @@ export function buildSegmentOutlineEntries(nodeData) {
     .filter(Boolean)
 }
 
+/** Top-left style anchor for VLAN name (along upper edge of the node cluster). */
+function vlanNameAnchor(pts) {
+  if (pts.length === 1) {
+    const p = pts[0]
+    return {
+      labelX: p.x - VLAN_SINGLE_R * 0.9,
+      labelY: p.y - VLAN_SINGLE_R - 6,
+    }
+  }
+  const minX = d3.min(pts, q => q.x)
+  const minY = d3.min(pts, q => q.y)
+  return { labelX: minX - 4, labelY: minY - 10 }
+}
+
 /**
- * One hull per VLAN (asset VLAN id).
+ * One hull per VLAN (asset VLAN id). Style is applied in redraw (uniform gray fill).
  */
 export function buildVlanOutlineEntries(nodeData) {
   const byVlan = d3.group(nodeData, vlanGroupKey)
@@ -115,7 +124,8 @@ export function buildVlanOutlineEntries(nodeData) {
       const label = vlanId === VLAN_NONE_KEY ? 'No VLAN' : vlanId
       const geom = smoothOutlineFromPoints(pts, VLAN_HULL_PAD, VLAN_SINGLE_R)
       if (!geom) return null
-      return { vlanId, label, pathD: geom.pathD, cx: geom.cx, cy: geom.cy }
+      const { labelX, labelY } = vlanNameAnchor(pts)
+      return { vlanId, label, pathD: geom.pathD, cx: geom.cx, cy: geom.cy, labelX, labelY }
     })
     .filter(Boolean)
 }

@@ -24,8 +24,8 @@ import { useGraphTooltip } from '@/composables/useGraphTooltip'
 import { filterUnifiedGraph } from '@/utils/unifiedGraphFilter'
 import { formatNodeDetailLines, formatLinkDetailLines } from '@/utils/unifiedGraphFormat'
 import { hierarchicalClusterTargets } from '@/utils/unifiedGraphLayout'
-import { nodeLayoutKey, vlanGroupKey, sortVlanIds } from '@/utils/unifiedGraphKeys'
-import { buildSegmentColorScale, buildVlanColorScale } from '@/utils/unifiedGraphHulls'
+import { nodeLayoutKey } from '@/utils/unifiedGraphKeys'
+import { buildSegmentColorScale } from '@/utils/unifiedGraphHulls'
 import {
   curvedLinkPath,
   linkCrossSegment,
@@ -86,9 +86,9 @@ let arrowMarkerSeq = 0
 
 function applyHullRedraws() {
   if (!latestHullRedraw) return
-  const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, colorFn, vlanColorFn } = latestHullRedraw
+  const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, colorFn } = latestHullRedraw
   redrawSegmentGrouping(hullG, labelG, nodeData, colorFn)
-  redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, props.showVlanHulls, vlanColorFn)
+  redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, props.showVlanHulls)
 }
 
 function updateVisualState() {
@@ -244,9 +244,7 @@ function runSimulation() {
 
   const vlanHullG = gMain.append('g').attr('class', 'vlan-hulls').style('pointer-events', 'none')
   const hullG = gMain.append('g').attr('class', 'segment-hulls').style('pointer-events', 'none')
-
-  const vlanIdsForScale = [...new Set(nodeData.map(d => vlanGroupKey(d)))].sort(sortVlanIds)
-  const vlanColorFn = buildVlanColorScale(vlanIdsForScale)
+  const vlanLabelG = gMain.append('g').attr('class', 'vlan-labels').style('pointer-events', 'none')
 
   simulation = d3
     .forceSimulation(nodeData)
@@ -266,7 +264,6 @@ function runSimulation() {
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
   const labelG = gMain.append('g').attr('class', 'segment-labels').style('pointer-events', 'none')
-  const vlanLabelG = gMain.append('g').attr('class', 'vlan-labels').style('pointer-events', 'none')
 
   const linkSel = linkLayer
     .attr('stroke', '#94a3b8')
@@ -365,7 +362,6 @@ function runSimulation() {
         labelG,
         nodeData,
         colorFn,
-        vlanColorFn,
       }
       applyHullRedraws()
       fitView(false)

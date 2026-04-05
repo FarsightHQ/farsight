@@ -2,6 +2,9 @@ import * as d3 from 'd3'
 import { VLAN_NONE_KEY } from '@/utils/unifiedGraphKeys'
 import { buildSegmentOutlineEntries, buildVlanOutlineEntries } from '@/utils/unifiedGraphHulls'
 
+/** Single translucent fill for every VLAN hull (no per-VLAN hue). */
+const VLAN_HULL_FILL = 'rgba(226, 232, 240, 0.52)'
+
 export function redrawSegmentGrouping(hullG, labelG, nodeData, colorFn) {
   const entries = buildSegmentOutlineEntries(nodeData)
   const pathJoin = hullG
@@ -38,7 +41,7 @@ export function redrawSegmentGrouping(hullG, labelG, nodeData, colorFn) {
   labelJoin.text(d => (d.seg.length > 38 ? `${d.seg.slice(0, 36)}…` : d.seg))
 }
 
-export function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vlanColorFn) {
+export function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible) {
   if (!vlanHullG || !vlanLabelG) return
 
   if (!visible) {
@@ -53,26 +56,8 @@ export function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vla
     .selectAll('path')
     .data(entries, d => d.vlanId)
     .join('path')
-    .attr('stroke-linejoin', 'round')
-    .attr('stroke-linecap', 'round')
-    .attr('stroke-dasharray', '7 5')
-    .attr('stroke-width', 2)
-
-  pathJoin.each(function (d) {
-    const el = d3.select(this)
-    if (d.vlanId === VLAN_NONE_KEY) {
-      el.attr('fill', 'rgba(148, 163, 184, 0.06)').attr('stroke', 'rgba(71, 85, 105, 0.65)')
-    } else {
-      const base = d3.color(vlanColorFn(d.vlanId))
-      const fillC = base
-        ? base.copy({ opacity: 0.08 })
-        : d3.color('#818cf8').copy({ opacity: 0.08 })
-      const strokeC = base
-        ? base.copy({ opacity: 0.75 })
-        : d3.color('#6366f1').copy({ opacity: 0.8 })
-      el.attr('fill', fillC.formatRgb()).attr('stroke', strokeC.formatRgb())
-    }
-  })
+    .attr('fill', VLAN_HULL_FILL)
+    .attr('stroke', 'none')
 
   pathJoin.attr('d', d => d.pathD)
 
@@ -80,21 +65,20 @@ export function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vla
     .selectAll('text')
     .data(entries, d => d.vlanId)
     .join('text')
-    .attr('text-anchor', 'middle')
+    .attr('text-anchor', 'start')
     .attr('font-size', 9)
     .attr('font-weight', 600)
-    .attr('font-style', 'italic')
-    .attr('fill', '#4338ca')
+    .attr('fill', '#475569')
     .style('paint-order', 'stroke fill')
     .attr('stroke', '#f8fafc')
     .attr('stroke-width', 3)
     .attr('pointer-events', 'none')
 
   labelJoin
-    .attr('x', d => d.cx)
-    .attr('y', d => d.cy + 4)
+    .attr('x', d => d.labelX)
+    .attr('y', d => d.labelY)
     .text(d => {
-      const t = d.label.length > 32 ? `${d.label.slice(0, 30)}…` : d.label
+      const t = d.label.length > 36 ? `${d.label.slice(0, 34)}…` : d.label
       return d.vlanId === VLAN_NONE_KEY ? t : `VLAN ${t}`
     })
 }
