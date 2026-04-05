@@ -1,76 +1,103 @@
 <template>
-  <div class="flex flex-col bg-gray-100 min-h-[calc(100dvh-9rem)]">
-    <header class="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-center gap-4 shrink-0">
-      <div class="flex-1 min-w-0">
-        <h1 class="text-xl font-semibold text-gray-900 truncate">Unified network topology</h1>
-        <p class="text-sm text-gray-600 mt-0.5 truncate">{{ subtitle }}</p>
+  <VizWorkspaceLayout title="Unified network topology" :subtitle="subtitle">
+    <template #default>
+      <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+        <Spinner size="lg" class="mr-3" />
+        <span class="text-gray-600">Loading graph…</span>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+
+      <div
+        v-else-if="error"
+        class="absolute inset-0 flex items-center justify-center bg-gray-100 z-10 p-6"
+      >
+        <div class="text-center max-w-md">
+          <p class="text-red-600 font-medium break-words">{{ error }}</p>
+          <Button class="mt-4" variant="primary" @click="load">Retry</Button>
+        </div>
+      </div>
+
+      <div
+        v-else-if="!graphPayload?.nodes?.length"
+        class="absolute inset-0 flex items-center justify-center bg-gray-100 z-10 p-6 text-gray-600 text-center"
+      >
+        No unified graph data for this selection.
+      </div>
+
+      <UnifiedNetworkGraph
+        v-else
+        ref="graphRef"
+        class="h-full w-full"
+        :unified-graph="graphPayload"
+        :filter-text="filterText"
+      />
+    </template>
+
+    <template #panel>
+      <div class="space-y-1 text-sm text-gray-700">
+        <p class="font-medium text-gray-900">Summary</p>
+        <ul class="list-none space-y-0.5 text-xs sm:text-sm">
+          <li>{{ graphPayload?.metadata?.node_count ?? graphPayload?.nodes?.length ?? '—' }} nodes</li>
+          <li>{{ graphPayload?.metadata?.link_count ?? graphPayload?.links?.length ?? '—' }} links</li>
+          <li v-if="graphPayload?.metadata?.rule_count != null">{{ graphPayload.metadata.rule_count }} rules</li>
+        </ul>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-gray-600" for="unified-graph-filter">Filter nodes</label>
         <input
+          id="unified-graph-filter"
           v-model="filterText"
           type="search"
-          placeholder="Filter nodes…"
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm w-48 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="CIDR, hostname, segment…"
+          class="w-full max-w-full box-border px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-        <Button variant="outline" size="sm" @click="handleFit">Fit to view</Button>
       </div>
-    </header>
 
-    <div v-if="loading" class="flex-1 flex items-center justify-center p-12">
-      <Spinner size="lg" class="mr-3" />
-      <span class="text-gray-600">Loading graph…</span>
-    </div>
+      <div>
+        <Button variant="outline" size="sm" class="w-full justify-center" @click="handleFit">
+          Fit to view
+        </Button>
+      </div>
 
-    <div v-else-if="error" class="flex-1 flex items-center justify-center p-12">
-      <div class="text-center max-w-md">
-        <p class="text-red-600 font-medium">{{ error }}</p>
-        <Button class="mt-4" variant="primary" @click="load">Retry</Button>
+      <div v-if="legendSegments.length" class="space-y-2">
+        <p class="text-xs font-medium text-gray-600">Segments</p>
+        <ul class="flex flex-col gap-2 list-none p-0 m-0">
+          <li
+            v-for="seg in legendSegments"
+            :key="seg"
+            class="flex items-center gap-2 text-xs text-gray-800 min-w-0"
+          >
+            <span
+              class="w-2.5 h-2.5 rounded-full shrink-0"
+              :style="{ background: legendColor(seg) }"
+              aria-hidden="true"
+            />
+            <span class="break-words leading-snug">{{ seg }}</span>
+          </li>
+        </ul>
       </div>
-    </div>
-
-    <div v-else-if="!graphPayload?.nodes?.length" class="flex-1 flex items-center justify-center p-12 text-gray-600">
-      No unified graph data for this selection.
-    </div>
-
-    <main v-else class="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
-      <div class="flex flex-wrap gap-4 mb-3 text-xs text-gray-600 shrink-0">
-        <span>{{ graphPayload.metadata?.node_count ?? graphPayload.nodes.length }} nodes</span>
-        <span>{{ graphPayload.metadata?.link_count ?? graphPayload.links?.length ?? 0 }} links</span>
-        <span v-if="graphPayload.metadata?.rule_count != null">{{ graphPayload.metadata.rule_count }} rules</span>
-      </div>
-      <div class="flex-1 min-h-0">
-        <UnifiedNetworkGraph ref="graphRef" :unified-graph="graphPayload" :filter-text="filterText" />
-      </div>
-      <div v-if="legendSegments.length" class="mt-4 flex flex-wrap gap-2">
-        <span class="text-xs font-medium text-gray-500 w-full">Segments</span>
-        <span
-          v-for="seg in legendSegments"
-          :key="seg"
-          class="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-gray-200 text-xs text-gray-700"
-        >
-          <span class="w-2 h-2 rounded-full" :style="{ background: legendColor(seg) }" />
-          {{ seg }}
-        </span>
-      </div>
-    </main>
-  </div>
+    </template>
+  </VizWorkspaceLayout>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { requestsService } from '@/services/requests'
 import { mergeUnifiedGraphData, extractUnifiedGraphFromRuleResponse } from '@/utils/unifiedGraphMerge'
 import UnifiedNetworkGraph from '@/components/requests/UnifiedNetworkGraph.vue'
+import VizWorkspaceLayout from '@/components/layout/VizWorkspaceLayout.vue'
 import Button from '@/components/ui/Button.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import { useSidebar } from '@/composables/useSidebar'
+import { useVizAppChrome } from '@/composables/useVizAppChrome'
 
 const route = useRoute()
 const { setSidebarCollapsed, isCollapsed } = useSidebar()
-/** Snapshot so we restore sidebar when leaving this page (does not overwrite localStorage). */
+const { setVizFullscreen } = useVizAppChrome()
 const sidebarStateBeforeViz = ref(null)
+
 const loading = ref(true)
 const error = ref(null)
 const graphPayload = ref(null)
@@ -164,6 +191,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  setVizFullscreen(false)
   if (sidebarStateBeforeViz.value !== null) {
     setSidebarCollapsed(sidebarStateBeforeViz.value, { persist: false })
   }

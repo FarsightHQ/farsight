@@ -67,7 +67,7 @@ const routes = [
     path: '/visualize/unified',
     name: 'UnifiedGraph',
     component: () => import('../views/UnifiedGraphView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, vizWorkspace: true },
   },
 ]
 

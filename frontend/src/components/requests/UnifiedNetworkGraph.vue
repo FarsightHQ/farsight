@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerRef" class="unified-graph-host relative w-full bg-gray-50 rounded-lg border border-gray-200">
+  <div ref="containerRef" class="unified-graph-host relative w-full h-full min-h-0 bg-gray-50">
     <svg ref="svgRef" class="w-full block touch-none"></svg>
     <div
       v-if="tooltip.visible"
@@ -353,7 +353,6 @@ onUnmounted(() => {
 
 <style scoped>
 .unified-graph-host {
-  height: 100%;
-  min-height: 320px;
+  min-height: 0;
 }
 </style>
