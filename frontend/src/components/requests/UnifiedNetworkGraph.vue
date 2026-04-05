@@ -51,7 +51,7 @@ const props = defineProps({
   /** Draw smooth convex hulls per VLAN (dashed / alternate palette); independent of segment hulls. */
   showVlanHulls: {
     type: Boolean,
-    default: false,
+    default: true,
   },
 })
 
@@ -77,12 +77,53 @@ let latestHullRedraw = null
 let arrowMarkerSeq = 0
 
 const VLAN_NONE_KEY = '__no_vlan__'
+/** Separates vlan id and segment in layout / hull keys (unlikely in real names). */
+const LAYOUT_SEP = '\x1f'
 
 function vlanGroupKey(d) {
   const v = d.vlan
   if (v == null) return VLAN_NONE_KEY
   const s = String(v).trim()
   return s === '' ? VLAN_NONE_KEY : s
+}
+
+function nodeLayoutKey(d) {
+  return `${vlanGroupKey(d)}${LAYOUT_SEP}${d.segment || 'Unknown'}`
+}
+
+/**
+ * VLANs sit on a coarse grid; each segment in that VLAN gets a sub-cell around the VLAN center.
+ * Keeps segment clusters inside their VLAN blob and separates VLANs from each other.
+ */
+function hierarchicalClusterTargets(rawNodes, width, height) {
+  const vlanTighten = 0.56
+  const subSpacing = 58
+  const byVlan = d3.group(rawNodes, vlanGroupKey)
+  const vlans = [...byVlan.keys()].sort((a, b) => {
+    if (a === VLAN_NONE_KEY) return 1
+    if (b === VLAN_NONE_KEY) return -1
+    return a.localeCompare(b, undefined, { sensitivity: 'base' })
+  })
+  const vlanCenters = clusterCenters(vlans, width, height, vlanTighten)
+  const targets = {}
+
+  for (const V of vlans) {
+    const inVlan = byVlan.get(V) || []
+    const segs = [...new Set(inVlan.map(n => n.segment || 'Unknown'))].sort()
+    const nSeg = segs.length
+    const cols = Math.ceil(Math.sqrt(nSeg))
+    const rows = Math.ceil(nSeg / cols)
+    const vc = vlanCenters[V] || { x: width / 2, y: height / 2 }
+    segs.forEach((seg, i) => {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const ox = (col - (cols - 1) / 2) * subSpacing
+      const oy = (row - (rows - 1) / 2) * subSpacing
+      targets[`${V}${LAYOUT_SEP}${seg}`] = { x: vc.x + ox, y: vc.y + oy }
+    })
+  }
+
+  return targets
 }
 
 function buildColorScale(segments) {
@@ -148,18 +189,22 @@ function circlePath(cx, cy, r) {
 }
 
 /**
- * Outlines that follow actual node positions (convex hull + fallbacks), not a fixed grid.
+ * One hull per (VLAN × segment) so the same segment name in two VLANs stays separate;
+ * geometry stays inside each VLAN’s layout island.
  */
-function buildSegmentOutlineEntries(nodeData, segments) {
-  const bySeg = d3.group(nodeData, d => d.segment || 'Unknown')
+function buildSegmentOutlineEntries(nodeData) {
+  const byLayout = d3.group(nodeData, nodeLayoutKey)
   const lineClosedSmooth = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.72))
-  const pad = 26
+  const pad = 22
 
-  return segments
-    .map(seg => {
-      const pts = bySeg.get(seg) || []
+  const keys = [...byLayout.keys()].sort()
+
+  return keys
+    .map(layoutKey => {
+      const pts = byLayout.get(layoutKey) || []
       if (pts.length === 0) return null
 
+      const seg = pts[0].segment || 'Unknown'
       const xy = pts.map(p => [p.x, p.y])
       let ring = null
 
@@ -174,8 +219,9 @@ function buildSegmentOutlineEntries(nodeData, segments) {
         ring = bboxPolygonPad(xy, pad)
       } else {
         return {
+          layoutKey,
           seg,
-          pathD: circlePath(xy[0][0], xy[0][1], 38),
+          pathD: circlePath(xy[0][0], xy[0][1], 34),
           cx: xy[0][0],
           cy: xy[0][1],
         }
@@ -184,16 +230,16 @@ function buildSegmentOutlineEntries(nodeData, segments) {
       const pathD = lineClosedSmooth(ring)
       const cx = d3.mean(pts, p => p.x)
       const cy = d3.mean(pts, p => p.y)
-      return { seg, pathD, cx, cy }
+      return { layoutKey, seg, pathD, cx, cy }
     })
     .filter(Boolean)
 }
 
-function redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn) {
-  const entries = buildSegmentOutlineEntries(nodeData, segments)
+function redrawSegmentGrouping(hullG, labelG, nodeData, colorFn) {
+  const entries = buildSegmentOutlineEntries(nodeData)
   const pathJoin = hullG
     .selectAll('path')
-    .data(entries, d => d.seg)
+    .data(entries, d => d.layoutKey)
     .join('path')
     .attr('stroke-linejoin', 'round')
     .attr('stroke-linecap', 'round')
@@ -210,7 +256,7 @@ function redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn) {
 
   const labelJoin = labelG
     .selectAll('text')
-    .data(entries, d => d.seg)
+    .data(entries, d => d.layoutKey)
     .join('text')
     .attr('text-anchor', 'middle')
     .attr('font-size', 10)
@@ -343,9 +389,8 @@ function redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, visible, vlanColorF
 
 function applyHullRedraws() {
   if (!latestHullRedraw) return
-  const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, segments, colorFn, vlanColorFn } =
-    latestHullRedraw
-  redrawSegmentGrouping(hullG, labelG, nodeData, segments, colorFn)
+  const { vlanHullG, vlanLabelG, hullG, labelG, nodeData, colorFn, vlanColorFn } = latestHullRedraw
+  redrawSegmentGrouping(hullG, labelG, nodeData, colorFn)
   redrawVlanGrouping(vlanHullG, vlanLabelG, nodeData, props.showVlanHulls, vlanColorFn)
 }
 
@@ -515,13 +560,13 @@ function runSimulation() {
     .attr('fill', '#64748b')
 
   const segments = [...new Set(rawFiltered.map(n => n.segment || 'Unknown'))].sort()
-  const centers = clusterCenters(segments, width, height)
   const colorFn = buildColorScale(segments)
+  const layoutTargets = hierarchicalClusterTargets(rawFiltered, width, height)
 
   const nodeData = rawFiltered.map(n => {
-    const seg = n.segment || 'Unknown'
-    const c = centers[seg] || { x: width / 2, y: height / 2 }
-    const jitter = () => (Math.random() - 0.5) * 48
+    const k = nodeLayoutKey(n)
+    const c = layoutTargets[k] || { x: width / 2, y: height / 2 }
+    const jitter = () => (Math.random() - 0.5) * 20
     return { ...n, x: c.x + jitter(), y: c.y + jitter() }
   })
 
@@ -565,11 +610,11 @@ function runSimulation() {
         .distance(72)
         .strength(0.48)
     )
-    .force('charge', d3.forceManyBody().strength(-165))
+    .force('charge', d3.forceManyBody().strength(-155))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('x', d3.forceX(d => centers[d.segment || 'Unknown']?.x ?? width / 2).strength(0.3))
-    .force('y', d3.forceY(d => centers[d.segment || 'Unknown']?.y ?? height / 2).strength(0.3))
-    .force('collision', d3.forceCollide().radius(28))
+    .force('x', d3.forceX(d => layoutTargets[nodeLayoutKey(d)]?.x ?? width / 2).strength(0.44))
+    .force('y', d3.forceY(d => layoutTargets[nodeLayoutKey(d)]?.y ?? height / 2).strength(0.44))
+    .force('collision', d3.forceCollide().radius(30))
 
   const linkLayer = gMain.append('g').attr('class', 'link-layer')
   const labelG = gMain.append('g').attr('class', 'segment-labels').style('pointer-events', 'none')
@@ -696,7 +741,6 @@ function runSimulation() {
         hullG,
         labelG,
         nodeData,
-        segments,
         colorFn,
         vlanColorFn,
       }
