@@ -155,7 +155,10 @@ def get_request_network_topology(
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    Generate network topology visualization data for all rules in a request
+    Generate network topology for all rules in a request.
+
+    Returns `topology` and `unified_graph` (same payload): unique CIDR nodes, merged directed edges,
+    per-edge rule_ids and services, and node fields enriched from the asset registry where matched.
     """
     try:
         # Verify request exists
@@ -198,6 +201,7 @@ def get_request_network_topology(
             
             rule_data.append({
                 "rule_id": rule.id,
+                "rule_name": f"Rule {rule.id}",
                 "sources": sources,
                 "destinations": destinations,
                 "services": services
@@ -214,11 +218,14 @@ def get_request_network_topology(
             "request_id": request_id,
             "request_title": str(far_request.title or ""),
             "topology": topology,
+            "unified_graph": topology,
             "summary": {
                 "total_rules": len(rules),
                 "network_nodes": topology["metadata"]["network_count"],
-                "connections": topology["metadata"]["connection_count"]
-            }
+                "connections": topology["metadata"].get(
+                    "connection_count", topology["metadata"].get("link_count", 0)
+                ),
+            },
         }
         
         return success_response(

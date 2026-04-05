@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.models.asset_registry import AssetRegistry
 from app.utils.csv_errors import DatabaseConnectionError
+from app.utils.ip_formatter import extract_base_ip_from_cidr
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,16 @@ class AssetService:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_asset_for_network_cidr(self, cidr: str) -> Optional[Dict[str, Any]]:
+        """
+        Resolve asset registry row for a rule endpoint CIDR using the base IPv4 address.
+        Phase 1: same as frontend — match network prefix's host part only; wide prefixes may miss.
+        """
+        base_ip = extract_base_ip_from_cidr(cidr)
+        if not base_ip:
+            return None
+        return self.get_asset_by_ip(base_ip)
+
     def get_asset_by_ip(self, ip_address: str) -> Optional[Dict[str, Any]]:
         """Get asset information for a specific IP address"""
         try:

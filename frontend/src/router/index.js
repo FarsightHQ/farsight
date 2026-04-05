@@ -63,6 +63,12 @@ const routes = [
     component: () => import('../views/AssetDetail.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/visualize/unified',
+    name: 'UnifiedGraph',
+    component: () => import('../views/UnifiedGraphView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

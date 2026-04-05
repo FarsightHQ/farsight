@@ -31,7 +31,7 @@ class GraphService:
         source_list = []
         for i, source in enumerate(sources):
             network_cidr = source["network_cidr"]
-            asset_info = self.asset_service.get_asset_by_ip(network_cidr)
+            asset_info = self.asset_service.get_asset_for_network_cidr(network_cidr)
             formatted_label = format_cidr_to_range(network_cidr)
             base_tooltip = self.asset_service.create_node_tooltip(network_cidr, asset_info, "Source")
             
@@ -47,7 +47,7 @@ class GraphService:
         destination_list = []
         for i, dest in enumerate(destinations):
             network_cidr = dest["network_cidr"]
-            asset_info = self.asset_service.get_asset_by_ip(network_cidr)
+            asset_info = self.asset_service.get_asset_for_network_cidr(network_cidr)
             formatted_label = format_cidr_to_range(network_cidr)
             base_tooltip = self.asset_service.create_node_tooltip(network_cidr, asset_info, "Destination")
             
@@ -153,72 +153,130 @@ class GraphService:
             }
         }
     
-    def create_network_topology_graph(
-        self, 
-        network_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Create a network topology view based on firewall rules"""
-        nodes = []
-        links = []
-        network_map = {}
-        
-        # Extract unique networks from rules
-        networks = set()
-        for rule in network_data:
+    def _network_cidr_to_node_id(self, network: str) -> str:
+        return f"net_{network.replace('/', '_').replace('.', '_')}"
+
+    def create_unified_endpoint_graph(self, rule_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        One node per distinct network_cidr; directed edges for each src×dst implied by rules,
+        merged across rules with aggregated rule_ids and services.
+        """
+        networks: Set[str] = set()
+        for rule in rule_data:
             for source in rule.get("sources", []):
                 networks.add(source["network_cidr"])
             for dest in rule.get("destinations", []):
                 networks.add(dest["network_cidr"])
-        
-        # Create network nodes
-        for network in networks:
-            asset_info = self.asset_service.get_asset_by_ip(network)
-            formatted_label = format_cidr_to_range(network)
-            base_tooltip = self.asset_service.create_node_tooltip(network, asset_info, "Network")
-            
-            node = {
-                "id": f"net_{network.replace('/', '_').replace('.', '_')}",
+
+        nodes: List[Dict[str, Any]] = []
+        for cidr in sorted(networks):
+            asset_info = self.asset_service.get_asset_for_network_cidr(cidr)
+            formatted_label = format_cidr_to_range(cidr)
+            base_tooltip = self.asset_service.create_node_tooltip(cidr, asset_info, "Network")
+            node: Dict[str, Any] = {
+                "id": self._network_cidr_to_node_id(cidr),
                 "type": "network",
                 "label": formatted_label,
-                "network_cidr": network,
+                "network_cidr": cidr,
                 "group": "network",
                 "size": 12,
                 "color": "#feca57",
-                "tooltip": f"{base_tooltip}\\nCIDR: {network}"
+                "tooltip": f"{base_tooltip}\\nCIDR: {cidr}",
+                "asset": asset_info,
+                "segment": asset_info.get("segment") if asset_info else None,
+                "vlan": str(asset_info["vlan"]) if asset_info and asset_info.get("vlan") is not None else None,
+                "environment": asset_info.get("environment") if asset_info else None,
+                "location": asset_info.get("location") if asset_info else None,
             }
             nodes.append(node)
-            network_map[network] = node["id"]
-        
-        # Create links based on rules
-        for rule in network_data:
+
+        network_map = {n["network_cidr"]: n["id"] for n in nodes}
+
+        # (src_cidr, dst_cidr) -> aggregated link payload
+        link_agg: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+        for rule in rule_data:
             rule_id = rule["rule_id"]
+            rule_name = rule.get("rule_name")
             sources = rule.get("sources", [])
             destinations = rule.get("destinations", [])
-            
+            services = rule.get("services", [])
+
+            rule_services: List[Dict[str, str]] = []
+            for svc in services:
+                pr = str(svc.get("port_ranges", "") or "")
+                proto = str(svc.get("protocol", "") or "")
+                rule_services.append({
+                    "protocol": proto,
+                    "port_ranges": pr,
+                    "formatted_ports": format_port_ranges(pr),
+                })
+
             for source in sources:
                 for dest in destinations:
-                    source_id = network_map[source["network_cidr"]]
-                    dest_id = network_map[dest["network_cidr"]]
-                    
-                    # Avoid self-links
-                    if source_id != dest_id:
-                        links.append({
-                            "source": source_id,
-                            "target": dest_id,
+                    src_cidr = source["network_cidr"]
+                    dst_cidr = dest["network_cidr"]
+                    if src_cidr == dst_cidr:
+                        continue
+                    src_id = network_map[src_cidr]
+                    dst_id = network_map[dst_cidr]
+                    key = (src_cidr, dst_cidr)
+                    if key not in link_agg:
+                        link_agg[key] = {
+                            "source": src_id,
+                            "target": dst_id,
                             "type": "traffic_flow",
-                            "label": f"Rule {rule_id}",
-                            "rule_id": rule_id
-                        })
-        
+                            "rule_ids": set(),
+                            "rules": [],
+                            "service_keys": set(),
+                            "services": [],
+                        }
+                    entry = link_agg[key]
+                    entry["rule_ids"].add(rule_id)
+                    if rule_name:
+                        entry["rules"].append({"id": rule_id, "name": rule_name})
+                    else:
+                        entry["rules"].append({"id": rule_id, "name": None})
+                    for rs in rule_services:
+                        sk = (rs["protocol"], rs["port_ranges"])
+                        if sk not in entry["service_keys"]:
+                            entry["service_keys"].add(sk)
+                            entry["services"].append(rs)
+
+        links: List[Dict[str, Any]] = []
+        for entry in link_agg.values():
+            rule_ids_sorted = sorted(entry["rule_ids"])
+            label = f"Rules {rule_ids_sorted}" if len(rule_ids_sorted) != 1 else f"Rule {rule_ids_sorted[0]}"
+            links.append({
+                "source": entry["source"],
+                "target": entry["target"],
+                "type": entry["type"],
+                "label": label,
+                "rule_ids": rule_ids_sorted,
+                "rules": entry["rules"],
+                "services": entry["services"],
+            })
+
+        distinct_rules = {r["rule_id"] for r in rule_data}
         return {
             "nodes": nodes,
             "links": links,
             "metadata": {
+                "schema_version": 1,
                 "network_count": len(networks),
-                "rule_count": len(network_data),
-                "connection_count": len(links)
-            }
+                "rule_count": len(distinct_rules),
+                "connection_count": len(links),
+                "node_count": len(nodes),
+                "link_count": len(links),
+            },
         }
+
+    def create_network_topology_graph(
+        self,
+        network_data: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Backward-compatible name: same as unified endpoint graph (unique CIDRs, merged edges)."""
+        return self.create_unified_endpoint_graph(network_data)
     
     def _find_shared_elements(self, rule_data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Set[int]]]:
         """Find elements shared between multiple rules"""

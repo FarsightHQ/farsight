@@ -28,6 +28,13 @@
           <span class="text-sm text-theme-text-content">
             {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
           </span>
+          <Button
+            variant="outline"
+            @click="openUnifiedSelectedInNewTab"
+            :disabled="selectedRules.length === 0"
+          >
+            Unified view (new tab)
+          </Button>
           <Button 
             variant="primary" 
             @click="handleVisualizeSelected"
@@ -104,6 +111,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
@@ -138,6 +146,7 @@ const props = defineProps({
 
 const emit = defineEmits(['view-rule', 'stats-updated', 'rules-loaded', 'visualize-rule', 'visualize-multiple-rules'])
 
+const router = useRouter()
 const { error: showError } = useToast()
 
 const loading = ref(false)
@@ -322,6 +331,18 @@ const mergeGraphData = (responses) => {
       connection_count: allConnections.length
     }
   }
+}
+
+const openUnifiedSelectedInNewTab = () => {
+  if (selectedRules.value.length === 0) return
+  const href = router.resolve({
+    name: 'UnifiedGraph',
+    query: {
+      ruleIds: selectedRules.value.join(','),
+      title: `Selected rules (${selectedRules.value.length})`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
 }
 
 const handleVisualizeSelected = async () => {

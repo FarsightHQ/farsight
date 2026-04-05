@@ -2,6 +2,23 @@
 IP address formatting utilities
 Handles conversion of CIDR notation to readable IP ranges
 """
+import re
+
+
+def extract_base_ip_from_cidr(cidr: str) -> str:
+    """
+    Extract the IPv4 address portion from a CIDR or bare IP string for asset lookups.
+    Mirrors frontend extractBaseIpFromCidr (ipUtils.js): registry rows use host IPs, not prefixes.
+    """
+    if not cidr or not isinstance(cidr, str):
+        return ""
+    cleaned = cidr.strip()
+    if "/" in cleaned:
+        cleaned = cleaned.split("/", 1)[0].strip()
+    if "." in cleaned and ":" in cleaned:
+        cleaned = cleaned.split(":", 1)[0].strip()
+    match = re.match(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", cleaned)
+    return match.group(1) if match else ""
 
 
 def format_cidr_to_range(cidr: str) -> str:

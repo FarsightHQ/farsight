@@ -24,6 +24,15 @@
           >
             Visualize
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!hasNetworkData"
+            :title="!hasNetworkData ? 'No network data' : 'Open unified topology in a new tab'"
+            @click="handleOpenUnifiedInNewTab"
+          >
+            Unified view
+          </Button>
           <Button variant="outline" size="sm" @click="handleBack">
             Back to Rules
           </Button>
@@ -325,6 +334,18 @@ const handleVisualize = () => {
     // Still emit the event - let the modal handle showing appropriate message
   }
   emit('visualize', props.rule)
+}
+
+const handleOpenUnifiedInNewTab = () => {
+  if (!props.rule?.id) return
+  const href = router.resolve({
+    name: 'UnifiedGraph',
+    query: {
+      ruleIds: String(props.rule.id),
+      title: `Rule #${props.rule.id}`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
 }
 
 // Handle back button click - context-aware navigation
