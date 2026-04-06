@@ -75,6 +75,12 @@ const routes = [
     component: () => import('../views/ClassicRuleTopologyView.vue'),
     meta: { requiresAuth: true, vizWorkspace: true },
   },
+  {
+    path: '/visualize/zone-adjacency',
+    name: 'ZoneAdjacency',
+    component: () => import('../views/ZoneAdjacencyView.vue'),
+    meta: { requiresAuth: true, vizWorkspace: true },
+  },
 ]
 
 const router = createRouter({

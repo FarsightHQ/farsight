@@ -50,6 +50,19 @@
           >
             Classic view (new tab)
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!hasNetworkData"
+            :title="
+              !hasNetworkData
+                ? 'No network data'
+                : 'Open zone adjacency heat map in a new tab'
+            "
+            @click="handleOpenZoneAdjacencyInNewTab"
+          >
+            Zone heat map
+          </Button>
           <Button variant="outline" size="sm" @click="handleBack"> Back to Rules </Button>
         </div>
       </div>
@@ -366,6 +379,18 @@ const handleOpenClassicInNewTab = () => {
   if (!props.rule?.id) return
   const href = router.resolve({
     name: 'ClassicRuleTopology',
+    query: {
+      ruleIds: String(props.rule.id),
+      title: `Rule #${props.rule.id}`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+const handleOpenZoneAdjacencyInNewTab = () => {
+  if (!props.rule?.id) return
+  const href = router.resolve({
+    name: 'ZoneAdjacency',
     query: {
       ruleIds: String(props.rule.id),
       title: `Rule #${props.rule.id}`,

@@ -28,31 +28,44 @@
         v-if="selectedRules.length > 0"
         class="p-4 border-b border-theme-border-card bg-theme-content"
       >
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <span class="text-sm text-theme-text-content">
             {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
           </span>
-          <Button
-            variant="outline"
-            :disabled="selectedRules.length === 0"
-            @click="openUnifiedSelectedInNewTab"
-          >
-            Unified view (new tab)
-          </Button>
-          <Button
-            variant="outline"
-            :disabled="selectedRules.length === 0"
-            @click="openClassicSelectedInNewTab"
-          >
-            Classic view (new tab)
-          </Button>
-          <Button
-            variant="primary"
-            :disabled="selectedRules.length === 0"
-            @click="handleVisualizeSelected"
-          >
-            Visualize Selected
-          </Button>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="selectedRules.length === 0"
+              @click="openUnifiedSelectedInNewTab"
+            >
+              Unified view (new tab)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="selectedRules.length === 0"
+              @click="openClassicSelectedInNewTab"
+            >
+              Classic view (new tab)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="selectedRules.length === 0"
+              @click="openZoneAdjacencySelectedInNewTab"
+            >
+              Zone heat map (new tab)
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              :disabled="selectedRules.length === 0"
+              @click="handleVisualizeSelected"
+            >
+              Visualize Selected
+            </Button>
+          </div>
         </div>
       </div>
       <RulesTable
@@ -290,6 +303,18 @@ const openClassicSelectedInNewTab = () => {
   if (selectedRules.value.length === 0) return
   const href = router.resolve({
     name: 'ClassicRuleTopology',
+    query: {
+      ruleIds: selectedRules.value.join(','),
+      title: `Selected rules (${selectedRules.value.length})`,
+    },
+  }).href
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+const openZoneAdjacencySelectedInNewTab = () => {
+  if (selectedRules.value.length === 0) return
+  const href = router.resolve({
+    name: 'ZoneAdjacency',
     query: {
       ruleIds: selectedRules.value.join(','),
       title: `Selected rules (${selectedRules.value.length})`,
