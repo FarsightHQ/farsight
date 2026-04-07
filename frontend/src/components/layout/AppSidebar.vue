@@ -42,7 +42,7 @@
         </button>
         <ul
           v-show="inProjectOpen || isCollapsed"
-          :class="['space-y-1', isCollapsed ? '' : 'pl-1 border-l border-theme-border-sidebar ml-1']"
+          :class="['space-y-1', isCollapsed ? '' : 'pl-3']"
         >
           <li>
             <router-link
