@@ -335,18 +335,21 @@ class AssetRegistryService:
                     ).first()
                     
                     if existing_asset:
-                        # Update existing asset
-                        update_data_dict = {k: v for k, v in asset_data.items() if k != 'ip_address'}
-                        
-                        # Convert gateway to string if it exists
+                        # Patch only fields present in the CSV; omit missing columns so we do not
+                        # overwrite existing DB values with None (IP-only uploads = link-only).
+                        update_data_dict = {
+                            k: v
+                            for k, v in asset_data.items()
+                            if k != 'ip_address' and v is not None
+                        }
                         if 'gateway' in update_data_dict and update_data_dict['gateway']:
                             update_data_dict['gateway'] = str(update_data_dict['gateway'])
-                        
-                        update_data = AssetRegistryUpdate(**update_data_dict)
-                        AssetRegistryService.update_asset(
-                            db, str(asset_data['ip_address']), update_data, uploaded_by
-                        )
-                        updated_count += 1
+                        if update_data_dict:
+                            update_data = AssetRegistryUpdate(**update_data_dict)
+                            AssetRegistryService.update_asset(
+                                db, str(asset_data['ip_address']), update_data, uploaded_by
+                            )
+                            updated_count += 1
                         processed_ips.append(str(asset_data["ip_address"]))
                     else:
                         # Create new asset
@@ -482,71 +485,68 @@ class AssetRegistryService:
                 'itm_id': find_column('itam id', 'itm id', 'monitoring id'),
             }
             
-            # Apply mappings with length limits
-            asset_data = {}
+            # Only include keys when the CSV has that column and the cell has a value.
+            # Missing columns are omitted entirely so updates do not clear existing data.
+            asset_data: Dict[str, Any] = {}
             for field, column in mappings.items():
-                if column:
-                    # Apply specific length limits for certain fields
-                    if field in ['vlan', 'dmz_mz', 'confidentiality', 'integrity']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=50)
-                    elif field in ['environment']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=50)
-                    elif field in ['segment', 'os_name', 'os_version', 'app_version', 'db_version']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=100)
-                    elif field in ['hostname', 'vm_display_name']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=255)
-                    elif field in ['subnet', 'itm_id', 'availability', 'location']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=100)
-                    elif field in ['tool_update']:
-                        asset_data[field] = safe_string_val(row.get(column), max_length=200)
-                    else:
-                        asset_data[field] = safe_string_val(row.get(column))
+                if not column:
+                    continue
+                val: Any
+                if field in ['vlan', 'dmz_mz', 'confidentiality', 'integrity']:
+                    val = safe_string_val(row.get(column), max_length=50)
+                elif field in ['environment']:
+                    val = safe_string_val(row.get(column), max_length=50)
+                elif field in ['segment', 'os_name', 'os_version', 'app_version', 'db_version']:
+                    val = safe_string_val(row.get(column), max_length=100)
+                elif field in ['hostname', 'vm_display_name']:
+                    val = safe_string_val(row.get(column), max_length=255)
+                elif field in ['subnet', 'itm_id', 'availability', 'location']:
+                    val = safe_string_val(row.get(column), max_length=100)
+                elif field in ['tool_update']:
+                    val = safe_string_val(row.get(column), max_length=200)
+                elif field == 'ip_address':
+                    val = safe_string_val(row.get(column), max_length=50)
                 else:
-                    asset_data[field] = None
-            
-            # Special handling for vcpu (integer field)
+                    val = safe_string_val(row.get(column))
+                if val is not None:
+                    asset_data[field] = val
+
             vcpu_col = find_column('vcpu', 'cpu count')
-            asset_data['vcpu'] = safe_int_val(row.get(vcpu_col)) if vcpu_col else None
-            
-            # Handle any additional compliance tags (optional)
-            compliance_tags = []
+            if vcpu_col:
+                vcpu_val = safe_int_val(row.get(vcpu_col))
+                if vcpu_val is not None:
+                    asset_data['vcpu'] = vcpu_val
+
             compliance_col = find_column('compliance', 'tags', 'compliance tags')
             if compliance_col:
                 compliance_val = safe_string_val(row.get(compliance_col))
                 if compliance_val:
-                    # Split by common delimiters
-                    compliance_tags = [tag.strip() for tag in compliance_val.replace(';', ',').split(',') if tag.strip()]
-            
-            asset_data['compliance_tags'] = compliance_tags if compliance_tags else None
-            
-            # Extended properties for any unmapped columns
-            asset_data['extended_properties'] = {}
+                    compliance_tags = [
+                        tag.strip()
+                        for tag in compliance_val.replace(';', ',').split(',')
+                        if tag.strip()
+                    ]
+                    if compliance_tags:
+                        asset_data['compliance_tags'] = compliance_tags
+
             mapped_columns = set()
             for col in mappings.values():
                 if col:
                     mapped_columns.add(col.lower())
             mapped_columns.update(['vcpu', 'compliance', 'tags'])
-            
+
+            extended_properties: Dict[str, Any] = {}
             for col in row.index:
                 if col.lower().strip() not in mapped_columns:
                     val = safe_string_val(row.get(col))
                     if val:
-                        asset_data['extended_properties'][col] = val
-            
-            if not asset_data['extended_properties']:
-                asset_data['extended_properties'] = None
-                
+                        extended_properties[col] = val
+            if extended_properties:
+                asset_data['extended_properties'] = extended_properties
+
         else:
-            # Fallback: create empty structure if no headers
-            asset_data = {
-                'ip_address': None, 'segment': None, 'subnet': None, 'gateway': None,
-                'vlan': None, 'os_name': None, 'os_version': None, 'app_version': None,
-                'db_version': None, 'vcpu': None, 'memory': None, 'hostname': None,
-                'vm_display_name': None, 'environment': None, 'location': None,
-                'availability': None, 'itm_id': None, 'tool_update': None,
-                'dmz_mz': None, 'confidentiality': None, 'integrity': None,
-                'compliance_tags': None, 'extended_properties': None
-            }
+            # No usable headers — cannot map columns; treat as missing IP downstream
+            asset_data = {}
         
         return asset_data
 
