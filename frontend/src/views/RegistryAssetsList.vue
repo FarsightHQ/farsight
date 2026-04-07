@@ -1,18 +1,24 @@
 <template>
   <div class="flex flex-col min-h-0" style="height: 100%">
-    <div class="flex items-center justify-between mb-3 pb-3 border-b border-theme-border-default">
-      <div>
-        <h1 class="text-xl font-bold text-theme-text-content">Global asset registry</h1>
-        <p class="text-sm text-theme-text-content mt-0.5">
-          Organization-wide assets. Manage uploads in a
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="Global assets"
+    >
+      <template #subtitle>
+        <span class="text-theme-text-muted">
+          Organization-wide registry. Upload CSVs from
           <router-link :to="uploadHintLink" class="text-primary-600 hover:underline"
-            >project</router-link
+            >project assets</router-link
           >.
-        </p>
-      </div>
-    </div>
+        </span>
+      </template>
+      <template #actions>
+        <router-link :to="uploadHintLink" custom v-slot="{ navigate }">
+          <Button variant="outline" size="sm" @click="navigate">Upload in project</Button>
+        </router-link>
+      </template>
 
-    <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
+    <div class="flex-1 flex gap-4 overflow-hidden min-h-0 min-w-0">
       <div class="w-64 flex-shrink-0 overflow-y-auto">
         <AssetFilter :filters="filters" @update:filters="handleFilterUpdate" />
       </div>
@@ -41,18 +47,23 @@
         </div>
       </div>
     </div>
+    </PageFrame>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import Button from '@/components/ui/Button.vue'
 import AssetFilter from '@/components/assets/AssetFilter.vue'
 import AssetTable from '@/components/assets/AssetTable.vue'
 import { registryAssetsService } from '@/services/registryAssets'
 import { projectPath } from '@/utils/projectRoutes'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const router = useRouter()
+const { breadcrumbItems } = usePageBreadcrumbs()
 const assets = ref([])
 const loading = ref(false)
 const selectedAssets = ref([])

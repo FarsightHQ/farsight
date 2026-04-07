@@ -5,6 +5,12 @@
       class="viz-workspace__canvas flex-[4] min-w-0 min-h-0 flex flex-col bg-gray-100"
       aria-label="Visualization canvas"
     >
+      <div
+        v-if="breadcrumbItems.length"
+        class="shrink-0 px-2 py-1.5 sm:px-3 border-b border-gray-200 bg-white/90 backdrop-blur-sm"
+      >
+        <BreadcrumbTrail :items="breadcrumbItems" compact />
+      </div>
       <div class="viz-workspace__canvas-inner flex-1 min-h-0 overflow-hidden relative">
         <slot />
       </div>
@@ -55,9 +61,12 @@
 
 <script setup>
 import { ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/vue/24/outline'
+import BreadcrumbTrail from '@/components/layout/BreadcrumbTrail.vue'
 import { useVizAppChrome } from '@/composables/useVizAppChrome'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const { hideAppChrome, toggleVizFullscreen } = useVizAppChrome()
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 defineProps({
   title: {

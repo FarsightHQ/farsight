@@ -1,40 +1,24 @@
 <template>
   <div class="space-y-6">
-    <!-- Breadcrumb Navigation -->
-    <nav class="flex items-center space-x-2 text-sm text-gray-600">
-      <router-link
-        :to="projectPath('/requests', route.params.projectId)"
-        class="hover:text-primary-600"
-      >
-        Requests
-      </router-link>
-      <ChevronRightIcon v-if="requestId || rule?.request?.id" class="h-4 w-4" />
-      <router-link
-        v-if="requestId || rule?.request?.id"
-        :to="
-          projectPath(`/requests/${requestId || rule.request.id}`, route.params.projectId)
-        "
-        class="hover:text-primary-600"
-      >
-        Request {{ requestId || rule.request.id }}
-      </router-link>
-      <ChevronRightIcon v-if="requestId || rule?.request?.id" class="h-4 w-4" />
-      <span v-if="requestId || rule?.request?.id" class="text-gray-600">Rules</span>
-      <ChevronRightIcon class="h-4 w-4" />
-      <span class="text-gray-900 font-medium">Rule {{ ruleId }}</span>
-    </nav>
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      :title="pageTitle"
+      subtitle="Firewall rule details and coverage."
+    >
+      <template #actions>
+        <Button variant="outline" size="sm" @click="handleBack">Back</Button>
+      </template>
 
-    <!-- Rule Detail Component -->
-    <RuleDetail
-      v-if="rule"
-      :rule="rule"
-      :request-id="requestId || rule.request?.id"
-      :loading="loading"
-      @back="handleBack"
-      @visualize="handleVisualizeRule"
-    />
+      <RuleDetail
+        v-if="rule"
+        :rule="rule"
+        :request-id="requestId || rule.request?.id"
+        :loading="loading"
+        @back="handleBack"
+        @visualize="handleVisualizeRule"
+      />
+    </PageFrame>
 
-    <!-- Network Graph Modal -->
     <NetworkGraphModal
       v-model="showGraphModal"
       :rule-id="selectedRuleForVisualization?.id"
@@ -50,11 +34,13 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
-import { ChevronRightIcon } from '@heroicons/vue/24/outline'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import Button from '@/components/ui/Button.vue'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const route = useRoute()
 const router = useRouter()
@@ -68,6 +54,17 @@ const showGraphModal = ref(false)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
 
+const { breadcrumbItems } = usePageBreadcrumbs({
+  requestTitle: computed(() => rule.value?.request?.title ?? ''),
+  ruleLabel: computed(() =>
+    rule.value?.id ? `Rule ${rule.value.id}` : ruleId.value ? `Rule ${ruleId.value}` : 'Rule'
+  ),
+})
+
+const pageTitle = computed(() =>
+  rule.value?.id ? `Rule ${rule.value.id}` : ruleId.value ? `Rule ${ruleId.value}` : 'Rule'
+)
+
 const handleBack = () => {
   const currentRequestId = requestId.value || rule.value?.request?.id
   const pid = route.params.projectId
@@ -78,9 +75,9 @@ const handleBack = () => {
   }
 }
 
-const handleVisualizeRule = rule => {
-  selectedRuleForVisualization.value = rule
-  mergedGraphData.value = null // Clear merged data for single rule
+const handleVisualizeRule = r => {
+  selectedRuleForVisualization.value = r
+  mergedGraphData.value = null
   showGraphModal.value = true
 }
 
@@ -94,7 +91,6 @@ const fetchRule = async () => {
     const responseData = response.data || response
     const data = responseData.data || responseData
 
-    // Transform the data to match component expectations
     if (data) {
       rule.value = {
         id: data.rule_id || data.id,

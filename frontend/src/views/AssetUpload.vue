@@ -1,9 +1,13 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold">Upload Assets</h1>
-      <Button variant="outline" @click="goAssetsList"> Back to Assets </Button>
-    </div>
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="Upload assets"
+      subtitle="Import a CSV to add or update assets in this project."
+    >
+      <template #actions>
+        <Button variant="outline" @click="goAssetsList">Back to assets</Button>
+      </template>
 
     <Card>
       <form @submit.prevent="handleSubmit">
@@ -20,7 +24,6 @@
 
           <!-- Actions -->
           <div class="flex items-center justify-end space-x-4 pt-4 border-t">
-            <Button variant="outline" @click="$router.back()">Cancel</Button>
             <Button type="submit" variant="primary" :disabled="uploading || !form.file">
               <Spinner v-if="uploading" size="sm" class="mr-2" />
               {{ uploading ? 'Uploading...' : 'Upload CSV' }}
@@ -112,6 +115,7 @@
         <Button variant="outline" @click="resetForm"> Upload Another </Button>
       </div>
     </Card>
+    </PageFrame>
   </div>
 </template>
 
@@ -119,6 +123,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import { assetsService } from '@/services/assets'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
@@ -129,6 +135,7 @@ import FileUpload from '@/components/requests/FileUpload.vue'
 const router = useRouter()
 const route = useRoute()
 const { success, error } = useToast()
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const goAssetsList = () => {
   router.push(projectPath('/assets', route.params.projectId))

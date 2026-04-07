@@ -1,19 +1,11 @@
 <template>
-  <div class="flex flex-col" style="height: calc(100vh - 12rem)">
-    <!-- Header -->
-    <div
-      class="flex items-center justify-between mb-6 pb-4 border-b border-theme-border-default flex-shrink-0"
+  <div class="flex flex-col min-h-0" style="height: calc(100vh - 12rem)">
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="All rules"
+      subtitle="View and analyze firewall rules across all FAR requests."
     >
-      <div>
-        <h1 class="text-3xl font-bold mb-2">All Rules</h1>
-        <p class="text-sm text-theme-text-content">
-          View and analyze firewall rules across all FAR requests
-        </p>
-      </div>
-    </div>
-
-    <!-- 3-Column Layout -->
-    <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
+    <div class="flex gap-6 flex-1 overflow-hidden min-h-0 min-w-0">
       <!-- Left Sidebar: Filters -->
       <aside class="w-72 flex-shrink-0 overflow-y-auto">
         <RulesFilter
@@ -109,6 +101,7 @@
       "
       :prefetched-graph="mergedGraphData"
     />
+    </PageFrame>
   </div>
 </template>
 
@@ -116,10 +109,14 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
+import PageFrame from '@/components/layout/PageFrame.vue'
 import Card from '@/components/ui/Card.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
+
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const router = useRouter()
 const route = useRoute()

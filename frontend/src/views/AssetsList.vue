@@ -1,15 +1,13 @@
 <template>
   <div class="flex flex-col min-h-0" style="height: 100%">
-    <!-- Compact Header -->
-    <div class="flex items-center justify-between mb-3 pb-3 border-b border-theme-border-default">
-      <div>
-        <h1 class="text-xl font-bold text-theme-text-content">Asset Registry</h1>
-        <p class="text-sm text-theme-text-content mt-0.5">Manage and explore network assets</p>
-      </div>
-      <Button variant="primary" size="sm" @click="goUpload">
-        Upload CSV
-      </Button>
-    </div>
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="Project assets"
+      subtitle="Manage and explore network assets linked to this project."
+    >
+      <template #actions>
+        <Button variant="primary" size="sm" @click="goUpload">Upload CSV</Button>
+      </template>
 
     <!-- View Controls Bar -->
     <div class="flex items-center justify-between mb-3">
@@ -142,6 +140,7 @@
         <AssetAnalytics />
       </div>
     </div>
+    </PageFrame>
   </div>
 </template>
 
@@ -149,6 +148,8 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import { assetsService } from '@/services/assets'
 import { useToast } from '@/composables/useToast'
 import { exportRulesToCSV, exportRulesToJSON } from '@/services/export'
@@ -161,6 +162,7 @@ import AssetAnalytics from '@/components/assets/AssetAnalytics.vue'
 const router = useRouter()
 const route = useRoute()
 const { success, error } = useToast()
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const goUpload = () => {
   router.push(projectPath('/assets/upload', route.params.projectId))

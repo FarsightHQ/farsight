@@ -1,11 +1,11 @@
 <template>
-  <div class="max-w-3xl space-y-8">
-    <nav class="text-sm text-theme-text-muted">
-      <router-link to="/projects" class="hover:text-primary-600">Projects</router-link>
-      <span class="mx-2">/</span>
-      <span class="text-theme-text-content font-medium">{{ project?.name || '…' }}</span>
-    </nav>
-
+  <div class="max-w-3xl">
+  <PageFrame
+    :breadcrumb-items="breadcrumbItems"
+    :title="pageTitle"
+    :subtitle="pageSubtitle"
+  >
+    <div class="space-y-8">
     <div v-if="loading" class="animate-pulse space-y-4">
       <div class="h-8 bg-theme-active/30 rounded w-1/3"></div>
       <div class="h-24 bg-theme-active/30 rounded"></div>
@@ -16,11 +16,6 @@
     </div>
 
     <template v-else-if="project">
-      <div>
-        <h1 class="text-2xl font-semibold text-theme-text-content">{{ project.name }}</h1>
-        <p class="text-sm text-theme-text-muted mt-1">slug: {{ project.slug }}</p>
-      </div>
-
       <section class="border border-theme-border rounded-lg p-4 space-y-4">
         <h2 class="font-medium text-theme-text-content">Details</h2>
         <form class="space-y-3" @submit.prevent="saveProject">
@@ -136,6 +131,8 @@
         </router-link>
       </div>
     </template>
+    </div>
+  </PageFrame>
   </div>
 </template>
 
@@ -144,11 +141,21 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { useToast } from '@/composables/useToast'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const route = useRoute()
+const { breadcrumbItems, projectName: breadcrumbProjectName } = usePageBreadcrumbs()
 const { success, error: toastError } = useToast()
 
 const projectId = computed(() => route.params.projectId)
+
+const pageTitle = computed(
+  () => project.value?.name || breadcrumbProjectName.value || 'Project'
+)
+const pageSubtitle = computed(() =>
+  project.value?.slug ? `slug: ${project.value.slug}` : ''
+)
 
 const project = ref(null)
 const loading = ref(true)

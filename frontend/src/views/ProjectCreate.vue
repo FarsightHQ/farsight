@@ -1,19 +1,17 @@
 <template>
-  <div class="max-w-xl space-y-6">
-    <nav class="text-sm text-theme-text-muted">
-      <router-link :to="backToList" class="hover:text-primary-600">All projects</router-link>
-      <span class="mx-2">/</span>
-      <span class="text-theme-text-content font-medium">New project</span>
-    </nav>
+  <div class="max-w-xl">
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="Create project"
+      subtitle="Add a workspace for FAR requests and project-scoped assets."
+    >
+      <template #actions>
+        <router-link :to="backToList">
+          <Button type="button" variant="outline">Cancel</Button>
+        </router-link>
+      </template>
 
-    <div>
-      <h1 class="text-2xl font-semibold text-theme-text-content">Create project</h1>
-      <p class="text-sm text-theme-text-muted mt-1">
-        Add a workspace for FAR requests and project-scoped assets.
-      </p>
-    </div>
-
-    <Card class="p-6">
+      <Card class="p-6">
       <form class="space-y-4" @submit.prevent="onCreate">
         <div>
           <label class="block text-sm font-medium text-theme-text-content mb-1">Name</label>
@@ -39,19 +37,17 @@
           <Button type="submit" variant="primary" :disabled="creating">
             {{ creating ? 'Creating…' : 'Create project' }}
           </Button>
-          <router-link :to="backToList">
-            <Button type="button" variant="outline">Cancel</Button>
-          </router-link>
         </div>
         <p v-if="createError" class="text-sm text-error-600">{{ createError }}</p>
       </form>
     </Card>
 
-    <div v-if="redirect" class="text-sm">
-      <router-link :to="redirect" class="text-primary-600 hover:underline">
-        Continue to requested page
-      </router-link>
-    </div>
+      <div v-if="redirect" class="text-sm mt-6">
+        <router-link :to="redirect" class="text-primary-600 hover:underline">
+          Continue to requested page
+        </router-link>
+      </div>
+    </PageFrame>
   </div>
 </template>
 
@@ -60,8 +56,12 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { setActiveProjectId } from '@/utils/projectContext'
+import PageFrame from '@/components/layout/PageFrame.vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
+
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const newName = ref('')
 const newDesc = ref('')

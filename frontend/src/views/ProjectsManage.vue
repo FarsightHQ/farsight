@@ -1,18 +1,16 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold text-theme-text-content">All projects</h1>
-        <p class="text-sm text-theme-text-muted mt-1">
-          Workspaces you can access. Open one to work on requests, rules, and assets.
-        </p>
-      </div>
+  <PageFrame
+    :breadcrumb-items="breadcrumbItems"
+    title="All projects"
+    subtitle="Workspaces you can access. Open one to work on requests, rules, and assets."
+  >
+    <template #actions>
       <router-link :to="createLink">
         <Button variant="primary">New project</Button>
       </router-link>
-    </div>
+    </template>
 
-    <div v-if="redirect" class="text-sm">
+    <div v-if="redirect" class="text-sm mb-4">
       <router-link :to="redirect" class="text-primary-600 hover:underline">
         Continue to requested page
       </router-link>
@@ -105,7 +103,7 @@
         </table>
       </div>
     </Card>
-  </div>
+  </PageFrame>
 </template>
 
 <script setup>
@@ -113,9 +111,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { setActiveProjectId } from '@/utils/projectContext'
+import PageFrame from '@/components/layout/PageFrame.vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
+
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const projects = ref([])
 const loading = ref(true)

@@ -1,6 +1,13 @@
 <template>
   <div>
-    <h1 class="text-3xl font-bold mb-6">Create New Request</h1>
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="New request"
+      subtitle="Upload a CSV of firewall rules to start analysis."
+    >
+      <template #actions>
+        <Button variant="outline" @click="goCancel">Cancel</Button>
+      </template>
 
     <Card>
       <form @submit.prevent="handleSubmit">
@@ -34,7 +41,6 @@
 
           <!-- Actions -->
           <div class="flex items-center justify-end space-x-4 pt-4 border-t">
-            <Button variant="outline" @click="$router.back()">Cancel</Button>
             <Button
               type="submit"
               variant="primary"
@@ -101,6 +107,7 @@
         </div>
       </template>
     </Modal>
+    </PageFrame>
   </div>
 </template>
 
@@ -117,10 +124,17 @@ import Card from '@/components/ui/Card.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import Modal from '@/components/ui/Modal.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const router = useRouter()
 const route = useRoute()
 const { success, error } = useToast()
+const { breadcrumbItems } = usePageBreadcrumbs()
+
+function goCancel() {
+  router.push(projectPath('/requests', route.params.projectId))
+}
 
 const uploading = ref(false)
 const uploadProgress = ref(0)

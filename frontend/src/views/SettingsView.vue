@@ -1,7 +1,6 @@
 <template>
-  <div class="max-w-2xl space-y-8">
-    <h1 class="text-2xl font-semibold text-theme-text">Settings</h1>
-
+  <PageFrame :breadcrumb-items="breadcrumbItems" title="Settings">
+    <div class="max-w-2xl space-y-8">
     <section class="border border-theme-border rounded-lg p-4 space-y-2">
       <h2 class="font-medium">Appearance</h2>
       <p class="text-sm text-theme-text-muted">
@@ -16,9 +15,13 @@
         a later release. FAR analysis will be able to reference these defaults per project.
       </p>
     </section>
-  </div>
+    </div>
+  </PageFrame>
 </template>
 
 <script setup>
-// Placeholder — wire theme toggle when a theme system exists
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
+
+const { breadcrumbItems } = usePageBreadcrumbs()
 </script>

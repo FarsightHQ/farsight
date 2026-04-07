@@ -1,10 +1,13 @@
 <template>
   <div>
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold">FAR Requests</h1>
-      <Button variant="primary" @click="goNewRequest"> New Request </Button>
-    </div>
+    <PageFrame
+      :breadcrumb-items="breadcrumbItems"
+      title="FAR Requests"
+      subtitle="Upload and track firewall access rule analysis jobs."
+    >
+      <template #actions>
+        <Button variant="primary" @click="goNewRequest">New Request</Button>
+      </template>
 
     <!-- Search and Filters -->
     <Card class="mb-6">
@@ -134,6 +137,7 @@
       @confirm="confirmDelete"
       @cancel="cancelDelete"
     />
+    </PageFrame>
   </div>
 </template>
 
@@ -141,6 +145,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
+import PageFrame from '@/components/layout/PageFrame.vue'
+import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
@@ -152,6 +158,7 @@ import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 const router = useRouter()
 const route = useRoute()
 const { success, error } = useToast()
+const { breadcrumbItems } = usePageBreadcrumbs()
 
 const goNewRequest = () => {
   router.push(projectPath('/requests/new', route.params.projectId))
