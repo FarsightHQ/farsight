@@ -4,29 +4,29 @@
     :scroll-body="false"
     :breadcrumb-items="breadcrumbItems"
     title="Project assets"
-    subtitle="Manage and explore network assets linked to this project."
   >
-      <template #actions>
-        <Button variant="primary" size="sm" @click="goUpload">Upload CSV</Button>
-      </template>
-
-    <div class="flex flex-col flex-1 min-h-0 gap-3">
-    <!-- View Controls Bar -->
-    <div class="flex shrink-0 items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <div class="text-sm text-theme-text-content">
+    <template #subtitle>
+      <div class="text-sm text-theme-text-muted space-y-1">
+        <p>Manage and explore network assets linked to this project.</p>
+        <p>
           Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
-        </div>
+        </p>
       </div>
-      <div class="flex items-center space-x-2">
-        <Button v-if="selectedAssets.length > 0" variant="outline" size="sm" @click="handleExport">
-          Export Selected ({{ selectedAssets.length }})
-        </Button>
-        <Button variant="outline" size="sm" @click="handleExportAll"> Export All </Button>
-      </div>
-    </div>
+    </template>
 
-    <!-- Three Column Layout -->
+    <template #actions>
+      <Button variant="primary" @click="goUpload">Upload CSV</Button>
+      <Button
+        v-if="selectedAssets.length > 0"
+        variant="outline"
+        @click="handleExport"
+      >
+        Export selected ({{ selectedAssets.length }})
+      </Button>
+      <Button variant="outline" @click="handleExportAll">Export all</Button>
+    </template>
+
+    <div class="flex flex-col flex-1 min-h-0 min-w-0">
     <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
       <!-- Left: Filters (Fixed Width) -->
       <div class="w-64 flex-shrink-0 overflow-y-auto">

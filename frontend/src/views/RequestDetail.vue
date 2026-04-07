@@ -30,13 +30,12 @@
         <template v-if="request">
           <Button
             variant="outline"
-            size="sm"
             class="text-error-600 border-error-300 hover:bg-error-50"
             @click="handleDeleteClick"
           >
             Delete
           </Button>
-          <Button variant="outline" size="sm" @click="goRequestsList"> Back to list </Button>
+          <Button variant="outline" @click="goRequestsList">Back to list</Button>
         </template>
       </template>
 

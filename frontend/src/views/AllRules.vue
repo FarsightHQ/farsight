@@ -72,15 +72,16 @@
               v-if="summary.protocols_used && summary.protocols_used.length > 0"
               class="mt-4 pt-4 border-t border-theme-border-card"
             >
-              <span class="font-medium text-theme-text-content block mb-2">Protocols Used:</span>
+              <span class="font-medium text-theme-text-content block mb-2">Protocols used</span>
               <div class="flex flex-wrap gap-2">
-                <span
+                <Badge
                   v-for="protocol in summary.protocols_used"
                   :key="protocol"
-                  class="px-2 py-1 bg-theme-active text-theme-text-content rounded text-xs"
+                  variant="default"
+                  size="sm"
                 >
                   {{ protocol }}
-                </span>
+                </Badge>
               </div>
             </div>
           </div>
@@ -111,6 +112,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Card from '@/components/ui/Card.vue'
+import Badge from '@/components/ui/Badge.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'

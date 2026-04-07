@@ -1,74 +1,5 @@
 <template>
   <div v-if="rule" class="space-y-6">
-    <!-- Rule Header -->
-    <Card class="p-6">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Rule #{{ rule.id }}</h2>
-          <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-            <StatusBadge
-              :status="rule.action === 'allow' ? 'success' : 'error'"
-              :label="rule.action"
-            />
-            <span v-if="rule.direction">Direction: {{ rule.direction }}</span>
-            <span>Created: {{ formatDate(rule.created_at) }}</span>
-          </div>
-        </div>
-        <div class="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            :disabled="!hasNetworkData"
-            :title="
-              !hasNetworkData
-                ? 'This rule has no network data to visualize'
-                : 'Visualize network topology'
-            "
-            @click="handleVisualize"
-          >
-            Visualize
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="!hasNetworkData"
-            :title="!hasNetworkData ? 'No network data' : 'Open unified topology in a new tab'"
-            @click="handleOpenUnifiedInNewTab"
-          >
-            Unified view
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="!hasNetworkData"
-            :title="
-              !hasNetworkData
-                ? 'No network data'
-                : 'Open classic rule topology workspace in a new tab'
-            "
-            @click="handleOpenClassicInNewTab"
-          >
-            Classic view (new tab)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="!hasNetworkData"
-            :title="
-              !hasNetworkData
-                ? 'No network data'
-                : 'Open zone adjacency heat map in a new tab'
-            "
-            @click="handleOpenZoneAdjacencyInNewTab"
-          >
-            Zone heat map
-          </Button>
-          <Button variant="outline" size="sm" @click="handleBack"> Back to Rules </Button>
-        </div>
-      </div>
-    </Card>
-
-    <!-- 2-Column Layout -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Column: Network Endpoints and Services -->
       <div class="space-y-6">
@@ -217,37 +148,17 @@
       </div>
     </div>
   </div>
-
-  <!-- Loading State -->
-  <div v-else-if="loading" class="space-y-6">
-    <div class="h-8 bg-gray-200 rounded animate-pulse w-1/3"></div>
-    <div class="grid grid-cols-2 gap-4">
-      <div v-for="i in 4" :key="i" class="h-24 bg-gray-200 rounded animate-pulse"></div>
-    </div>
-  </div>
-
-  <!-- Error State -->
-  <Card v-else class="p-6">
-    <div class="text-center py-12">
-      <p class="text-gray-600">Rule not found</p>
-    </div>
-  </Card>
 </template>
 
 <script setup>
 import { computed, watch, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import { ArrowRightIcon, ArrowLeftIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
-import Button from '@/components/ui/Button.vue'
-import StatusBadge from './StatusBadge.vue'
 import RuleFacts from './RuleFacts.vue'
 import { useToast } from '@/composables/useToast'
 import { formatCidrToRange } from '@/utils/ipUtils'
 import { formatPortRanges } from '@/utils/portUtils'
 import { useAssetCache } from '@/composables/useAssetCache'
-import { projectPath } from '@/utils/projectRoutes'
-import { getActiveProjectId } from '@/utils/projectContext'
 
 const props = defineProps({
   rule: {
@@ -258,21 +169,9 @@ const props = defineProps({
     type: [String, Number],
     default: null,
   },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
 })
 
-const emit = defineEmits(['back', 'visualize'])
-
-const router = useRouter()
-const route = useRoute()
 const { success } = useToast()
-
-const projectIdForNav = computed(
-  () => route.params.projectId || getActiveProjectId() || ''
-)
 
 // Asset cache for fetching hostnames
 const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache()
@@ -327,18 +226,6 @@ const destinationEndpoints = computed(() => {
   })
 })
 
-const formatDate = dateString => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 const copyToClipboard = async text => {
   try {
     await navigator.clipboard.writeText(text)
@@ -348,85 +235,6 @@ const copyToClipboard = async text => {
   }
 }
 
-// Check if rule has network data for visualization
-const hasNetworkData = computed(() => {
-  if (!props.rule) return false
-
-  // Check if rule has endpoints array with source or destination entries
-  const hasEndpoints =
-    props.rule.endpoints && Array.isArray(props.rule.endpoints) && props.rule.endpoints.length > 0
-
-  // Rule needs at least endpoints to visualize
-  return hasEndpoints
-})
-
-// Handle visualize button click
-const handleVisualize = () => {
-  if (!hasNetworkData.value) {
-    console.warn('[RuleDetail] Rule has no network data for visualization:', props.rule?.id)
-    // Still emit the event - let the modal handle showing appropriate message
-  }
-  emit('visualize', props.rule)
-}
-
-const handleOpenUnifiedInNewTab = () => {
-  if (!props.rule?.id || !projectIdForNav.value) return
-  const href = router.resolve({
-    name: 'UnifiedGraph',
-    params: { projectId: String(projectIdForNav.value) },
-    query: {
-      ruleIds: String(props.rule.id),
-      title: `Rule #${props.rule.id}`,
-    },
-  }).href
-  window.open(href, '_blank', 'noopener,noreferrer')
-}
-
-const handleOpenClassicInNewTab = () => {
-  if (!props.rule?.id || !projectIdForNav.value) return
-  const href = router.resolve({
-    name: 'ClassicRuleTopology',
-    params: { projectId: String(projectIdForNav.value) },
-    query: {
-      ruleIds: String(props.rule.id),
-      title: `Rule #${props.rule.id}`,
-    },
-  }).href
-  window.open(href, '_blank', 'noopener,noreferrer')
-}
-
-const handleOpenZoneAdjacencyInNewTab = () => {
-  if (!props.rule?.id || !projectIdForNav.value) return
-  const href = router.resolve({
-    name: 'ZoneAdjacency',
-    params: { projectId: String(projectIdForNav.value) },
-    query: {
-      ruleIds: String(props.rule.id),
-      title: `Rule #${props.rule.id}`,
-    },
-  }).href
-  window.open(href, '_blank', 'noopener,noreferrer')
-}
-
-// Handle back button click - context-aware navigation
-const handleBack = () => {
-  // If in a route context (not inline), use router navigation
-  if (route?.params?.ruleId || route?.params?.id) {
-    const requestId = route.params.requestId || props.requestId
-    const pid = projectIdForNav.value
-    if (requestId && pid) {
-      router.push(projectPath(`/requests/${requestId}`, pid))
-    } else if (pid) {
-      router.push(projectPath('/rules', pid))
-    } else {
-      emit('back')
-    }
-  } else {
-    emit('back')
-  }
-}
-
-// Fetch asset info when rule changes
 watch(
   () => props.rule,
   async newRule => {

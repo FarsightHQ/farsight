@@ -15,7 +15,7 @@
       </template>
       <template #actions>
         <router-link :to="uploadHintLink" custom v-slot="{ navigate }">
-          <Button variant="outline" size="sm" @click="navigate">Upload in project</Button>
+          <Button variant="outline" @click="navigate">Upload in project</Button>
         </router-link>
       </template>
 

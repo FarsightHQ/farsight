@@ -5,6 +5,11 @@
 </template>
 
 <script setup>
+/**
+ * Size: use default md for PageFrame #actions, modal footers, and primary page CTAs.
+ * Use sm only inside tables, dense toolbars, or filter sidebars.
+ * Variants: one primary per screen when appropriate; outline for Back/Cancel/secondary actions.
+ */
 import { computed } from 'vue'
 
 const props = defineProps({

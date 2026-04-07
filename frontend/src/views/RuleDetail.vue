@@ -4,20 +4,85 @@
       class="flex-1 min-h-0 flex flex-col"
       :breadcrumb-items="breadcrumbItems"
       :title="pageTitle"
-      subtitle="Firewall rule details and coverage."
     >
+      <template #subtitle>
+        <div
+          v-if="rule"
+          class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-theme-text-muted"
+        >
+          <StatusBadge
+            :status="rule.action === 'allow' ? 'success' : 'error'"
+            :label="rule.action"
+          />
+          <span v-if="rule.direction">Direction: {{ rule.direction }}</span>
+          <span class="text-theme-text-muted/50">•</span>
+          <span>Created: {{ formatRuleDate(rule.created_at) }}</span>
+        </div>
+      </template>
+
       <template #actions>
-        <Button variant="outline" size="sm" @click="handleBack">Back</Button>
+        <Button variant="outline" @click="handleBack">Back</Button>
+        <Button
+          variant="primary"
+          :disabled="!rule || !hasNetworkData"
+          :title="
+            !rule
+              ? ''
+              : !hasNetworkData
+                ? 'This rule has no network data to visualize'
+                : 'Visualize network topology'
+          "
+          @click="triggerVisualize"
+        >
+          Visualize
+        </Button>
+        <Button
+          variant="outline"
+          :disabled="!rule || !hasNetworkData"
+          :title="!hasNetworkData ? 'No network data' : 'Open unified topology in a new tab'"
+          @click="openUnifiedTab"
+        >
+          Unified view
+        </Button>
+        <Button
+          variant="outline"
+          :disabled="!rule || !hasNetworkData"
+          :title="
+            !hasNetworkData ? 'No network data' : 'Open classic rule topology workspace in a new tab'
+          "
+          @click="openClassicTab"
+        >
+          Classic view (new tab)
+        </Button>
+        <Button
+          variant="outline"
+          :disabled="!rule || !hasNetworkData"
+          :title="!hasNetworkData ? 'No network data' : 'Open zone adjacency heat map in a new tab'"
+          @click="openZoneTab"
+        >
+          Zone heat map
+        </Button>
       </template>
 
       <RuleDetail
         v-if="rule"
         :rule="rule"
         :request-id="requestId || rule.request?.id"
-        :loading="loading"
-        @back="handleBack"
-        @visualize="handleVisualizeRule"
       />
+
+      <div v-else-if="loading" class="space-y-6">
+        <div class="h-8 bg-theme-active/30 rounded animate-pulse w-1/3"></div>
+        <div class="grid grid-cols-2 gap-4">
+          <div v-for="i in 4" :key="i" class="h-24 bg-theme-active/30 rounded animate-pulse"></div>
+        </div>
+      </div>
+
+      <Card v-else class="p-6">
+        <div class="text-center py-12">
+          <p class="text-theme-text-muted">Rule not found</p>
+          <Button variant="outline" class="mt-4" @click="handleBack">Back</Button>
+        </div>
+      </Card>
     </PageFrame>
 
     <NetworkGraphModal
@@ -37,11 +102,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Button from '@/components/ui/Button.vue'
+import Card from '@/components/ui/Card.vue'
+import StatusBadge from '@/components/requests/StatusBadge.vue'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
+import { useRuleGraphNavigation } from '@/composables/useRuleGraphNavigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,6 +123,9 @@ const showGraphModal = ref(false)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
 
+const { hasNetworkData, openUnifiedTab, openClassicTab, openZoneTab } =
+  useRuleGraphNavigation(rule)
+
 const { breadcrumbItems } = usePageBreadcrumbs({
   requestTitle: computed(() => rule.value?.request?.title ?? ''),
   ruleLabel: computed(() =>
@@ -66,6 +137,18 @@ const pageTitle = computed(() =>
   rule.value?.id ? `Rule ${rule.value.id}` : ruleId.value ? `Rule ${ruleId.value}` : 'Rule'
 )
 
+function formatRuleDate(dateString) {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 const handleBack = () => {
   const currentRequestId = requestId.value || rule.value?.request?.id
   const pid = route.params.projectId
@@ -76,8 +159,9 @@ const handleBack = () => {
   }
 }
 
-const handleVisualizeRule = r => {
-  selectedRuleForVisualization.value = r
+function triggerVisualize() {
+  if (!rule.value) return
+  selectedRuleForVisualization.value = rule.value
   mergedGraphData.value = null
   showGraphModal.value = true
 }
@@ -116,6 +200,8 @@ const fetchRule = async () => {
         facts: data.facts || null,
         request: data.request || null,
       }
+    } else {
+      rule.value = null
     }
   } catch (err) {
     showError(err.message || 'Failed to load rule')
