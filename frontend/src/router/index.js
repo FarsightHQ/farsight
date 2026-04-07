@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated, login, refreshToken } from '../services/keycloak.js'
 import { getActiveProjectId, setActiveProjectId } from '../utils/projectContext.js'
-import Home from '../views/Home.vue'
 
 /** Map /segment/... → /projects/:id/segment/... */
 function redirectLegacyProjectSegment(segment, to) {
@@ -26,14 +25,18 @@ function redirectLegacyProjectSegment(segment, to) {
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Home,
-    meta: { requiresAuth: true },
+    redirect: { name: 'Projects' },
   },
   {
     path: '/projects',
     name: 'Projects',
     component: () => import('../views/ProjectsManage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/projects/new',
+    name: 'ProjectCreate',
+    component: () => import('../views/ProjectCreate.vue'),
     meta: { requiresAuth: true },
   },
   {

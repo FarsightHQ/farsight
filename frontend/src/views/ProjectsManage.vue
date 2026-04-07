@@ -1,82 +1,124 @@
 <template>
-  <div class="max-w-2xl mx-auto p-6 space-y-6">
-    <h1 class="text-2xl font-semibold">Projects</h1>
-    <p class="text-sm text-theme-text-muted">
-      Select a workspace for FAR requests and assets. The default migrated project is open to all
-      signed-in users until you turn off legacy access in the database.
-    </p>
-
-    <form class="space-y-3 border border-theme-border rounded-lg p-4" @submit.prevent="onCreate">
-      <h2 class="font-medium">Create project</h2>
+  <div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <label class="block text-sm mb-1">Name</label>
-        <input
-          v-model="newName"
-          type="text"
-          required
-          class="w-full border rounded px-3 py-2 text-sm"
-          placeholder="My workspace"
-        />
+        <h1 class="text-2xl font-semibold text-theme-text-content">All projects</h1>
+        <p class="text-sm text-theme-text-muted mt-1">
+          Workspaces you can access. Open one to work on requests, rules, and assets.
+        </p>
       </div>
-      <div>
-        <label class="block text-sm mb-1">Description (optional)</label>
-        <input
-          v-model="newDesc"
-          type="text"
-          class="w-full border rounded px-3 py-2 text-sm"
-        />
-      </div>
-      <button
-        type="submit"
-        class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-nav-selected text-white"
-        :disabled="creating"
-      >
-        {{ creating ? 'Creating…' : 'Create' }}
-      </button>
-      <p v-if="createError" class="text-sm text-red-600">{{ createError }}</p>
-    </form>
-
-    <div>
-      <h2 class="font-medium mb-2">Your projects</h2>
-      <ul v-if="projects.length" class="space-y-2">
-        <li
-          v-for="p in projects"
-          :key="p.id"
-          class="flex items-center justify-between border border-theme-border rounded-lg px-3 py-2"
-        >
-          <div>
-            <div class="font-medium">{{ p.name }}</div>
-            <div class="text-xs text-theme-text-muted">slug: {{ p.slug }}</div>
-          </div>
-          <button
-            type="button"
-            class="text-sm px-3 py-1 rounded bg-theme-sidebar-hover"
-            @click="select(p.id)"
-          >
-            Use
-          </button>
-        </li>
-      </ul>
-      <p v-else class="text-sm text-theme-text-muted">No projects yet.</p>
+      <router-link :to="createLink">
+        <Button variant="primary">New project</Button>
+      </router-link>
     </div>
 
     <div v-if="redirect" class="text-sm">
-      <router-link :to="redirect" class="text-blue-600 underline">Continue to requested page</router-link>
+      <router-link :to="redirect" class="text-primary-600 hover:underline">
+        Continue to requested page
+      </router-link>
     </div>
+
+    <Card>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-theme-border-default">
+          <thead class="bg-theme-content">
+            <tr>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Name
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Slug
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Description
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Access
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Created
+              </th>
+              <th
+                class="px-4 py-3 text-right text-xs font-medium text-theme-text-muted uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody v-if="loading" class="bg-theme-card divide-y divide-theme-border-default">
+            <tr v-for="i in 5" :key="i">
+              <td v-for="j in 6" :key="j" class="px-4 py-3">
+                <div class="h-4 bg-theme-active/30 rounded animate-pulse"></div>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else-if="!projects.length" class="bg-theme-card">
+            <tr>
+              <td colspan="6" class="px-4 py-12 text-center text-sm text-theme-text-muted">
+                No projects yet.
+                <router-link :to="createLink" class="text-primary-600 hover:underline ml-1">
+                  Create one
+                </router-link>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else class="bg-theme-card divide-y divide-theme-border-default">
+            <tr
+              v-for="p in projects"
+              :key="p.id"
+              class="hover:bg-theme-hover transition-colors"
+            >
+              <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-theme-text-content">
+                {{ p.name }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-theme-text-muted font-mono">
+                {{ p.slug }}
+              </td>
+              <td
+                class="px-4 py-3 text-sm text-theme-text-content max-w-xs truncate"
+                :title="p.description || ''"
+              >
+                {{ p.description || '—' }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <Badge v-if="p.legacy_unrestricted" variant="warning">Legacy open</Badge>
+                <span v-else class="text-theme-text-muted">Member</span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-theme-text-muted">
+                {{ formatDate(p.created_at) }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
+                <Button variant="outline" size="sm" @click="openProject(p.id)"> Open </Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Card>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { projectsService } from '../services/projects'
-import { setActiveProjectId } from '../utils/projectContext'
+import { projectsService } from '@/services/projects'
+import { setActiveProjectId } from '@/utils/projectContext'
+import Card from '@/components/ui/Card.vue'
+import Button from '@/components/ui/Button.vue'
+import Badge from '@/components/ui/Badge.vue'
 
 const projects = ref([])
-const newName = ref('')
-const newDesc = ref('')
-const creating = ref(false)
-const createError = ref('')
+const loading = ref(true)
 const route = useRoute()
 const router = useRouter()
 
@@ -85,39 +127,39 @@ const redirect = computed(() => {
   return typeof r === 'string' && r.startsWith('/') ? r : ''
 })
 
-async function load() {
-  const res = await projectsService.list()
-  projects.value = res.data?.projects || []
-}
+const createLink = computed(() => {
+  if (redirect.value) {
+    return { name: 'ProjectCreate', query: { redirect: redirect.value } }
+  }
+  return { name: 'ProjectCreate' }
+})
 
-async function onCreate() {
-  createError.value = ''
-  creating.value = true
+function formatDate(s) {
+  if (!s) return '—'
   try {
-    const res = await projectsService.create({
-      name: newName.value.trim(),
-      description: newDesc.value.trim() || undefined,
+    return new Date(s).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     })
-    const p = res.data
-    if (p?.id) {
-      setActiveProjectId(p.id)
-      newName.value = ''
-      newDesc.value = ''
-      await load()
-      if (redirect.value) {
-        router.push(redirect.value)
-      } else {
-        router.push({ name: 'ProjectOverview', params: { projectId: p.id } })
-      }
-    }
-  } catch (e) {
-    createError.value = e.message || 'Create failed'
-  } finally {
-    creating.value = false
+  } catch {
+    return '—'
   }
 }
 
-function select(id) {
+async function load() {
+  loading.value = true
+  try {
+    const res = await projectsService.list()
+    projects.value = res.data?.projects || []
+  } catch {
+    projects.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function openProject(id) {
   setActiveProjectId(id)
   if (redirect.value) {
     router.push(redirect.value)

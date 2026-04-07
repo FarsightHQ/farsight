@@ -3,7 +3,7 @@
     <div class="h-full flex items-center justify-between px-6">
       <!-- Left: App Icon + Name -->
       <div class="flex items-center space-x-3">
-        <router-link to="/" class="flex items-center space-x-2">
+        <router-link :to="{ name: 'Projects' }" class="flex items-center space-x-2">
           <EyeIcon class="h-8 w-8 text-theme-text-header" />
           <h1 class="text-xl font-bold text-theme-text-header">Farsight</h1>
         </router-link>

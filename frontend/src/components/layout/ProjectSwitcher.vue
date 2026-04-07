@@ -45,14 +45,14 @@
       </button>
       <div class="border-t border-theme-border-sidebar mt-1 pt-1 px-2 space-y-1">
         <router-link
-          to="/projects"
+          :to="allProjectsLink"
           class="block px-2 py-1.5 text-xs text-theme-text-sidebar/90 hover:underline"
           @click="open = false"
         >
           All projects…
         </router-link>
         <router-link
-          to="/projects"
+          :to="createProjectLink"
           class="block px-2 py-1.5 text-xs text-theme-text-sidebar/90 hover:underline"
           @click="open = false"
         >
@@ -87,6 +87,21 @@ const activeId = computed(() => {
   if (fromRoute != null && fromRoute !== '') return String(fromRoute)
   return getActiveProjectId() || ''
 })
+
+function redirectPreservingQuery() {
+  const r = route.query.redirect
+  return typeof r === 'string' && r.startsWith('/') ? { redirect: r } : {}
+}
+
+const allProjectsLink = computed(() => ({
+  name: 'Projects',
+  query: redirectPreservingQuery(),
+}))
+
+const createProjectLink = computed(() => ({
+  name: 'ProjectCreate',
+  query: redirectPreservingQuery(),
+}))
 
 const currentLabel = computed(() => {
   if (!activeId.value) return 'Select project…'

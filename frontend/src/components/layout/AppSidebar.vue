@@ -23,55 +23,7 @@
     </div>
 
     <nav class="flex-1 overflow-y-auto py-3">
-      <ul :class="['space-y-1', isCollapsed ? 'px-2' : 'px-3']">
-        <li>
-          <router-link
-            to="/"
-            :class="navClass(false)"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            exact-active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Home' : ''"
-          >
-            <HomeIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span v-if="!isCollapsed" class="truncate">Home</span>
-          </router-link>
-        </li>
-        <li>
-          <router-link
-            to="/projects"
-            :class="navClass(false)"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Projects' : ''"
-          >
-            <FolderIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span v-if="!isCollapsed" class="truncate">Projects</span>
-          </router-link>
-        </li>
-        <li>
-          <router-link
-            :to="{ name: 'RegistryAssets' }"
-            :class="navClass(false)"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Assets (global)' : ''"
-          >
-            <CircleStackIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span v-if="!isCollapsed" class="truncate">Assets</span>
-          </router-link>
-        </li>
-        <li>
-          <router-link
-            :to="{ name: 'Settings' }"
-            :class="navClass(false)"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Settings' : ''"
-          >
-            <Cog6ToothIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span v-if="!isCollapsed" class="truncate">Settings</span>
-          </router-link>
-        </li>
-      </ul>
-
-      <div v-if="hasProjectContext" :class="['mt-4', isCollapsed ? 'px-2' : 'px-3']">
+      <div v-if="hasProjectContext" :class="[isCollapsed ? 'px-2' : 'px-3']">
         <button
           type="button"
           :class="[
@@ -88,7 +40,10 @@
             :class="['h-4 w-4 transition-transform', inProjectOpen ? 'rotate-180' : '']"
           />
         </button>
-        <ul v-show="inProjectOpen || isCollapsed" :class="['space-y-1', isCollapsed ? '' : 'pl-1 border-l border-theme-border-sidebar ml-1']">
+        <ul
+          v-show="inProjectOpen || isCollapsed"
+          :class="['space-y-1', isCollapsed ? '' : 'pl-1 border-l border-theme-border-sidebar ml-1']"
+        >
           <li>
             <router-link
               :to="{ name: 'ProjectOverview', params: { projectId } }"
@@ -135,6 +90,36 @@
           </li>
         </ul>
       </div>
+
+      <hr
+        v-if="hasProjectContext && !isCollapsed"
+        class="border-theme-border-sidebar mx-3 my-3"
+      />
+
+      <ul :class="['space-y-1', isCollapsed ? 'px-2' : 'px-3']">
+        <li>
+          <router-link
+            :to="{ name: 'RegistryAssets' }"
+            :class="navClass(false)"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :title="isCollapsed ? 'Assets (global)' : ''"
+          >
+            <CircleStackIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Assets</span>
+          </router-link>
+        </li>
+        <li>
+          <router-link
+            :to="{ name: 'Settings' }"
+            :class="navClass(false)"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :title="isCollapsed ? 'Settings' : ''"
+          >
+            <Cog6ToothIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Settings</span>
+          </router-link>
+        </li>
+      </ul>
     </nav>
   </aside>
 </template>
@@ -143,8 +128,6 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  HomeIcon,
-  FolderIcon,
   DocumentTextIcon,
   ShieldCheckIcon,
   ServerIcon,
