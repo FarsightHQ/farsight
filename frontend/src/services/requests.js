@@ -1,19 +1,25 @@
 import apiClient from './api'
+import { getActiveProjectId } from '../utils/projectContext'
+
+function projectFarBase() {
+  const id = getActiveProjectId()
+  if (!id) {
+    throw new Error('No project selected. Choose a project in the header or open Projects.')
+  }
+  return `/api/v1/projects/${id}/far`
+}
 
 export const requestsService = {
-  // List all requests
   list(skip = 0, limit = 100) {
-    return apiClient.get('/api/v1/far', {
+    return apiClient.get(projectFarBase(), {
       params: { skip, limit },
     })
   },
 
-  // Get request by ID
   get(id) {
-    return apiClient.get(`/api/v1/far/${id}`)
+    return apiClient.get(`${projectFarBase()}/${id}`)
   },
 
-  // Create new request
   create(title, file, externalId = null) {
     const formData = new FormData()
     formData.append('file', file)
@@ -22,48 +28,49 @@ export const requestsService = {
       formData.append('external_id', externalId)
     }
 
-    return apiClient.post('/api/v1/far', formData, {
+    return apiClient.post(projectFarBase(), formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
   },
 
-  // Process CSV ingestion
   ingest(id) {
-    return apiClient.post(`/api/v1/far/${id}/ingest`)
+    return apiClient.post(`${projectFarBase()}/${id}/ingest`)
   },
 
-  // Compute facts
   computeFacts(id) {
-    return apiClient.post(`/api/v1/far/${id}/facts/compute`)
+    return apiClient.post(`${projectFarBase()}/${id}/facts/compute`)
   },
 
-  // Compute hybrid facts
   computeHybridFacts(id) {
-    return apiClient.post(`/api/v1/far/${id}/facts/compute-hybrid`)
+    return apiClient.post(`${projectFarBase()}/${id}/facts/compute-hybrid`)
   },
 
-  // Delete request
   delete(id) {
-    return apiClient.delete(`/api/v1/far/${id}`)
+    return apiClient.delete(`${projectFarBase()}/${id}`)
   },
 
-  // Get network topology for visualization
   getNetworkTopology(id) {
-    return apiClient.get(`/api/v1/analysis/${id}/network-topology`)
+    return apiClient.get(`${projectFarBase()}/${id}/network-topology`)
   },
 
-  // Get network graph for a single rule
   getRuleGraph(ruleId) {
-    return apiClient.get(`/api/v1/rules/${ruleId}`, {
+    const id = getActiveProjectId()
+    if (!id) {
+      throw new Error('No project selected. Choose a project in the header or open Projects.')
+    }
+    return apiClient.get(`/api/v1/projects/${id}/rules/${ruleId}`, {
       params: { include: 'graph' },
     })
   },
 
-  // Get all rules across all requests (or filtered by request_id)
   getAllRules(params = {}) {
-    return apiClient.get('/api/v1/rules', {
+    const id = getActiveProjectId()
+    if (!id) {
+      throw new Error('No project selected. Choose a project in the header or open Projects.')
+    }
+    return apiClient.get(`/api/v1/projects/${id}/rules`, {
       params: {
         skip: params.skip || 0,
         limit: params.limit || 100,

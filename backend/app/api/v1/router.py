@@ -4,26 +4,34 @@ API v1 router
 from fastapi import APIRouter, Depends
 
 from app.core.auth import get_current_user
+from app.core.project_auth import require_project_viewer
 
+from .endpoints import projects
 from .endpoints import requests, rules, analysis
 from .endpoints import facts, asset_registry
 from .endpoints import ip_rules, hybrid_facts, test_system, auth
 
-# Create main v1 router with authentication dependency
-# All endpoints under /api/v1 will require authentication
-router = APIRouter(
-    dependencies=[Depends(get_current_user)]
+# All endpoints under /api/v1 require authentication
+router = APIRouter(dependencies=[Depends(get_current_user)])
+
+# Project management and invitations (no project_id path prefix)
+router.include_router(projects.router)
+router.include_router(projects.invitations_router)
+
+# FAR, rules, assets, IP lookup scoped to a project
+project_scoped = APIRouter(
+    prefix="/projects/{project_id}",
+    dependencies=[Depends(require_project_viewer)],
 )
+project_scoped.include_router(requests.router, prefix="/far")
+project_scoped.include_router(facts.router, prefix="/far")
+project_scoped.include_router(hybrid_facts.router, prefix="/far")
+project_scoped.include_router(analysis.router, prefix="/far")
+project_scoped.include_router(rules.router, prefix="/rules")
+project_scoped.include_router(ip_rules.router)
+project_scoped.include_router(asset_registry.router, prefix="/assets")
 
-# Include the new decomposed endpoint routers
-router.include_router(requests.router, tags=["FAR Requests"])
-router.include_router(rules.router, tags=["FAR Rules"])
-router.include_router(analysis.router, tags=["FAR Analysis"])
+router.include_router(project_scoped)
 
-# Include other existing endpoint routers
-router.include_router(ip_rules.router, tags=["IP Rules"])
-router.include_router(facts.router, tags=["Facts"])
-router.include_router(hybrid_facts.router, tags=["Facts"])
-router.include_router(asset_registry.router, tags=["Asset Registry"])
 router.include_router(test_system.router, tags=["System Test"])
 router.include_router(auth.router, tags=["Authentication"])

@@ -14,10 +14,11 @@ router = APIRouter()
 
 @router.get("/ip/{ip_address}/rules")
 async def get_rules_for_ip(
+    project_id: int,
     ip_address: str,
     db: Session = Depends(get_db),
     include_sources: bool = Query(True, description="Include rules where IP is source"),
-    include_destinations: bool = Query(True, description="Include rules where IP is destination")
+    include_destinations: bool = Query(True, description="Include rules where IP is destination"),
 ):
     """
     Get all firewall rules involving a specific IP address.
@@ -70,7 +71,7 @@ async def get_rules_for_ip(
           JOIN far_rule_endpoints dst_ep ON r.id = dst_ep.rule_id AND dst_ep.endpoint_type = 'destination'
           JOIN far_rule_services svc ON r.id = svc.rule_id
           JOIN far_requests req ON r.request_id = req.id
-          WHERE {where_clause}
+          WHERE req.project_id = :project_id AND ({where_clause})
         )
         SELECT DISTINCT
           rule_id,
@@ -88,7 +89,7 @@ async def get_rules_for_ip(
     """)
     
     try:
-        result = db.execute(query, {"ip_cidr": ip_cidr})
+        result = db.execute(query, {"ip_cidr": ip_cidr, "project_id": project_id})
         rows = result.fetchall()
         
         if not rows:
@@ -168,15 +169,18 @@ async def get_rules_for_ip(
 
 @router.get("/ip/{ip_address}/summary")
 async def get_ip_rule_summary(
+    project_id: int,
     ip_address: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get a concise summary of rules for an IP address.
     """
     try:
         # Get all relationships
-        result_response = await get_rules_for_ip(ip_address, db)
+        result_response = await get_rules_for_ip(
+            project_id, ip_address, db
+        )
         result = result_response["data"]  # Extract data from standardized response
         
         if result["total_rules"] == 0:

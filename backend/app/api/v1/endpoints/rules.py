@@ -26,17 +26,35 @@ from app.schemas.responses import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/rules", tags=["FAR Rules"])
+router = APIRouter(tags=["FAR Rules"])
+
+
+def _get_far_rule_in_project_or_404(
+    db: Session, rule_id: int, project_id: int
+) -> FarRule:
+    rule = (
+        db.query(FarRule)
+        .join(FarRequest)
+        .filter(
+            FarRule.id == rule_id,
+            FarRequest.project_id == project_id,
+        )
+        .first()
+    )
+    if not rule:
+        raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
+    return rule
 
 
 @router.get("")
 def get_all_far_rules(
+    project_id: int,
     skip: int = Query(0, ge=0, description="Number of rules to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum rules to return"),
     request_id: Optional[int] = Query(None, description="Optional filter by request ID"),
     action: Optional[str] = Query(None, description="Optional filter by action (allow/deny)"),
     include_summary: bool = Query(True, description="Include summary statistics"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get all FAR rules across all requests (or filtered by request_id)
@@ -56,9 +74,13 @@ def get_all_far_rules(
     - include_summary: Include summary statistics
     """
     try:
-        # Build query - no request_id filter means all requests
-        rules_query = db.query(FarRule).join(FarRequest)
-        
+        # Build query scoped to project
+        rules_query = (
+            db.query(FarRule)
+            .join(FarRequest)
+            .filter(FarRequest.project_id == project_id)
+        )
+
         if request_id:
             rules_query = rules_query.filter(FarRule.request_id == request_id)
         
@@ -256,10 +278,11 @@ def _generate_rule_summary(action: str, sources: List[str], destinations: List[s
 
 @router.get("/{rule_id}")
 def get_far_rule_details(
+    project_id: int,
     rule_id: int,
     format: Optional[str] = None,
     include: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get detailed information for a specific FAR rule by ID
@@ -282,11 +305,8 @@ def get_far_rule_details(
     - Optional: Asset details, graph data, security analysis
     """
     try:
-        # Get the rule with its relationships
-        rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
-        if not rule:
-            raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
-        
+        rule = _get_far_rule_in_project_or_404(db, rule_id, project_id)
+
         # Parse include parameter
         includes = []
         if include:
@@ -391,9 +411,10 @@ def get_far_rule_details(
 
 @router.get("/{rule_id}/endpoints", response_model=Dict[str, Any])
 def get_rule_endpoints(
+    project_id: int,
     rule_id: int,
     endpoint_type: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get endpoints for a specific rule, optionally filtered by type
@@ -403,10 +424,8 @@ def get_rule_endpoints(
         endpoint_type: Optional filter ('source' or 'destination')
     """
     try:
-        rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
-        if not rule:
-            raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
-        
+        rule = _get_far_rule_in_project_or_404(db, rule_id, project_id)
+
         endpoints = rule.endpoints
         if endpoint_type:
             endpoints = [ep for ep in endpoints if ep.endpoint_type == endpoint_type]
@@ -448,17 +467,16 @@ def get_rule_endpoints(
 
 @router.get("/{rule_id}/services", response_model=Dict[str, Any])
 def get_rule_services(
+    project_id: int,
     rule_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get services (protocols and ports) for a specific rule
     """
     try:
-        rule = db.query(FarRule).filter(FarRule.id == rule_id).first()
-        if not rule:
-            raise HTTPException(status_code=404, detail=f"Rule {rule_id} not found")
-        
+        rule = _get_far_rule_in_project_or_404(db, rule_id, project_id)
+
         services = []
         for service in rule.services:
             services.append({

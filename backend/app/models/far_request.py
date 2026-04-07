@@ -1,7 +1,7 @@
 """
 Database model for FAR (Federated Access Request) 
 """
-from sqlalchemy import Column, Integer, String, DateTime, Text, BigInteger
+from sqlalchemy import Column, DateTime, Text, BigInteger, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -14,6 +14,7 @@ class FarRequest(Base):
     __tablename__ = "far_requests"
     
     id = Column(BigInteger, primary_key=True, index=True)
+    project_id = Column(BigInteger, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True)
     title = Column(Text, nullable=False)
     external_id = Column(Text, nullable=True)
     source_filename = Column(Text, nullable=False)
@@ -25,6 +26,7 @@ class FarRequest(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
+    project = relationship("Project", back_populates="far_requests")
     rules = relationship("FarRule", back_populates="request", cascade="all, delete-orphan")
 
     def __repr__(self):

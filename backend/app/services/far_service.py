@@ -33,9 +33,10 @@ class FarIngestionService:
     async def process_upload(
         self,
         file: UploadFile,
+        project_id: int,
         title: Optional[str] = None,
         external_id: Optional[str] = None,
-        created_by: str = "system"
+        created_by: str = "system",
     ) -> FarRequestResponse:
         """
         Process CSV file upload for FAR request
@@ -98,13 +99,14 @@ class FarIngestionService:
             # Create database record
             try:
                 far_request_data = FarRequestCreate(
+                    project_id=project_id,
                     title=title,
                     external_id=external_id,
                     source_filename=file.filename or "unknown.csv",
                     source_sha256=sha256_hash,
                     source_size_bytes=file_size,
                     storage_path=relative_path,
-                    created_by=created_by
+                    created_by=created_by,
                 )
                 
                 far_request = FarRequest(**far_request_data.model_dump())
@@ -171,19 +173,15 @@ class FarIngestionService:
         """
         return self.db.query(FarRequest).filter(FarRequest.id == request_id).first()
     
-    def list_far_requests(self, limit: int = 100, offset: int = 0) -> list[FarRequest]:
+    def list_far_requests(
+        self, project_id: int, limit: int = 100, offset: int = 0
+    ) -> list[FarRequest]:
         """
-        List FAR requests with pagination
-        
-        Args:
-            limit: Maximum number of records to return
-            offset: Number of records to skip
-            
-        Returns:
-            List of FarRequest objects
+        List FAR requests with pagination within a project.
         """
         return (
             self.db.query(FarRequest)
+            .filter(FarRequest.project_id == project_id)
             .order_by(FarRequest.created_at.desc())
             .offset(offset)
             .limit(limit)

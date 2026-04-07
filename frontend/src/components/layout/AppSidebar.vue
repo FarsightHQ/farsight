@@ -47,6 +47,28 @@
         </li>
         <li>
           <router-link
+            to="/projects"
+            :class="[
+              'flex items-center text-sm font-medium rounded-lg transition-colors',
+              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
+              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
+            ]"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :title="isCollapsed ? 'Projects' : ''"
+          >
+            <FolderIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span
+              :class="[
+                'transition-all duration-300 ease-in-out whitespace-nowrap',
+                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
+              ]"
+            >
+              Projects
+            </span>
+          </router-link>
+        </li>
+        <li>
+          <router-link
             to="/requests"
             :class="[
               'flex items-center text-sm font-medium rounded-lg transition-colors',
@@ -119,6 +141,7 @@
 <script setup>
 import {
   HomeIcon,
+  FolderIcon,
   DocumentTextIcon,
   ShieldCheckIcon,
   ServerIcon,

@@ -10,7 +10,9 @@ import logging
 
 from app.core.database import get_db
 from app.core.auth import get_current_user, uploader_from_user
+from app.core.project_auth import require_project_role_dep
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
+from app.models.project import ProjectAsset
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryResponse,
     AssetUploadBatchResponse, CSVUploadResponse,
@@ -24,11 +26,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/assets", 
-             status_code=status.HTTP_201_CREATED,
-             summary="Create Asset",
-             description="Create a new asset in the registry")
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Asset",
+    description="Create a new asset in the registry and link it to this project",
+    dependencies=[Depends(require_project_role_dep("member"))],
+)
 async def create_asset(
+    project_id: int,
     asset: AssetRegistryCreate,
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
@@ -37,6 +43,23 @@ async def create_asset(
     try:
         created_by = uploader_from_user(user)
         new_asset = AssetRegistryService.create_asset(db, asset, created_by)
+        link = (
+            db.query(ProjectAsset)
+            .filter(
+                ProjectAsset.project_id == project_id,
+                ProjectAsset.asset_registry_id == new_asset.id,
+            )
+            .first()
+        )
+        if not link:
+            db.add(
+                ProjectAsset(
+                    project_id=project_id,
+                    asset_registry_id=new_asset.id,
+                    linked_by_sub=user.get("sub"),
+                )
+            )
+            db.commit()
         asset_data = AssetRegistryResponse.from_orm(new_asset).dict()
         
         return success_response(
@@ -51,10 +74,13 @@ async def create_asset(
 
 # SPECIFIC ROUTES FIRST (before parameterized routes)
 
-@router.get("/assets",
-            summary="Search Assets",
-            description="Search and filter assets with pagination")
+@router.get(
+    "",
+    summary="Search Assets",
+    description="Search and filter assets linked to this project",
+)
 async def search_assets(
+    project_id: int,
     ip_address: Optional[str] = Query(None, description="IP address filter (exact or partial)"),
     ip_range: Optional[str] = Query(None, description="IP range in CIDR format"),
     segment: Optional[str] = Query(None, description="Network segment filter"),
@@ -70,6 +96,7 @@ async def search_assets(
     """Search assets with filters and pagination"""
     try:
         filters = AssetSearchFilters(
+            project_id=project_id,
             ip_address=ip_address,
             ip_range=ip_range,
             segment=segment,
@@ -79,7 +106,7 @@ async def search_assets(
             hostname=hostname,
             is_active=is_active,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
         
         assets, total_count = AssetRegistryService.search_assets(db, filters)
@@ -121,10 +148,14 @@ async def search_assets(
         raise HTTPException(status_code=500, detail=f"Failed to search assets: {str(e)}")
 
 
-@router.post("/assets/upload-csv",
-             summary="Upload CSV",
-             description="Upload and process a CSV file to create/update assets")
+@router.post(
+    "/upload-csv",
+    summary="Upload CSV",
+    description="Upload and process a CSV file to create/update assets",
+    dependencies=[Depends(require_project_role_dep("member"))],
+)
 async def upload_csv(
+    project_id: int,
     file: UploadFile = File(..., description="CSV file containing asset data"),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user),
@@ -151,7 +182,12 @@ async def upload_csv(
         
         # Process CSV
         batch = AssetRegistryService.process_csv_upload(
-            db, file_content, file.filename, uploaded_by
+            db,
+            file_content,
+            file.filename,
+            uploaded_by,
+            project_id=project_id,
+            linked_by_sub=user.get("sub"),
         )
         
         # Prepare response data
@@ -186,22 +222,27 @@ async def upload_csv(
         raise HTTPException(status_code=500, detail=f"Failed to process CSV: {str(e)}")
 
 
-@router.get("/assets/upload-batches",
-            summary="Get Upload Batches",
-            description="Get list of CSV upload batches")
+@router.get(
+    "/upload-batches",
+    summary="Get Upload Batches",
+    description="Get list of CSV upload batches for this project",
+)
 async def get_upload_batches(
+    project_id: int,
     limit: int = Query(50, ge=1, le=500, description="Number of batches to return"),
     offset: int = Query(0, ge=0, description="Number of batches to skip"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get list of upload batches"""
-    
-    # Get total count for pagination
-    total_count = db.query(AssetUploadBatch).count()
-    
-    batches = db.query(AssetUploadBatch).order_by(
-        AssetUploadBatch.created_at.desc()
-    ).offset(offset).limit(limit).all()
+    q = db.query(AssetUploadBatch).filter(AssetUploadBatch.project_id == project_id)
+    total_count = q.count()
+
+    batches = (
+        q.order_by(AssetUploadBatch.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     
     batches_data = [AssetUploadBatchResponse.from_orm(batch).dict() for batch in batches]
     
@@ -214,19 +255,27 @@ async def get_upload_batches(
     )
 
 
-@router.get("/assets/upload-batches/{batch_id}",
-            summary="Get Upload Batch Details",
-            description="Get details of a specific upload batch")
+@router.get(
+    "/upload-batches/{batch_id}",
+    summary="Get Upload Batch Details",
+    description="Get details of a specific upload batch",
+)
 async def get_upload_batch(
+    project_id: int,
     batch_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get details of a specific upload batch"""
     
-    batch = db.query(AssetUploadBatch).filter(
-        AssetUploadBatch.batch_id == batch_id
-    ).first()
-    
+    batch = (
+        db.query(AssetUploadBatch)
+        .filter(
+            AssetUploadBatch.batch_id == batch_id,
+            AssetUploadBatch.project_id == project_id,
+        )
+        .first()
+    )
+
     if not batch:
         raise HTTPException(status_code=404, detail=f"Upload batch {batch_id} not found")
     
@@ -238,15 +287,18 @@ async def get_upload_batch(
     )
 
 
-@router.get("/assets/analytics",
-            summary="Get Asset Analytics",
-            description="Get comprehensive analytics and insights about the asset registry")
+@router.get(
+    "/analytics",
+    summary="Get Asset Analytics",
+    description="Get analytics for assets linked to this project",
+)
 async def get_analytics(
-    db: Session = Depends(get_db)
+    project_id: int,
+    db: Session = Depends(get_db),
 ):
     """Get asset registry analytics and insights"""
     try:
-        analytics_result = AssetRegistryService.get_analytics(db)
+        analytics_result = AssetRegistryService.get_analytics(db, project_id=project_id)
         if hasattr(analytics_result, "model_dump"):
             analytics_data = analytics_result.model_dump(mode="json")
         else:
@@ -270,15 +322,18 @@ async def get_analytics(
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
 
 
-@router.get("/assets/filter-options",
-            summary="Get Filter Options",
-            description="Get unique filter values for asset filtering")
+@router.get(
+    "/filter-options",
+    summary="Get Filter Options",
+    description="Get unique filter values for assets in this project",
+)
 async def get_filter_options(
-    db: Session = Depends(get_db)
+    project_id: int,
+    db: Session = Depends(get_db),
 ):
     """Get unique filter values for asset filtering"""
     try:
-        filter_options = AssetRegistryService.get_filter_options(db)
+        filter_options = AssetRegistryService.get_filter_options(db, project_id=project_id)
         options_data = filter_options.dict() if hasattr(filter_options, 'dict') else filter_options
         
         return success_response(
@@ -289,18 +344,31 @@ async def get_filter_options(
         raise HTTPException(status_code=500, detail=f"Failed to get filter options: {str(e)}")
 
 
-@router.get("/assets/health",
-            summary="Health Check",
-            description="Check asset registry service health")
-async def health_check(db: Session = Depends(get_db)):
+@router.get(
+    "/health",
+    summary="Health Check",
+    description="Check asset registry service health for this project",
+)
+async def health_check(project_id: int, db: Session = Depends(get_db)):
     """Health check endpoint"""
     try:
         # Simple query to verify database connectivity
         from sqlalchemy import text
         db.execute(text("SELECT 1"))
-        
-        # Get basic asset count for health metrics
-        asset_count = db.query(AssetRegistry).filter(AssetRegistry.is_active == True).count()
+
+        # Count active assets linked to project
+        asset_count = (
+            db.query(AssetRegistry)
+            .join(
+                ProjectAsset,
+                ProjectAsset.asset_registry_id == AssetRegistry.id,
+            )
+            .filter(
+                ProjectAsset.project_id == project_id,
+                AssetRegistry.is_active == True,
+            )
+            .count()
+        )
         
         health_data = {
             "service": "asset_registry",
@@ -320,19 +388,31 @@ async def health_check(db: Session = Depends(get_db)):
 # PARAMETERIZED ROUTES AFTER SPECIFIC ROUTES
 
 
-@router.get("/assets/{ip_address}",
-            summary="Get Asset by IP",
-            description="Retrieve asset details by IP address")
+@router.get(
+    "/{ip_address:path}",
+    summary="Get Asset by IP",
+    description="Retrieve asset details by IP address (must be linked to this project)",
+)
 async def get_asset_by_ip(
+    project_id: int,
     ip_address: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get asset by IP address"""
-    asset = db.query(AssetRegistry).filter(
-        AssetRegistry.ip_address == ip_address,
-        AssetRegistry.is_active == True
-    ).first()
-    
+    asset = (
+        db.query(AssetRegistry)
+        .join(
+            ProjectAsset,
+            ProjectAsset.asset_registry_id == AssetRegistry.id,
+        )
+        .filter(
+            ProjectAsset.project_id == project_id,
+            AssetRegistry.ip_address == ip_address,
+            AssetRegistry.is_active == True,
+        )
+        .first()
+    )
+
     if not asset:
         raise HTTPException(status_code=404, detail=f"Asset with IP {ip_address} not found")
     

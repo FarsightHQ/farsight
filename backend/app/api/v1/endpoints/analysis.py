@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List, Dict, Any, Optional
 from app.core.database import get_db
+from app.core.project_auth import get_far_request_in_project_or_404
 from app.models.far_rule import FarRule
 from app.models.far_request import FarRequest
 from app.services.asset_service import AssetService
@@ -18,23 +19,21 @@ from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/far", tags=["FAR Analysis"])
+router = APIRouter(tags=["FAR Analysis"])
 
 
 @router.get("/{request_id}/summary")
 def get_request_summary(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get comprehensive summary statistics for a FAR request
     """
     try:
-        # Verify request exists
-        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-        
+        far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
         # Get all rules for this request
         rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
         
@@ -151,8 +150,9 @@ def get_request_summary(
 
 @router.get("/{request_id}/network-topology")
 def get_request_network_topology(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Generate network topology for all rules in a request.
@@ -161,14 +161,11 @@ def get_request_network_topology(
     per-edge rule_ids and services, and node fields enriched from the asset registry where matched.
     """
     try:
-        # Verify request exists
-        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-        
+        far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
         # Get all rules for this request
         rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
-        
+
         if not rules:
             no_rules_data = {
             "request_id": request_id,
@@ -247,21 +244,19 @@ def get_request_network_topology(
 
 @router.get("/{request_id}/security-analysis")
 def get_request_security_analysis(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Perform comprehensive security analysis for all rules in a request
     """
     try:
-        # Verify request exists
-        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-        
+        far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
         # Get all rules for this request
         rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
-        
+
         if not rules:
             no_rules_data = {
             "request_id": request_id,

@@ -8,13 +8,14 @@ from sqlalchemy.exc import OperationalError
 from typing import Dict, Any
 
 from app.core.database import get_db
+from app.core.project_auth import get_far_request_in_project_or_404
 from app.services.facts_computation_service import FactsComputationService
 from app.utils.error_handlers import success_response
 from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/far")
+router = APIRouter()
 
 
 @router.post(
@@ -46,8 +47,9 @@ router = APIRouter(prefix="/far")
     }
 )
 async def compute_facts_for_request(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Compute policy-independent facts for all rules in a request.
@@ -82,6 +84,7 @@ async def compute_facts_for_request(
     """
     
     try:
+        get_far_request_in_project_or_404(db, request_id, project_id)
         service = FactsComputationService(db)
         result = await service.compute_facts_for_request(request_id)
         
@@ -122,8 +125,9 @@ async def compute_facts_for_request(
 
 @router.get("/{request_id}/analysis", status_code=status.HTTP_200_OK)
 async def get_request_analysis(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get comprehensive analysis of a FAR request for UI display.
@@ -151,13 +155,7 @@ async def get_request_analysis(
         from sqlalchemy import func, text
         import json
         
-        # Get request info
-        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Request {request_id} not found"
-            )
+        far_request = get_far_request_in_project_or_404(db, request_id, project_id)
         
         # Get basic rule statistics
         rule_stats = db.execute(text("""

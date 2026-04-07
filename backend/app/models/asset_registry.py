@@ -1,7 +1,7 @@
 """
 Database model for Asset Registry System
 """
-from sqlalchemy import Column, Integer, String, DateTime, Text, BigInteger, Boolean, Float, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Text, BigInteger, Boolean, Float, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -65,6 +65,12 @@ class AssetRegistry(Base):
     created_by = Column(String(100), nullable=False, default='system')
     updated_by = Column(String(100), nullable=False, default='system')
 
+    project_links = relationship(
+        "ProjectAsset",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self):
         return f"<AssetRegistry(id={self.id}, ip='{self.ip_address}', hostname='{self.hostname}', version={self.version})>"
 
@@ -101,6 +107,7 @@ class AssetUploadBatch(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
     created_by = Column(String(100), nullable=False, default='system')
+    project_id = Column(BigInteger, ForeignKey('projects.id', ondelete='SET NULL'), nullable=True, index=True)
 
     def __repr__(self):
         return f"<AssetUploadBatch(batch_id='{self.batch_id}', status='{self.status}', assets={self.created_assets + self.updated_assets})>"

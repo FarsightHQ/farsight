@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated, login, refreshToken } from '../services/keycloak.js'
+import { getActiveProjectId } from '../utils/projectContext.js'
 import Home from '../views/Home.vue'
 
 const routes = [
@@ -10,76 +11,82 @@ const routes = [
     meta: { requiresAuth: true }, // Requires authentication
   },
   {
+    path: '/projects',
+    name: 'Projects',
+    component: () => import('../views/ProjectsManage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/rules',
     name: 'AllRules',
     component: () => import('../views/AllRules.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/rules/:id',
     name: 'RuleDetail',
     component: () => import('../views/RuleDetail.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/requests',
     name: 'Requests',
     component: () => import('../views/RequestsList.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/requests/new',
     name: 'RequestNew',
     component: () => import('../views/RequestNew.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/requests/:id',
     name: 'RequestDetail',
     component: () => import('../views/RequestDetail.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/requests/:requestId/rules/:ruleId',
     name: 'RequestRuleDetail',
     component: () => import('../views/RuleDetail.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/assets',
     name: 'Assets',
     component: () => import('../views/AssetsList.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/assets/upload',
     name: 'AssetUpload',
     component: () => import('../views/AssetUpload.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/assets/:id',
     name: 'AssetDetail',
     component: () => import('../views/AssetDetail.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresProject: true },
   },
   {
     path: '/visualize/unified',
     name: 'UnifiedGraph',
     component: () => import('../views/UnifiedGraphView.vue'),
-    meta: { requiresAuth: true, vizWorkspace: true },
+    meta: { requiresAuth: true, vizWorkspace: true, requiresProject: true },
   },
   {
     path: '/visualize/classic',
     name: 'ClassicRuleTopology',
     component: () => import('../views/ClassicRuleTopologyView.vue'),
-    meta: { requiresAuth: true, vizWorkspace: true },
+    meta: { requiresAuth: true, vizWorkspace: true, requiresProject: true },
   },
   {
     path: '/visualize/zone-adjacency',
     name: 'ZoneAdjacency',
     component: () => import('../views/ZoneAdjacencyView.vue'),
-    meta: { requiresAuth: true, vizWorkspace: true },
+    meta: { requiresAuth: true, vizWorkspace: true, requiresProject: true },
   },
 ]
 
@@ -119,7 +126,18 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // Allow navigation to proceed
+    if (
+      to.matched.some(record => record.meta.requiresProject === true) &&
+      !getActiveProjectId()
+    ) {
+      next({
+        path: '/projects',
+        query: { redirect: to.fullPath },
+      })
+      return
+    }
+
+    // Allow navigation to proceed
   next()
 })
 

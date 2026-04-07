@@ -160,6 +160,7 @@ class CSVUploadResponse(BaseModel):
 
 class AssetSearchFilters(BaseModel):
     """Schema for asset search and filtering"""
+    project_id: Optional[int] = Field(None, description="When set, only assets linked to this project")
     ip_address: Optional[str] = Field(None, description="Exact or partial IP match")
     ip_range: Optional[str] = Field(None, description="IP range in CIDR format") 
     segment: Optional[str] = Field(None, description="Network segment")

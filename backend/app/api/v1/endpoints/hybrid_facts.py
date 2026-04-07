@@ -7,16 +7,22 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from app.core.database import get_db, SessionLocal
+from app.core.project_auth import get_far_request_in_project_or_404
 from app.services.hybrid_facts_service import HybridFactsService
 from app.utils.error_handlers import success_response
 from app.utils.csv_errors import DatabaseConnectionError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/far")
+router = APIRouter()
+
 
 @router.post("/{request_id}/facts/compute-hybrid")
-async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
+async def compute_hybrid_facts(
+    project_id: int,
+    request_id: int,
+    db: Session = Depends(get_db),
+):
     """
     Compute hybrid facts for a FAR request
     
@@ -26,12 +32,9 @@ async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
     """
     try:
         # Get the FAR request
-        from app.models.far_request import FarRequest
         from app.models.far_rule import FarRule, FarRuleEndpoint
-        
-        far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-        if not far_request:
-            raise HTTPException(status_code=404, detail="FAR request not found")
+
+        far_request = get_far_request_in_project_or_404(db, request_id, project_id)
         
         # Get rules for this request to extract CIDRs, ports, protocols
         rules = db.query(FarRule).filter(FarRule.request_id == request_id).all()
@@ -103,12 +106,17 @@ async def compute_hybrid_facts(request_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Facts computation failed: {str(e)}")
 
 @router.get("/{request_id}/facts/hybrid-summary")
-async def get_hybrid_facts_summary(request_id: int, db: Session = Depends(get_db)):
+async def get_hybrid_facts_summary(
+    project_id: int,
+    request_id: int,
+    db: Session = Depends(get_db),
+):
     """
     Get hybrid facts summary for a request
     Shows both rule-level aggregates and tuple-level details
     """
     try:
+        get_far_request_in_project_or_404(db, request_id, project_id)
         # Rule-level summary
         rule_summary = db.execute(
             text("""
@@ -177,11 +185,16 @@ async def get_hybrid_facts_summary(request_id: int, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail=f"Failed to get hybrid summary: {str(e)}")
 
 @router.get("/{request_id}/tuples/problematic")
-async def get_problematic_tuples(request_id: int, db: Session = Depends(get_db)):
+async def get_problematic_tuples(
+    project_id: int,
+    request_id: int,
+    db: Session = Depends(get_db),
+):
     """
     Get only the problematic tuples for detailed analysis
     """
     try:
+        get_far_request_in_project_or_404(db, request_id, project_id)
         result = db.execute(
             text("""
             SELECT 
@@ -195,7 +208,7 @@ async def get_problematic_tuples(request_id: int, db: Session = Depends(get_db))
               AND tf.facts->>'is_clean' = 'false'
             ORDER BY r.id, tf.source_cidr, tf.destination_cidr
             """),
-            {"request_id": request_id}
+            {"request_id": request_id},
         ).fetchall()
         
         problematic_tuples_data = {

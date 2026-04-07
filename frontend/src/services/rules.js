@@ -1,10 +1,26 @@
 import apiClient from './api'
+import { getActiveProjectId } from '../utils/projectContext'
+
+function projectFarBase() {
+  const id = getActiveProjectId()
+  if (!id) {
+    throw new Error('No project selected. Choose a project in the header or open Projects.')
+  }
+  return `/api/v1/projects/${id}/far`
+}
+
+function projectRulesBase() {
+  const id = getActiveProjectId()
+  if (!id) {
+    throw new Error('No project selected. Choose a project in the header or open Projects.')
+  }
+  return `/api/v1/projects/${id}/rules`
+}
 
 export const rulesService = {
-  // Get rules for a request with pagination and filtering
   getRules(requestId, params = {}) {
     const { skip = 0, limit = 100, include_summary = true } = params
-    return apiClient.get(`/api/v1/far/${requestId}/rules`, {
+    return apiClient.get(`${projectFarBase()}/${requestId}/rules`, {
       params: {
         skip,
         limit,
@@ -13,27 +29,21 @@ export const rulesService = {
     })
   },
 
-  // Get single rule details
   getRule(ruleId, options = {}) {
     const { format, include } = options
     const params = {}
     if (format) params.format = format
     if (include) params.include = include
-    return apiClient.get(`/api/v1/rules/${ruleId}`, { params })
+    return apiClient.get(`${projectRulesBase()}/${ruleId}`, { params })
   },
 
-  // Get rule facts (extracted from rule details)
   getRuleFacts(ruleId) {
-    return apiClient.get(`/api/v1/rules/${ruleId}`, {
+    return apiClient.get(`${projectRulesBase()}/${ruleId}`, {
       params: { include: 'analysis' },
     })
   },
 
-  // Search rules (client-side filtering for now)
-  // This could be enhanced with backend search endpoint if available
   searchRules(requestId, query, params = {}) {
-    // For now, fetch all rules and filter client-side
-    // In future, this could use a dedicated search endpoint
     return this.getRules(requestId, { ...params, limit: 1000 })
   },
 }

@@ -11,6 +11,7 @@ import aiofiles
 import os
 from app.core.database import get_db
 from app.core.auth import get_current_user, uploader_from_user
+from app.core.project_auth import get_far_request_in_project_or_404, require_project_role_dep
 from app.core.config import settings
 from app.models.far_request import FarRequest
 from app.schemas.far_request import FarRequestCreate, FarRequestResponse
@@ -34,11 +35,16 @@ from app.api.v1.endpoints.far import _compute_rule_assessment
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/far", tags=["FAR Requests"])
+router = APIRouter(tags=["FAR Requests"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_project_role_dep("member"))],
+)
 async def create_far_request(
+    project_id: int,
     title: str = Form(...),
     file: UploadFile = File(...),
     external_id: Optional[str] = Form(None),
@@ -54,8 +60,9 @@ async def create_far_request(
 
     try:
         result = await service.process_upload(
-            title=title,
             file=file,
+            project_id=project_id,
+            title=title,
             external_id=external_id,
             created_by=created_by,
         )
@@ -79,16 +86,28 @@ async def create_far_request(
 
 @router.get("")
 def list_far_requests(
+    project_id: int,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     List all FAR requests with pagination
     """
     try:
-        total = db.query(FarRequest).count()
-        requests = db.query(FarRequest).offset(skip).limit(limit).all()
+        total = (
+            db.query(FarRequest)
+            .filter(FarRequest.project_id == project_id)
+            .count()
+        )
+        requests = (
+            db.query(FarRequest)
+            .filter(FarRequest.project_id == project_id)
+            .order_by(FarRequest.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
         
         # Convert SQLAlchemy models to dictionaries for JSON serialization
         requests_data = []
@@ -103,7 +122,8 @@ def list_far_requests(
                 "title": str(req.title or ""),
                 "external_id": str(req.external_id or "") if req.external_id else None,
                 "storage_path": str(req.storage_path or ""),
-                "created_by": str(req.created_by or "")
+                "created_by": str(req.created_by or ""),
+                "project_id": str(req.project_id),
             })
         
         return success_response(
@@ -136,15 +156,14 @@ def list_far_requests(
 
 @router.get("/{request_id}")
 def get_far_request(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get a specific FAR request by ID
     """
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+    far_request = get_far_request_in_project_or_404(db, request_id, project_id)
     
     # Convert to dict for standardized response
     request_data = {
@@ -157,7 +176,8 @@ def get_far_request(
         "title": str(far_request.title or ""),
         "external_id": str(far_request.external_id or ""),
         "storage_path": str(far_request.storage_path or ""),
-        "created_by": str(far_request.created_by or "")
+        "created_by": str(far_request.created_by or ""),
+        "project_id": str(far_request.project_id),
     }
     
     return success_response(
@@ -168,8 +188,9 @@ def get_far_request(
 
 @router.delete("/{request_id}", status_code=status.HTTP_200_OK)
 def delete_far_request(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Delete a FAR request and all associated data.
@@ -185,10 +206,8 @@ def delete_far_request(
     logger = logging.getLogger(__name__)
     
     # Get the request
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
+    far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
     # Optional: Prevent deletion if currently processing
     if far_request.status == 'processing':
         raise HTTPException(
@@ -250,18 +269,17 @@ def delete_far_request(
 
 @router.post("/{request_id}/ingest", status_code=status.HTTP_200_OK)
 async def ingest_far_request(
+    project_id: int,
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Process the uploaded file for a FAR request and create firewall rules
     with comprehensive error handling
     """
     # Get the request
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
-    
+    far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
     if far_request.status not in ['submitted', 'processing']:
         raise HTTPException(
             status_code=400, 
@@ -385,11 +403,12 @@ async def ingest_far_request(
 
 @router.get("/{request_id}/rules")
 def get_far_rules(
+    project_id: int,
     request_id: int,
     skip: int = 0,
     limit: int = 100,
     include_summary: bool = True,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get enhanced, human-readable FAR rules for a request
@@ -405,11 +424,8 @@ def get_far_rules(
     - limit: Maximum rules to return (pagination)
     - include_summary: Include summary statistics
     """
-    # Verify the request exists
-    far_request = db.query(FarRequest).filter(FarRequest.id == request_id).first()
-    if not far_request:
-        raise HTTPException(status_code=404, detail="FAR request not found")
-    
+    far_request = get_far_request_in_project_or_404(db, request_id, project_id)
+
     # Import models here to avoid circular imports
     from app.models.far_rule import FarRule
     

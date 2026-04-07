@@ -15,6 +15,7 @@ import pandas as pd
 import io
 
 from app.models.asset_registry import AssetRegistry, AssetUploadBatch
+from app.models.project import ProjectAsset
 from app.schemas.asset_registry import (
     AssetRegistryCreate, AssetRegistryUpdate, AssetSearchFilters,
     AssetAnalyticsResponse, AssetFilterOptionsResponse
@@ -187,7 +188,14 @@ class AssetRegistryService:
     def search_assets(db: Session, filters: AssetSearchFilters) -> Tuple[List[AssetRegistry], int]:
         """Search assets with filters and pagination"""
         query = db.query(AssetRegistry)
-        
+        if filters.project_id is not None:
+            query = (
+                query.join(
+                    ProjectAsset,
+                    ProjectAsset.asset_registry_id == AssetRegistry.id,
+                ).filter(ProjectAsset.project_id == filters.project_id)
+            )
+
         # Apply filters
         if filters.ip_address:
             if '/' in filters.ip_address:
@@ -231,8 +239,51 @@ class AssetRegistryService:
         return assets, total_count
 
     @staticmethod
-    def process_csv_upload(db: Session, file_content: bytes, filename: str, 
-                          uploaded_by: str = 'system') -> AssetUploadBatch:
+    def link_ips_to_project(
+        db: Session,
+        project_id: int,
+        ip_addresses: List[str],
+        linked_by_sub: Optional[str],
+    ) -> None:
+        """Ensure project_assets rows exist for the given IPs (global registry rows)."""
+        if not ip_addresses:
+            return
+        ips = {str(ip).strip() for ip in ip_addresses if ip}
+        if not ips:
+            return
+        assets = (
+            db.query(AssetRegistry)
+            .filter(AssetRegistry.ip_address.in_(ips))
+            .all()
+        )
+        for asset in assets:
+            exists = (
+                db.query(ProjectAsset)
+                .filter(
+                    ProjectAsset.project_id == project_id,
+                    ProjectAsset.asset_registry_id == asset.id,
+                )
+                .first()
+            )
+            if not exists:
+                db.add(
+                    ProjectAsset(
+                        project_id=project_id,
+                        asset_registry_id=asset.id,
+                        linked_by_sub=linked_by_sub,
+                    )
+                )
+        db.commit()
+
+    @staticmethod
+    def process_csv_upload(
+        db: Session,
+        file_content: bytes,
+        filename: str,
+        uploaded_by: str = "system",
+        project_id: Optional[int] = None,
+        linked_by_sub: Optional[str] = None,
+    ) -> AssetUploadBatch:
         """Process CSV file upload and create/update assets"""
         start_time = datetime.utcnow()
         batch_id = str(uuid.uuid4())
@@ -248,7 +299,8 @@ class AssetRegistryService:
             upload_size_bytes=len(file_content),
             total_rows=0,
             processed_rows=0,
-            created_by=uploaded_by
+            created_by=uploaded_by,
+            project_id=project_id,
         )
         
         try:
@@ -265,7 +317,8 @@ class AssetRegistryService:
             updated_count = 0
             error_count = 0
             errors = []
-            
+            processed_ips: List[str] = []
+
             for row_idx, (index, row) in enumerate(df.iterrows()):
                 try:
                     # Map CSV columns to asset fields (customize based on your CSV structure)
@@ -294,12 +347,14 @@ class AssetRegistryService:
                             db, str(asset_data['ip_address']), update_data, uploaded_by
                         )
                         updated_count += 1
+                        processed_ips.append(str(asset_data["ip_address"]))
                     else:
                         # Create new asset
                         create_data = AssetRegistryCreate(**asset_data)
                         AssetRegistryService.create_asset(db, create_data, uploaded_by)
                         created_count += 1
-                        
+                        processed_ips.append(str(asset_data["ip_address"]))
+
                 except Exception as e:
                     error_count += 1
                     error_msg = str(e)
@@ -323,7 +378,12 @@ class AssetRegistryService:
             
             db.commit()
             db.refresh(batch)
-            
+
+            if project_id is not None and processed_ips:
+                AssetRegistryService.link_ips_to_project(
+                    db, project_id, processed_ips, linked_by_sub or uploaded_by
+                )
+
             return batch
             
         except OperationalError as e:
@@ -491,35 +551,47 @@ class AssetRegistryService:
         return asset_data
 
     @staticmethod
-    def get_analytics(db: Session) -> AssetAnalyticsResponse:
+    def get_analytics(db: Session, project_id: Optional[int] = None) -> AssetAnalyticsResponse:
         """Get analytics and insights about the asset registry"""
-        
+        base = db.query(AssetRegistry)
+        if project_id is not None:
+            base = (
+                base.join(
+                    ProjectAsset,
+                    ProjectAsset.asset_registry_id == AssetRegistry.id,
+                ).filter(ProjectAsset.project_id == project_id)
+            )
+
         # Basic counts
-        total_assets = db.query(AssetRegistry).count()
-        active_assets = db.query(AssetRegistry).filter(AssetRegistry.is_active == True).count()
+        total_assets = base.count()
+        active_assets = base.filter(AssetRegistry.is_active == True).count()
         inactive_assets = total_assets - active_assets
         
         # Environment distribution
-        env_stats = db.query(
-            AssetRegistry.environment, 
-            func.count(AssetRegistry.id)
-        ).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.environment.isnot(None),
-            AssetRegistry.environment != ''
-        ).group_by(AssetRegistry.environment).all()
-        
+        env_stats = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.environment.isnot(None),
+                AssetRegistry.environment != "",
+            )
+            .with_entities(AssetRegistry.environment, func.count(AssetRegistry.id))
+            .group_by(AssetRegistry.environment)
+            .all()
+        )
+
         environments = {env: count for env, count in env_stats if env}
-        
+
         # OS distribution
-        os_stats = db.query(
-            AssetRegistry.os_name,
-            func.count(AssetRegistry.id)
-        ).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.os_name.isnot(None),
-            AssetRegistry.os_name != ''
-        ).group_by(AssetRegistry.os_name).all()
+        os_stats = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.os_name.isnot(None),
+                AssetRegistry.os_name != "",
+            )
+            .with_entities(AssetRegistry.os_name, func.count(AssetRegistry.id))
+            .group_by(AssetRegistry.os_name)
+            .all()
+        )
         
         operating_systems = {os: count for os, count in os_stats if os}
         
@@ -529,10 +601,14 @@ class AssetRegistryService:
         business_units = {}
         
         # Resource statistics (simplified)
-        resource_stats = db.query(
-            func.avg(AssetRegistry.vcpu).label('avg_vcpu'),
-            func.sum(AssetRegistry.vcpu).label('total_vcpu')
-        ).filter(AssetRegistry.is_active == True).first()
+        resource_stats = (
+            base.filter(AssetRegistry.is_active == True)
+            .with_entities(
+                func.avg(AssetRegistry.vcpu).label("avg_vcpu"),
+                func.sum(AssetRegistry.vcpu).label("total_vcpu"),
+            )
+            .first()
+        )
 
         avg_vcpu = None
         total_vcpu_val = None
@@ -543,9 +619,10 @@ class AssetRegistryService:
                 total_vcpu_val = int(resource_stats.total_vcpu)
         
         # Last updated
-        last_updated = db.query(
-            func.max(AssetRegistry.updated_at)
-        ).scalar() or datetime.utcnow()
+        last_updated = (
+            base.with_entities(func.max(AssetRegistry.updated_at)).scalar()
+            or datetime.utcnow()
+        )
         
         return AssetAnalyticsResponse(
             total_assets=total_assets,
@@ -564,39 +641,71 @@ class AssetRegistryService:
         )
 
     @staticmethod
-    def get_filter_options(db: Session) -> AssetFilterOptionsResponse:
+    def get_filter_options(db: Session, project_id: Optional[int] = None) -> AssetFilterOptionsResponse:
         """Get unique filter values for asset filtering"""
-        
+        base = db.query(AssetRegistry)
+        if project_id is not None:
+            base = (
+                base.join(
+                    ProjectAsset,
+                    ProjectAsset.asset_registry_id == AssetRegistry.id,
+                ).filter(ProjectAsset.project_id == project_id)
+            )
+
         # Get unique segments (active assets only)
-        segments = db.query(AssetRegistry.segment).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.segment.isnot(None),
-            AssetRegistry.segment != ''
-        ).distinct().order_by(AssetRegistry.segment).all()
+        segments = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.segment.isnot(None),
+                AssetRegistry.segment != "",
+            )
+            .with_entities(AssetRegistry.segment)
+            .distinct()
+            .order_by(AssetRegistry.segment)
+            .all()
+        )
         segments_list = [s[0] for s in segments if s[0]]
-        
+
         # Get unique VLANs (active assets only)
-        vlans = db.query(AssetRegistry.vlan).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.vlan.isnot(None),
-            AssetRegistry.vlan != ''
-        ).distinct().order_by(AssetRegistry.vlan).all()
+        vlans = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.vlan.isnot(None),
+                AssetRegistry.vlan != "",
+            )
+            .with_entities(AssetRegistry.vlan)
+            .distinct()
+            .order_by(AssetRegistry.vlan)
+            .all()
+        )
         vlans_list = [v[0] for v in vlans if v[0]]
-        
+
         # Get unique environments (active assets only)
-        environments = db.query(AssetRegistry.environment).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.environment.isnot(None),
-            AssetRegistry.environment != ''
-        ).distinct().order_by(AssetRegistry.environment).all()
+        environments = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.environment.isnot(None),
+                AssetRegistry.environment != "",
+            )
+            .with_entities(AssetRegistry.environment)
+            .distinct()
+            .order_by(AssetRegistry.environment)
+            .all()
+        )
         environments_list = [e[0] for e in environments if e[0]]
-        
+
         # Get unique OS names (active assets only)
-        os_names = db.query(AssetRegistry.os_name).filter(
-            AssetRegistry.is_active == True,
-            AssetRegistry.os_name.isnot(None),
-            AssetRegistry.os_name != ''
-        ).distinct().order_by(AssetRegistry.os_name).all()
+        os_names = (
+            base.filter(
+                AssetRegistry.is_active == True,
+                AssetRegistry.os_name.isnot(None),
+                AssetRegistry.os_name != "",
+            )
+            .with_entities(AssetRegistry.os_name)
+            .distinct()
+            .order_by(AssetRegistry.os_name)
+            .all()
+        )
         os_names_list = [o[0] for o in os_names if o[0]]
         
         return AssetFilterOptionsResponse(
