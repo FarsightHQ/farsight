@@ -5,7 +5,6 @@
       isCollapsed ? 'w-16' : 'w-64',
     ]"
   >
-    <!-- Floating Collapse Button on Border -->
     <button
       :class="[
         'absolute top-1/2 -translate-y-1/2 z-10 p-2 bg-theme-sidebar border border-theme-border-sidebar rounded-full shadow-sm hover:shadow-md hover:bg-theme-sidebar-hover transition-all duration-300 ease-in-out',
@@ -19,126 +18,130 @@
       <ChevronRightIcon v-else class="h-4 w-4 text-theme-text-sidebar" />
     </button>
 
-    <!-- Navigation Menu -->
-    <nav class="flex-1 overflow-y-auto py-4">
+    <div :class="['border-b border-theme-border-sidebar shrink-0', isCollapsed ? 'px-2 py-2' : 'px-3 py-3']">
+      <ProjectSwitcher :collapsed="isCollapsed" />
+    </div>
+
+    <nav class="flex-1 overflow-y-auto py-3">
       <ul :class="['space-y-1', isCollapsed ? 'px-2' : 'px-3']">
         <li>
           <router-link
             to="/"
-            :class="[
-              'flex items-center text-sm font-medium rounded-lg transition-colors',
-              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
-            ]"
+            :class="navClass(false)"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             exact-active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Home' : ''"
           >
             <HomeIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span
-              :class="[
-                'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
-              ]"
-            >
-              Home
-            </span>
+            <span v-if="!isCollapsed" class="truncate">Home</span>
           </router-link>
         </li>
         <li>
           <router-link
             to="/projects"
-            :class="[
-              'flex items-center text-sm font-medium rounded-lg transition-colors',
-              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
-            ]"
+            :class="navClass(false)"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
             :title="isCollapsed ? 'Projects' : ''"
           >
             <FolderIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span
-              :class="[
-                'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
-              ]"
-            >
-              Projects
-            </span>
+            <span v-if="!isCollapsed" class="truncate">Projects</span>
           </router-link>
         </li>
         <li>
           <router-link
-            to="/requests"
-            :class="[
-              'flex items-center text-sm font-medium rounded-lg transition-colors',
-              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
-            ]"
+            :to="{ name: 'RegistryAssets' }"
+            :class="navClass(false)"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Requests' : ''"
+            :title="isCollapsed ? 'Assets (global)' : ''"
           >
-            <DocumentTextIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span
-              :class="[
-                'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
-              ]"
-            >
-              Requests
-            </span>
+            <CircleStackIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Assets</span>
           </router-link>
         </li>
         <li>
           <router-link
-            to="/rules"
-            :class="[
-              'flex items-center text-sm font-medium rounded-lg transition-colors',
-              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
-            ]"
+            :to="{ name: 'Settings' }"
+            :class="navClass(false)"
             active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'All Rules' : ''"
+            :title="isCollapsed ? 'Settings' : ''"
           >
-            <ShieldCheckIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span
-              :class="[
-                'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
-              ]"
-            >
-              All Rules
-            </span>
-          </router-link>
-        </li>
-        <li>
-          <router-link
-            to="/assets"
-            :class="[
-              'flex items-center text-sm font-medium rounded-lg transition-colors',
-              isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
-              'text-theme-text-sidebar hover:bg-theme-sidebar-hover',
-            ]"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
-            :title="isCollapsed ? 'Assets' : ''"
-          >
-            <ServerIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span
-              :class="[
-                'transition-all duration-300 ease-in-out whitespace-nowrap',
-                isCollapsed ? 'opacity-0 max-w-0 overflow-hidden' : 'opacity-100 max-w-xs',
-              ]"
-            >
-              Assets
-            </span>
+            <Cog6ToothIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Settings</span>
           </router-link>
         </li>
       </ul>
+
+      <div v-if="hasProjectContext" :class="['mt-4', isCollapsed ? 'px-2' : 'px-3']">
+        <button
+          type="button"
+          :class="[
+            'flex w-full items-center text-xs font-semibold uppercase tracking-wide text-theme-text-sidebar/70 mb-1',
+            isCollapsed ? 'justify-center' : 'justify-between',
+          ]"
+          :title="isCollapsed ? 'In this project' : ''"
+          @click="inProjectOpen = !inProjectOpen"
+        >
+          <span v-if="!isCollapsed">In this project</span>
+          <Squares2X2Icon v-if="isCollapsed" class="h-5 w-5 text-theme-text-sidebar/80" />
+          <ChevronDownIcon
+            v-else
+            :class="['h-4 w-4 transition-transform', inProjectOpen ? 'rotate-180' : '']"
+          />
+        </button>
+        <ul v-show="inProjectOpen || isCollapsed" :class="['space-y-1', isCollapsed ? '' : 'pl-1 border-l border-theme-border-sidebar ml-1']">
+          <li>
+            <router-link
+              :to="{ name: 'ProjectOverview', params: { projectId } }"
+              :class="navClass(true)"
+              active-class="bg-theme-nav-selected text-theme-text-sidebar"
+              :title="isCollapsed ? 'Details' : ''"
+            >
+              <DocumentIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+              <span v-if="!isCollapsed" class="truncate">Details</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              :to="{ name: 'Requests', params: { projectId } }"
+              :class="navClass(true)"
+              active-class="bg-theme-nav-selected text-theme-text-sidebar"
+              :title="isCollapsed ? 'Requests' : ''"
+            >
+              <DocumentTextIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+              <span v-if="!isCollapsed" class="truncate">Requests</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              :to="{ name: 'AllRules', params: { projectId } }"
+              :class="navClass(true)"
+              active-class="bg-theme-nav-selected text-theme-text-sidebar"
+              :title="isCollapsed ? 'All rules' : ''"
+            >
+              <ShieldCheckIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+              <span v-if="!isCollapsed" class="truncate">All rules</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              :to="{ name: 'ProjectAssets', params: { projectId } }"
+              :class="navClass(true)"
+              active-class="bg-theme-nav-selected text-theme-text-sidebar"
+              :title="isCollapsed ? 'Project assets' : ''"
+            >
+              <ServerIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+              <span v-if="!isCollapsed" class="truncate">Project assets</span>
+            </router-link>
+          </li>
+        </ul>
+      </div>
     </nav>
   </aside>
 </template>
 
 <script setup>
+import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   HomeIcon,
   FolderIcon,
@@ -147,8 +150,42 @@ import {
   ServerIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
+  Cog6ToothIcon,
+  CircleStackIcon,
+  DocumentIcon,
+  Squares2X2Icon,
 } from '@heroicons/vue/24/outline'
 import { useSidebar } from '@/composables/useSidebar'
+import { getActiveProjectId } from '@/utils/projectContext'
+import ProjectSwitcher from './ProjectSwitcher.vue'
 
+const route = useRoute()
 const { isCollapsed, toggleSidebar } = useSidebar()
+const inProjectOpen = ref(true)
+
+const projectId = computed(() => {
+  const p = route.params.projectId
+  if (p != null && p !== '') return p
+  const stored = getActiveProjectId()
+  return stored || null
+})
+
+const hasProjectContext = computed(() => Boolean(projectId.value))
+
+function navClass(sub) {
+  return [
+    'flex items-center text-sm font-medium rounded-lg transition-colors',
+    isCollapsed.value ? 'justify-center px-2 py-2' : 'px-3 py-2',
+    sub ? 'text-theme-text-sidebar/90' : 'text-theme-text-sidebar',
+    'hover:bg-theme-sidebar-hover',
+  ]
+}
+
+watch(
+  () => route.params.projectId,
+  () => {
+    inProjectOpen.value = true
+  }
+)
 </script>

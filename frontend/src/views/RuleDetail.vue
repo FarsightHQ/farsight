@@ -2,11 +2,18 @@
   <div class="space-y-6">
     <!-- Breadcrumb Navigation -->
     <nav class="flex items-center space-x-2 text-sm text-gray-600">
-      <router-link to="/requests" class="hover:text-primary-600">Requests</router-link>
+      <router-link
+        :to="projectPath('/requests', route.params.projectId)"
+        class="hover:text-primary-600"
+      >
+        Requests
+      </router-link>
       <ChevronRightIcon v-if="requestId || rule?.request?.id" class="h-4 w-4" />
       <router-link
         v-if="requestId || rule?.request?.id"
-        :to="`/requests/${requestId || rule.request.id}`"
+        :to="
+          projectPath(`/requests/${requestId || rule.request.id}`, route.params.projectId)
+        "
         class="hover:text-primary-600"
       >
         Request {{ requestId || rule.request.id }}
@@ -42,6 +49,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import RuleDetail from '@/components/requests/RuleDetail.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
@@ -62,12 +70,11 @@ const mergedGraphData = ref(null)
 
 const handleBack = () => {
   const currentRequestId = requestId.value || rule.value?.request?.id
+  const pid = route.params.projectId
   if (currentRequestId) {
-    // From nested route: go back to request detail page
-    router.push(`/requests/${currentRequestId}`)
+    router.push(projectPath(`/requests/${currentRequestId}`, pid))
   } else {
-    // From standalone route: go back to all rules
-    router.push('/rules')
+    router.push(projectPath('/rules', pid))
   }
 }
 

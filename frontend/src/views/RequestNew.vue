@@ -106,7 +106,8 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 import { usePipeline } from '@/composables/usePipeline'
@@ -118,6 +119,7 @@ import Modal from '@/components/ui/Modal.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { success, error } = useToast()
 
 const uploading = ref(false)
@@ -243,7 +245,9 @@ const handleSubmit = async () => {
 
     // Redirect to details page after brief delay
     setTimeout(() => {
-      router.push(`/requests/${createdRequestId.value}`)
+      router.push(
+        projectPath(`/requests/${createdRequestId.value}`, route.params.projectId)
+      )
     }, 1500)
   } catch (err) {
     // Handle validation errors from backend

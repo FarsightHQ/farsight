@@ -114,13 +114,15 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import Card from '@/components/ui/Card.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 
 const filters = ref({
   action: '',
@@ -145,8 +147,7 @@ const handleFilterUpdate = newFilters => {
 }
 
 const handleViewRule = rule => {
-  // Navigate to standalone route for rule detail
-  router.push(`/rules/${rule.id}`)
+  router.push(projectPath(`/rules/${rule.id}`, route.params.projectId))
 }
 
 const handleStatsUpdated = stats => {

@@ -9,11 +9,6 @@
         </router-link>
       </div>
 
-      <!-- Center: project -->
-      <div class="flex-1 flex justify-center px-4 min-w-0">
-        <ProjectSwitcher v-if="authenticated" />
-      </div>
-
       <!-- Right: User Details + Logout -->
       <div class="flex items-center space-x-4">
         <!-- User Info (shown when authenticated) -->
@@ -52,8 +47,6 @@
 <script setup>
 import { EyeIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuth } from '../../composables/useAuth'
-import ProjectSwitcher from './ProjectSwitcher.vue'
-
 const { authenticated, user, logout } = useAuth()
 
 const handleLogout = () => {

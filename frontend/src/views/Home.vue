@@ -4,10 +4,10 @@
       <h1 class="text-4xl font-bold text-theme-text-content mb-4">Welcome to Farsight</h1>
       <p class="text-xl text-theme-text-content mb-8">Firewall Access Rule Analysis System</p>
       <div class="flex gap-4 justify-center">
-        <Button variant="primary" size="lg" @click="$router.push('/requests/new')">
+        <Button variant="primary" size="lg" @click="$router.push(projectPath('/requests/new'))">
           Create New Request
         </Button>
-        <Button variant="outline" size="lg" @click="$router.push('/requests')">
+        <Button variant="outline" size="lg" @click="$router.push(projectPath('/requests'))">
           View Requests
         </Button>
       </div>
@@ -41,4 +41,5 @@
 <script setup>
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
+import { projectPath } from '@/utils/projectRoutes'
 </script>

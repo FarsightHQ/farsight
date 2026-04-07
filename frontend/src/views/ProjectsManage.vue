@@ -106,6 +106,8 @@ async function onCreate() {
       await load()
       if (redirect.value) {
         router.push(redirect.value)
+      } else {
+        router.push({ name: 'ProjectOverview', params: { projectId: p.id } })
       }
     }
   } catch (e) {
@@ -120,7 +122,7 @@ function select(id) {
   if (redirect.value) {
     router.push(redirect.value)
   } else {
-    router.push('/')
+    router.push({ name: 'ProjectOverview', params: { projectId: id } })
   }
 }
 

@@ -43,7 +43,7 @@
             >
               Delete
             </Button>
-            <Button variant="outline" size="sm" @click="$router.push('/requests')">
+            <Button variant="outline" size="sm" @click="goRequestsList">
               Back to List
             </Button>
           </div>
@@ -76,7 +76,7 @@
     <Card v-else>
       <div class="text-center py-12">
         <p class="text-gray-600">Request not found</p>
-        <Button variant="primary" class="mt-4" @click="$router.push('/requests')">
+        <Button variant="primary" class="mt-4" @click="goRequestsList">
           Back to Requests
         </Button>
       </div>
@@ -106,6 +106,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
@@ -119,6 +120,10 @@ import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 const route = useRoute()
 const router = useRouter()
 const { success, error } = useToast()
+
+const goRequestsList = () => {
+  router.push(projectPath('/requests', route.params.projectId))
+}
 
 const loading = ref(false)
 const request = ref(null)
@@ -186,7 +191,7 @@ const confirmDelete = async () => {
     success(`Request "${request.value.title}" deleted successfully`)
 
     // Redirect to list page
-    router.push('/requests')
+    router.push(projectPath('/requests', route.params.projectId))
   } catch (err) {
     error(err.message || 'Failed to delete request')
     deleting.value = false
@@ -199,7 +204,9 @@ const cancelDelete = () => {
 
 const handleViewRule = async rule => {
   // Navigate to nested route for rule detail
-  router.push(`/requests/${route.params.id}/rules/${rule.id}`)
+  router.push(
+    projectPath(`/requests/${route.params.id}/rules/${rule.id}`, route.params.projectId)
+  )
 }
 
 const handleFilterUpdate = newFilters => {

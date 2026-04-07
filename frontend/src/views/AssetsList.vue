@@ -6,7 +6,7 @@
         <h1 class="text-xl font-bold text-theme-text-content">Asset Registry</h1>
         <p class="text-sm text-theme-text-content mt-0.5">Manage and explore network assets</p>
       </div>
-      <Button variant="primary" size="sm" @click="$router.push('/assets/upload')">
+      <Button variant="primary" size="sm" @click="goUpload">
         Upload CSV
       </Button>
     </div>
@@ -74,7 +74,7 @@
               }}
             </p>
             <div class="mt-6">
-              <Button variant="primary" @click="$router.push('/assets/upload')">
+              <Button variant="primary" @click="goUpload">
                 Upload CSV
               </Button>
             </div>
@@ -147,7 +147,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { assetsService } from '@/services/assets'
 import { useToast } from '@/composables/useToast'
 import { exportRulesToCSV, exportRulesToJSON } from '@/services/export'
@@ -158,7 +159,12 @@ import AssetTable from '@/components/assets/AssetTable.vue'
 import AssetAnalytics from '@/components/assets/AssetAnalytics.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { success, error } = useToast()
+
+const goUpload = () => {
+  router.push(projectPath('/assets/upload', route.params.projectId))
+}
 
 const assets = ref([])
 const loading = ref(false)
@@ -246,7 +252,9 @@ const handleFilterUpdate = newFilters => {
 }
 
 const handleViewAsset = asset => {
-  router.push(`/assets/${encodeURIComponent(asset.ip_address)}`)
+  router.push(
+    projectPath(`/assets/${encodeURIComponent(asset.ip_address)}`, route.params.projectId)
+  )
 }
 
 const handleSelectAsset = (assetId, checked) => {

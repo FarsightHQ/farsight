@@ -19,7 +19,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { ServerIcon } from '@heroicons/vue/24/outline'
 import { assetsService } from '@/services/assets'
 
@@ -35,6 +36,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const route = useRoute()
 const asset = ref(null)
 const loading = ref(false)
 
@@ -61,7 +63,9 @@ const fetchAsset = async () => {
 
 const handleClick = () => {
   if (asset.value) {
-    router.push(`/assets/${encodeURIComponent(asset.value.ip_address)}`)
+    router.push(
+      projectPath(`/assets/${encodeURIComponent(asset.value.ip_address)}`, route.params.projectId)
+    )
   }
 }
 

@@ -246,6 +246,8 @@ import { useToast } from '@/composables/useToast'
 import { formatCidrToRange } from '@/utils/ipUtils'
 import { formatPortRanges } from '@/utils/portUtils'
 import { useAssetCache } from '@/composables/useAssetCache'
+import { projectPath } from '@/utils/projectRoutes'
+import { getActiveProjectId } from '@/utils/projectContext'
 
 const props = defineProps({
   rule: {
@@ -267,6 +269,10 @@ const emit = defineEmits(['back', 'visualize'])
 const router = useRouter()
 const route = useRoute()
 const { success } = useToast()
+
+const projectIdForNav = computed(
+  () => route.params.projectId || getActiveProjectId() || ''
+)
 
 // Asset cache for fetching hostnames
 const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache()
@@ -364,9 +370,10 @@ const handleVisualize = () => {
 }
 
 const handleOpenUnifiedInNewTab = () => {
-  if (!props.rule?.id) return
+  if (!props.rule?.id || !projectIdForNav.value) return
   const href = router.resolve({
     name: 'UnifiedGraph',
+    params: { projectId: String(projectIdForNav.value) },
     query: {
       ruleIds: String(props.rule.id),
       title: `Rule #${props.rule.id}`,
@@ -376,9 +383,10 @@ const handleOpenUnifiedInNewTab = () => {
 }
 
 const handleOpenClassicInNewTab = () => {
-  if (!props.rule?.id) return
+  if (!props.rule?.id || !projectIdForNav.value) return
   const href = router.resolve({
     name: 'ClassicRuleTopology',
+    params: { projectId: String(projectIdForNav.value) },
     query: {
       ruleIds: String(props.rule.id),
       title: `Rule #${props.rule.id}`,
@@ -388,9 +396,10 @@ const handleOpenClassicInNewTab = () => {
 }
 
 const handleOpenZoneAdjacencyInNewTab = () => {
-  if (!props.rule?.id) return
+  if (!props.rule?.id || !projectIdForNav.value) return
   const href = router.resolve({
     name: 'ZoneAdjacency',
+    params: { projectId: String(projectIdForNav.value) },
     query: {
       ruleIds: String(props.rule.id),
       title: `Rule #${props.rule.id}`,
@@ -404,15 +413,15 @@ const handleBack = () => {
   // If in a route context (not inline), use router navigation
   if (route?.params?.ruleId || route?.params?.id) {
     const requestId = route.params.requestId || props.requestId
-    if (requestId) {
-      // From nested route: go back to request detail page
-      router.push(`/requests/${requestId}`)
+    const pid = projectIdForNav.value
+    if (requestId && pid) {
+      router.push(projectPath(`/requests/${requestId}`, pid))
+    } else if (pid) {
+      router.push(projectPath('/rules', pid))
     } else {
-      // From standalone route: go back to all rules
-      router.push('/rules')
+      emit('back')
     }
   } else {
-    // Fallback for inline usage (shouldn't happen after this change)
     emit('back')
   }
 }

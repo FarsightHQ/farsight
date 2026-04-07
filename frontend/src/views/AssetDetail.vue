@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <!-- Breadcrumb Navigation -->
     <nav class="flex items-center space-x-2 text-sm text-gray-600">
-      <router-link to="/assets" class="hover:text-primary-600">Assets</router-link>
+      <router-link :to="projectPath('/assets')" class="hover:text-primary-600">Assets</router-link>
       <ChevronRightIcon class="h-4 w-4" />
       <span class="text-gray-900 font-medium">{{ ipAddress }}</span>
     </nav>
@@ -19,7 +19,7 @@
     <Card v-else-if="error" class="p-6">
       <div class="text-center py-12">
         <p class="text-error-600 mb-4">{{ error }}</p>
-        <Button variant="outline" @click="$router.push('/assets')"> Back to Assets </Button>
+        <Button variant="outline" @click="goAssetsList"> Back to Assets </Button>
       </div>
     </Card>
 
@@ -40,7 +40,7 @@
             </div>
           </div>
           <div class="flex items-center space-x-2">
-            <Button variant="outline" @click="$router.push('/assets')"> Back to Assets </Button>
+            <Button variant="outline" @click="goAssetsList"> Back to Assets </Button>
           </div>
         </div>
       </Card>
@@ -63,6 +63,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { assetsService } from '@/services/assets'
 import { rulesService } from '@/services/rules'
@@ -76,6 +77,10 @@ import AssetCoverage from '@/components/assets/AssetCoverage.vue'
 const route = useRoute()
 const router = useRouter()
 const { success, error: showError } = useToast()
+
+const goAssetsList = () => {
+  router.push(projectPath('/assets', route.params.projectId))
+}
 
 const asset = ref(null)
 const loading = ref(true)
@@ -137,7 +142,7 @@ const fetchRelatedRules = async () => {
 }
 
 const handleViewRule = rule => {
-  router.push(`/rules/${rule.id}`)
+  router.push(projectPath(`/rules/${rule.id}`, route.params.projectId))
 }
 
 const formatDate = dateString => {

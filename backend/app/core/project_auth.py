@@ -7,6 +7,7 @@ import logging
 from typing import Callable, Optional
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -114,3 +115,26 @@ async def require_project_viewer(
     db: Session = Depends(get_db),
 ) -> None:
     require_project_access(db, project_id, user, min_role="viewer")
+
+
+def visible_project_ids_for_user(db: Session, user: dict) -> set[int]:
+    """
+    Project IDs the user may reference (member, legacy_unrestricted, or platform admin).
+    Used to filter cross-project data (e.g. global asset linked projects) without leaking others.
+    """
+    if user_has_platform_admin_bypass(user):
+        return {row[0] for row in db.query(Project.id).all()}
+    sub = user.get("sub")
+    rows = (
+        db.query(Project.id)
+        .outerjoin(ProjectMember, ProjectMember.project_id == Project.id)
+        .filter(
+            or_(
+                Project.legacy_unrestricted.is_(True),
+                ProjectMember.user_sub == sub,
+            )
+        )
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows}

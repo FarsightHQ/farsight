@@ -126,7 +126,7 @@
           >
             <router-link
               v-if="rule.request"
-              :to="`/requests/${rule.request.id}`"
+              :to="requestDetailHref(rule.request.id)"
               class="text-theme-active hover:text-theme-active/80 hover:underline"
             >
               {{ rule.request.title || `Request ${rule.request.id}` }}
@@ -210,7 +210,8 @@
 
 <script setup>
 import { computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ui/Button.vue'
 import { formatCidrToRange } from '@/utils/ipUtils'
@@ -246,6 +247,12 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['sort', 'view-rule', 'select-rule', 'select-all', 'deselect-all'])
+
+const route = useRoute()
+
+function requestDetailHref(requestId) {
+  return projectPath(`/requests/${requestId}`, route.params.projectId)
+}
 
 // Asset cache for fetching hostnames
 const { fetchAssetsForEndpoints, getAssetForCidr, cacheVersion } = useAssetCache()

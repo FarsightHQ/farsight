@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-3xl font-bold">FAR Requests</h1>
-      <Button variant="primary" @click="$router.push('/requests/new')"> New Request </Button>
+      <Button variant="primary" @click="goNewRequest"> New Request </Button>
     </div>
 
     <!-- Search and Filters -->
@@ -73,7 +73,7 @@
           }}
         </p>
         <div class="mt-6">
-          <Button variant="primary" @click="$router.push('/requests/new')">
+          <Button variant="primary" @click="goNewRequest">
             Create New Request
           </Button>
         </div>
@@ -139,7 +139,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
@@ -149,7 +150,12 @@ import RequestTable from '@/components/requests/RequestTable.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { success, error } = useToast()
+
+const goNewRequest = () => {
+  router.push(projectPath('/requests/new', route.params.projectId))
+}
 
 const loading = ref(false)
 const requests = ref([])
@@ -251,7 +257,7 @@ const handleSort = key => {
 }
 
 const handleView = request => {
-  router.push(`/requests/${request.id}`)
+  router.push(projectPath(`/requests/${request.id}`, route.params.projectId))
 }
 
 const handleDelete = request => {

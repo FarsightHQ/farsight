@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-3xl font-bold">Upload Assets</h1>
-      <Button variant="outline" @click="$router.push('/assets')"> Back to Assets </Button>
+      <Button variant="outline" @click="goAssetsList"> Back to Assets </Button>
     </div>
 
     <Card>
@@ -107,7 +107,7 @@
 
       <!-- Actions -->
       <div class="flex items-center space-x-4 mt-6 pt-4 border-t">
-        <Button variant="outline" @click="$router.push('/assets')"> View All Assets </Button>
+        <Button variant="outline" @click="goAssetsList"> View All Assets </Button>
         <Button variant="primary" @click="viewBatchDetails"> View Batch Details </Button>
         <Button variant="outline" @click="resetForm"> Upload Another </Button>
       </div>
@@ -117,7 +117,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { assetsService } from '@/services/assets'
 import { useToast } from '@/composables/useToast'
 import Button from '@/components/ui/Button.vue'
@@ -126,7 +127,12 @@ import Spinner from '@/components/ui/Spinner.vue'
 import FileUpload from '@/components/requests/FileUpload.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { success, error } = useToast()
+
+const goAssetsList = () => {
+  router.push(projectPath('/assets', route.params.projectId))
+}
 
 const uploading = ref(false)
 const uploadProgress = ref(0)
@@ -192,8 +198,9 @@ const handleSubmit = async () => {
 
 const viewBatchDetails = () => {
   if (uploadResult.value?.batch_id) {
-    // Navigate to batch details (could be a modal or separate page)
-    router.push(`/assets/upload-batches/${uploadResult.value.batch_id}`)
+    router.push(
+      projectPath(`/assets/upload-batches/${uploadResult.value.batch_id}`, route.params.projectId)
+    )
   }
 }
 

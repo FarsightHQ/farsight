@@ -135,7 +135,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
@@ -177,6 +177,7 @@ const emit = defineEmits([
 ])
 
 const router = useRouter()
+const route = useRoute()
 const { error: showError } = useToast()
 
 const loading = ref(false)
@@ -287,10 +288,13 @@ const handleDeselectAll = () => {
   selectedRules.value = []
 }
 
+const projectId = computed(() => route.params.projectId)
+
 const openUnifiedSelectedInNewTab = () => {
-  if (selectedRules.value.length === 0) return
+  if (selectedRules.value.length === 0 || !projectId.value) return
   const href = router.resolve({
     name: 'UnifiedGraph',
+    params: { projectId: String(projectId.value) },
     query: {
       ruleIds: selectedRules.value.join(','),
       title: `Selected rules (${selectedRules.value.length})`,
@@ -300,9 +304,10 @@ const openUnifiedSelectedInNewTab = () => {
 }
 
 const openClassicSelectedInNewTab = () => {
-  if (selectedRules.value.length === 0) return
+  if (selectedRules.value.length === 0 || !projectId.value) return
   const href = router.resolve({
     name: 'ClassicRuleTopology',
+    params: { projectId: String(projectId.value) },
     query: {
       ruleIds: selectedRules.value.join(','),
       title: `Selected rules (${selectedRules.value.length})`,
@@ -312,9 +317,10 @@ const openClassicSelectedInNewTab = () => {
 }
 
 const openZoneAdjacencySelectedInNewTab = () => {
-  if (selectedRules.value.length === 0) return
+  if (selectedRules.value.length === 0 || !projectId.value) return
   const href = router.resolve({
     name: 'ZoneAdjacency',
+    params: { projectId: String(projectId.value) },
     query: {
       ruleIds: selectedRules.value.join(','),
       title: `Selected rules (${selectedRules.value.length})`,

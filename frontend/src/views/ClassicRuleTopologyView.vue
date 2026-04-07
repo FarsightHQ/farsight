@@ -98,6 +98,7 @@
         <RouterLink
           :to="{
             name: 'UnifiedGraph',
+            params: { projectId: String(route.params.projectId) },
             query: {
               ruleIds: ruleIds.join(','),
               title: layoutSubtitle || undefined,

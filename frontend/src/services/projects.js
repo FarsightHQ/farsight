@@ -13,6 +13,10 @@ export const projectsService = {
     return apiClient.get(`/api/v1/projects/${id}`)
   },
 
+  update(id, payload) {
+    return apiClient.patch(`/api/v1/projects/${id}`, payload)
+  },
+
   listMembers(projectId) {
     return apiClient.get(`/api/v1/projects/${projectId}/members`)
   },

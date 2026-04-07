@@ -2,9 +2,17 @@
   <div class="space-y-6">
     <!-- Breadcrumb Navigation -->
     <nav class="flex items-center space-x-2 text-sm text-gray-600">
-      <router-link to="/requests" class="hover:text-primary-600">Requests</router-link>
+      <router-link
+        :to="projectPath('/requests', route.params.projectId)"
+        class="hover:text-primary-600"
+      >
+        Requests
+      </router-link>
       <ChevronRightIcon class="h-4 w-4" />
-      <router-link :to="`/requests/${requestId}`" class="hover:text-primary-600">
+      <router-link
+        :to="projectPath(`/requests/${requestId}`, route.params.projectId)"
+        class="hover:text-primary-600"
+      >
         Request {{ requestId }}
       </router-link>
       <ChevronRightIcon class="h-4 w-4" />
@@ -20,7 +28,7 @@
         </p>
       </div>
       <div class="flex items-center space-x-2">
-        <Button variant="outline" @click="$router.push(`/requests/${requestId}`)">
+        <Button variant="outline" @click="$router.push(projectPath(`/requests/${requestId}`))">
           Back to Request
         </Button>
       </div>
@@ -34,6 +42,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { projectPath } from '@/utils/projectRoutes'
 import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ui/Button.vue'
 import RulesList from '@/components/requests/RulesList.vue'
@@ -44,6 +53,6 @@ const router = useRouter()
 const requestId = computed(() => route.params.id)
 
 const handleViewRule = rule => {
-  router.push(`/rules/${rule.id}`)
+  router.push(projectPath(`/rules/${rule.id}`, route.params.projectId))
 }
 </script>
