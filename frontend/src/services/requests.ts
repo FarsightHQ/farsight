@@ -65,7 +65,15 @@ export const requestsService = {
     })
   },
 
-  getAllRules(params = {}) {
+  getAllRules(
+    params: {
+      skip?: number
+      limit?: number
+      request_id?: string | number
+      action?: string
+      include_summary?: boolean
+    } = {}
+  ) {
     const id = getActiveProjectId()
     if (!id) {
       throw new Error('No project selected. Choose a project in the header or open Projects.')

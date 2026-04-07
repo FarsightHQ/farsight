@@ -7,8 +7,8 @@ import path from 'path'
 export default defineConfig({
   plugins: [vue()],
   test: {
-    environment: 'node',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs}'],
+    environment: 'happy-dom',
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts}'],
   },
   resolve: {
     alias: {

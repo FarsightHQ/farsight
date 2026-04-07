@@ -8,8 +8,8 @@
         {{ layoutSubtitle }}
       </p>
       <p class="text-xs text-gray-500 mt-2 leading-snug">
-        Cell values aggregate directed policy edges between zones (from row → to column), derived from the
-        same unified graph as the topology view.
+        Cell values aggregate directed policy edges between zones (from row → to column), derived
+        from the same unified graph as the topology view.
       </p>
     </template>
 
@@ -54,9 +54,12 @@
     </template>
 
     <template #panel>
-      <div v-if="largeMatrixWarning" class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2">
-        Large matrix ({{ matrixResult.rowLabels.length }}×{{ matrixResult.colLabels.length }}). Scroll the
-        canvas to see all cells.
+      <div
+        v-if="largeMatrixWarning"
+        class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2"
+      >
+        Large matrix ({{ matrixResult.rowLabels.length }}×{{ matrixResult.colLabels.length }}).
+        Scroll the canvas to see all cells.
       </div>
 
       <div class="space-y-1 text-sm text-gray-700">
@@ -68,7 +71,9 @@
           <li v-if="!loading && graphPayload?.nodes?.length">
             Non-empty cells: {{ matrixResult.nonEmptyCellCount }}
           </li>
-          <li v-if="!loading && graphPayload?.nodes?.length">Max cell value: {{ matrixResult.maxValue }}</li>
+          <li v-if="!loading && graphPayload?.nodes?.length">
+            Max cell value: {{ matrixResult.maxValue }}
+          </li>
         </ul>
       </div>
 
@@ -98,10 +103,7 @@
         </select>
       </div>
 
-      <div
-        v-if="selectedDetail"
-        class="space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50"
-      >
+      <div v-if="selectedDetail" class="space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50">
         <div class="flex items-start justify-between gap-2">
           <p class="text-xs font-medium text-gray-800">Cell drill-down</p>
           <button
@@ -130,7 +132,9 @@
         </div>
         <div v-if="selectedDetail.services.length" class="space-y-1">
           <p class="text-[11px] font-medium text-gray-600">Services (sample)</p>
-          <ul class="list-none m-0 p-0 max-h-40 overflow-y-auto text-[11px] font-mono text-gray-800 space-y-0.5">
+          <ul
+            class="list-none m-0 p-0 max-h-40 overflow-y-auto text-[11px] font-mono text-gray-800 space-y-0.5"
+          >
             <li v-for="(s, idx) in displayedServices" :key="idx">
               {{ s.protocol }}/{{ s.formatted_ports || s.port_ranges || '—' }}
             </li>

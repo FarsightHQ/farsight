@@ -28,28 +28,21 @@
 
       <template #actions>
         <template v-if="request">
-          <Button
-            variant="outline"
-            class="text-error-600 border-error-300 hover:bg-error-50"
-            @click="handleDeleteClick"
-          >
-            Delete
-          </Button>
+          <Button variant="danger" @click="handleDeleteClick">Delete</Button>
           <Button variant="outline" @click="goRequestsList">Back to list</Button>
         </template>
       </template>
 
-      <div v-if="loading" class="space-y-6">
-        <div class="h-8 bg-theme-active/30 rounded animate-pulse w-1/3"></div>
-        <div class="grid grid-cols-3 gap-4">
-          <div v-for="i in 3" :key="i" class="h-24 bg-theme-active/30 rounded animate-pulse"></div>
-        </div>
-      </div>
+      <DetailPageSkeleton v-if="loading" :columns="3" :card-count="3" />
 
       <div v-else-if="request" class="flex flex-col flex-1 min-h-0 overflow-hidden">
         <div class="flex gap-6 flex-1 min-h-0 overflow-hidden">
           <aside class="w-72 flex-shrink-0 overflow-y-auto">
-            <RulesFilter :filters="filters" :rules="rulesData" @update:filters="handleFilterUpdate" />
+            <RulesFilter
+              :filters="filters"
+              :rules="rulesData"
+              @update:filters="handleFilterUpdate"
+            />
           </aside>
           <main class="flex-1 overflow-y-auto min-w-0">
             <RulesList
@@ -65,12 +58,9 @@
         </div>
       </div>
 
-      <Card v-else>
-        <div class="text-center py-12">
-          <p class="text-theme-text-muted">Request not found</p>
-          <Button variant="primary" class="mt-4" @click="goRequestsList"> Back to Requests </Button>
-        </div>
-      </Card>
+      <EmptyState v-else message="Request not found">
+        <Button variant="primary" @click="goRequestsList">Back to Requests</Button>
+      </EmptyState>
     </PageFrame>
 
     <DeleteConfirmModal
@@ -100,8 +90,9 @@ import { requestsService } from '@/services/requests'
 import { useToast } from '@/composables/useToast'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Button from '@/components/ui/Button.vue'
-import Card from '@/components/ui/Card.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
+import DetailPageSkeleton from '@/components/ui/DetailPageSkeleton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
@@ -202,9 +193,7 @@ const cancelDelete = () => {
 }
 
 const handleViewRule = async rule => {
-  router.push(
-    projectPath(`/requests/${route.params.id}/rules/${rule.id}`, route.params.projectId)
-  )
+  router.push(projectPath(`/requests/${route.params.id}/rules/${rule.id}`, route.params.projectId))
 }
 
 const handleFilterUpdate = newFilters => {

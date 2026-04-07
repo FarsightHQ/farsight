@@ -94,9 +94,7 @@ export function resolveBreadcrumbs(route, ctx = {}) {
       current('Upload')
       break
     case 'AssetDetail': {
-      const ip =
-        ctx.assetLabel ||
-        (p.id ? decodeURIComponent(String(p.id)) : 'Asset')
+      const ip = ctx.assetLabel || (p.id ? decodeURIComponent(String(p.id)) : 'Asset')
       link('Projects', { name: 'Projects' })
       link(projectLabel, { name: 'ProjectOverview', params: projectParams })
       link('Project assets', { name: 'ProjectAssets', params: projectParams })

@@ -63,7 +63,7 @@
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const props = defineProps({
   asset: {

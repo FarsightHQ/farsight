@@ -9,16 +9,12 @@ export function useRuleGraphNavigation(ruleRef) {
   const router = useRouter()
   const route = useRoute()
 
-  const projectIdForNav = computed(
-    () => route.params.projectId || getActiveProjectId() || ''
-  )
+  const projectIdForNav = computed(() => route.params.projectId || getActiveProjectId() || '')
 
   const hasNetworkData = computed(() => {
     const rule = unref(ruleRef)
     if (!rule) return false
-    return Boolean(
-      rule.endpoints && Array.isArray(rule.endpoints) && rule.endpoints.length > 0
-    )
+    return Boolean(rule.endpoints && Array.isArray(rule.endpoints) && rule.endpoints.length > 0)
   })
 
   function openUnifiedTab() {

@@ -1,5 +1,15 @@
 import axios from 'axios'
-import { getToken, refreshToken, isAuthenticated, login } from './keycloak.js'
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { getToken, refreshToken, isAuthenticated, login } from './keycloak'
+
+interface RetryableRequest extends InternalAxiosRequestConfig {
+  _retry?: boolean
+}
+
+type QueueItem = {
+  resolve: (token: string | null) => void
+  reject: (reason?: unknown) => void
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -28,9 +38,9 @@ apiClient.interceptors.request.use(
 
 // Response interceptor
 let isRefreshing = false
-let failedQueue = []
+let failedQueue: QueueItem[] = []
 
-const processQueue = (error, token = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error)
@@ -42,14 +52,16 @@ const processQueue = (error, token = null) => {
 }
 
 /** FastAPI may return detail as a string, object, or list of validation errors */
-function normalizeApiDetail(detail) {
+function normalizeApiDetail(detail: unknown): string | null {
   if (detail == null) return null
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
     return detail
       .map(item => {
         if (typeof item === 'string') return item
-        if (item && typeof item === 'object' && item.msg) return item.msg
+        if (item && typeof item === 'object' && item != null && 'msg' in item) {
+          return String((item as { msg: unknown }).msg)
+        }
         try {
           return JSON.stringify(item)
         } catch {
@@ -76,18 +88,23 @@ apiClient.interceptors.response.use(
     }
     return response
   },
-  async error => {
-    const originalRequest = error.config
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetryableRequest | undefined
+    if (!originalRequest) {
+      return Promise.reject(error)
+    }
 
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
+        return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         })
-          .then(token => {
-            originalRequest.headers.Authorization = `Bearer ${token}`
+          .then((token: string | null) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`
+            }
             return apiClient(originalRequest)
           })
           .catch(err => {
@@ -112,7 +129,9 @@ apiClient.interceptors.response.use(
         const refreshed = await refreshToken()
         if (refreshed) {
           const newToken = getToken()
-          originalRequest.headers.Authorization = `Bearer ${newToken}`
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`
+          }
           processQueue(null, newToken)
           isRefreshing = false
           // Retry original request
@@ -135,7 +154,7 @@ apiClient.interceptors.response.use(
     // Handle other errors
     if (error.response) {
       const status = error.response.status
-      const data = error.response.data
+      const data = error.response.data as { detail?: unknown; message?: string } | undefined
       const detail = normalizeApiDetail(data?.detail)
       const errorMessage =
         detail || data?.message || error.response.statusText || 'An error occurred'

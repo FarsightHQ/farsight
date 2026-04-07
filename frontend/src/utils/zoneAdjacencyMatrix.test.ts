@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildZoneAdjacencyMatrix, pickZone } from './zoneAdjacencyMatrix.js'
+import { buildZoneAdjacencyMatrix, pickZone } from './zoneAdjacencyMatrix'
 
 describe('pickZone', () => {
   it('returns Unknown for missing or empty fields', () => {

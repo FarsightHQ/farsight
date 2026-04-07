@@ -10,104 +10,104 @@
         <Button variant="outline" @click="goCancel">Cancel</Button>
       </template>
 
-    <Card>
-      <form @submit.prevent="handleSubmit">
-        <div class="space-y-6">
-          <!-- Title -->
-          <Input
-            v-model="form.title"
-            label="Request Title"
-            placeholder="Enter a title for this analysis"
-            :required="true"
-            :error="errors.title"
-          />
+      <Card>
+        <form @submit.prevent="handleSubmit">
+          <div class="space-y-6">
+            <!-- Title -->
+            <Input
+              v-model="form.title"
+              label="Request Title"
+              placeholder="Enter a title for this analysis"
+              :required="true"
+              :error="errors.title"
+            />
 
-          <!-- External ID -->
-          <Input
-            v-model="form.externalId"
-            label="External ID (Optional)"
-            placeholder="Reference ID or ticket number"
-          />
+            <!-- External ID -->
+            <Input
+              v-model="form.externalId"
+              label="External ID (Optional)"
+              placeholder="Reference ID or ticket number"
+            />
 
-          <!-- File Upload -->
-          <FileUpload
-            v-model="form.file"
-            label="CSV File"
-            :required="true"
-            :error="fileUploadError"
-            :upload-progress="uploadProgress"
-            hint="Upload a CSV file containing firewall rules (Max 50MB)"
-            @error="fileUploadError = $event || ''"
-          />
+            <!-- File Upload -->
+            <FileUpload
+              v-model="form.file"
+              label="CSV File"
+              :required="true"
+              :error="fileUploadError"
+              :upload-progress="uploadProgress"
+              hint="Upload a CSV file containing firewall rules (Max 50MB)"
+              @error="fileUploadError = $event || ''"
+            />
 
-          <!-- Actions -->
-          <div class="flex items-center justify-end space-x-4 pt-4 border-t">
-            <Button
-              type="submit"
-              variant="primary"
-              :disabled="uploading || !form.title || !form.file || hasFileError"
-            >
-              <Spinner v-if="uploading" size="sm" class="mr-2" />
-              {{ uploading ? 'Uploading...' : 'Create Request' }}
-            </Button>
-          </div>
-        </div>
-      </form>
-    </Card>
-
-    <!-- Simple Error Modal for Validation Errors -->
-    <Modal v-model="showErrorModal" size="lg">
-      <template #header>
-        <h3 class="text-lg font-semibold text-error-600">Upload Error</h3>
-      </template>
-
-      <div class="space-y-4">
-        <div class="bg-error-50 border border-error-200 rounded-lg p-4">
-          <h4 class="text-sm font-medium text-error-900 mb-2">Error Details:</h4>
-          <p class="text-sm text-error-700 whitespace-pre-wrap">{{ uploadError }}</p>
-        </div>
-
-        <div v-if="errorDetails" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 class="text-sm font-medium text-gray-900 mb-2">Additional Information:</h4>
-          <div class="text-xs text-gray-700 space-y-2">
-            <div v-if="errorDetails.row_number" class="flex items-center space-x-2">
-              <span class="font-medium">Row Number:</span>
-              <span>{{ errorDetails.row_number }}</span>
-            </div>
-            <div v-if="errorDetails.column_name" class="flex items-center space-x-2">
-              <span class="font-medium">Column:</span>
-              <span>{{ errorDetails.column_name }}</span>
-            </div>
-            <div
-              v-if="errorDetails.missing_columns && errorDetails.missing_columns.length > 0"
-              class="flex items-start space-x-2"
-            >
-              <span class="font-medium">Missing Columns:</span>
-              <span>{{ errorDetails.missing_columns.join(', ') }}</span>
-            </div>
-            <div v-if="errorDetails.field_errors" class="mt-2">
-              <span class="font-medium block mb-1">Field Errors:</span>
-              <ul class="list-disc list-inside space-y-1">
-                <li v-for="(errorMsg, field) in errorDetails.field_errors" :key="field">
-                  <span class="font-medium">{{ field }}:</span> {{ errorMsg }}
-                </li>
-              </ul>
-            </div>
-            <div v-if="errorDetails.details" class="mt-2">
-              <pre class="text-xs overflow-auto max-h-40">{{
-                JSON.stringify(errorDetails.details, null, 2)
-              }}</pre>
+            <!-- Actions -->
+            <div class="flex items-center justify-end space-x-4 pt-4 border-t">
+              <Button
+                type="submit"
+                variant="primary"
+                :disabled="uploading || !form.title || !form.file || hasFileError"
+              >
+                <Spinner v-if="uploading" size="sm" class="mr-2" />
+                {{ uploading ? 'Uploading...' : 'Create Request' }}
+              </Button>
             </div>
           </div>
-        </div>
-      </div>
+        </form>
+      </Card>
 
-      <template #footer>
-        <div class="flex items-center justify-end">
-          <Button variant="primary" @click="showErrorModal = false">Close</Button>
+      <!-- Simple Error Modal for Validation Errors -->
+      <Modal v-model="showErrorModal" size="lg">
+        <template #header>
+          <h3 class="text-lg font-semibold text-error-600">Upload Error</h3>
+        </template>
+
+        <div class="space-y-4">
+          <div class="bg-error-50 border border-error-200 rounded-lg p-4">
+            <h4 class="text-sm font-medium text-error-900 mb-2">Error Details:</h4>
+            <p class="text-sm text-error-700 whitespace-pre-wrap">{{ uploadError }}</p>
+          </div>
+
+          <div v-if="errorDetails" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Additional Information:</h4>
+            <div class="text-xs text-gray-700 space-y-2">
+              <div v-if="errorDetails.row_number" class="flex items-center space-x-2">
+                <span class="font-medium">Row Number:</span>
+                <span>{{ errorDetails.row_number }}</span>
+              </div>
+              <div v-if="errorDetails.column_name" class="flex items-center space-x-2">
+                <span class="font-medium">Column:</span>
+                <span>{{ errorDetails.column_name }}</span>
+              </div>
+              <div
+                v-if="errorDetails.missing_columns && errorDetails.missing_columns.length > 0"
+                class="flex items-start space-x-2"
+              >
+                <span class="font-medium">Missing Columns:</span>
+                <span>{{ errorDetails.missing_columns.join(', ') }}</span>
+              </div>
+              <div v-if="errorDetails.field_errors" class="mt-2">
+                <span class="font-medium block mb-1">Field Errors:</span>
+                <ul class="list-disc list-inside space-y-1">
+                  <li v-for="(errorMsg, field) in errorDetails.field_errors" :key="field">
+                    <span class="font-medium">{{ field }}:</span> {{ errorMsg }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="errorDetails.details" class="mt-2">
+                <pre class="text-xs overflow-auto max-h-40">{{
+                  JSON.stringify(errorDetails.details, null, 2)
+                }}</pre>
+              </div>
+            </div>
+          </div>
         </div>
-      </template>
-    </Modal>
+
+        <template #footer>
+          <div class="flex items-center justify-end">
+            <Button variant="primary" @click="showErrorModal = false">Close</Button>
+          </div>
+        </template>
+      </Modal>
     </PageFrame>
   </div>
 </template>
@@ -260,9 +260,7 @@ const handleSubmit = async () => {
 
     // Redirect to details page after brief delay
     setTimeout(() => {
-      router.push(
-        projectPath(`/requests/${createdRequestId.value}`, route.params.projectId)
-      )
+      router.push(projectPath(`/requests/${createdRequestId.value}`, route.params.projectId))
     }, 1500)
   } catch (err) {
     // Handle validation errors from backend

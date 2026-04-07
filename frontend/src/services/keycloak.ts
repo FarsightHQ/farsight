@@ -75,7 +75,7 @@ export function login(options = {}) {
  * Logout - Logout and clear session
  * @param {Object} options - Logout options (redirectUri, etc.)
  */
-export function logout(options = {}) {
+export function logout(options: { redirectUri?: string } = {}) {
   if (tokenRefreshTimer) {
     clearTimeout(tokenRefreshTimer)
     tokenRefreshTimer = null

@@ -76,10 +76,7 @@
       <!-- Stronger rule: separates project-scoped nav from global Assets / Settings -->
       <hr
         v-if="hasProjectContext"
-        :class="[
-          'border-0 border-t-2 border-white/40',
-          isCollapsed ? 'mx-2 my-2' : 'mx-3 my-3',
-        ]"
+        :class="['border-0 border-t-2 border-white/40', isCollapsed ? 'mx-2 my-2' : 'mx-3 my-3']"
       />
 
       <ul :class="['space-y-1', isCollapsed ? 'px-2' : 'px-3']">

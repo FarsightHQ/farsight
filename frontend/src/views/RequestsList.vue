@@ -10,134 +10,132 @@
         <Button variant="primary" @click="goNewRequest">New Request</Button>
       </template>
 
-    <!-- Search and Filters -->
-    <Card class="mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="md:col-span-2">
-          <Input
-            v-model="searchQuery"
-            placeholder="Search by title or external ID..."
-            @input="handleSearch"
-          />
+      <!-- Search and Filters -->
+      <Card class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-2">
+            <Input
+              v-model="searchQuery"
+              placeholder="Search by title or external ID..."
+              @input="handleSearch"
+            />
+          </div>
+          <div>
+            <select v-model="statusFilter" class="input" @change="handleFilter">
+              <option value="">All Statuses</option>
+              <option value="submitted">Submitted</option>
+              <option value="processing">Processing</option>
+              <option value="ingested">Ingested</option>
+              <option value="completed">Completed</option>
+              <option value="error">Error</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+          <div class="flex items-center space-x-2">
+            <Button variant="outline" size="sm" @click="clearFilters">Clear</Button>
+          </div>
         </div>
-        <div>
-          <select v-model="statusFilter" class="input" @change="handleFilter">
-            <option value="">All Statuses</option>
-            <option value="submitted">Submitted</option>
-            <option value="processing">Processing</option>
-            <option value="ingested">Ingested</option>
-            <option value="completed">Completed</option>
-            <option value="error">Error</option>
-            <option value="failed">Failed</option>
+      </Card>
+
+      <!-- Results Count -->
+      <div class="flex items-center justify-end mb-4">
+        <div class="text-sm text-theme-text-content">
+          Showing {{ displayedRequests.length }} of {{ totalRequests }} requests
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="space-y-4">
+        <Card v-for="i in 5" :key="i" class="animate-pulse">
+          <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+          <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+        </Card>
+      </div>
+
+      <!-- Empty State -->
+      <Card v-else-if="!loading && filteredRequests.length === 0">
+        <div class="text-center py-12">
+          <svg
+            class="mx-auto h-12 w-12 text-theme-text-muted"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-theme-text-content">No requests found</h3>
+          <p class="mt-1 text-sm text-theme-text-muted">
+            {{
+              searchQuery || statusFilter
+                ? 'Try adjusting your filters.'
+                : 'Get started by creating a new request.'
+            }}
+          </p>
+          <div class="mt-6">
+            <Button variant="primary" @click="goNewRequest"> Create New Request </Button>
+          </div>
+        </div>
+      </Card>
+
+      <!-- Table View -->
+      <div v-else>
+        <RequestTable
+          :requests="displayedRequests"
+          :loading="loading"
+          :sort-key="sortKey"
+          :sort-direction="sortDirection"
+          @sort="handleSort"
+          @view="handleView"
+          @delete="handleDelete"
+        />
+      </div>
+
+      <!-- Pagination -->
+      <div
+        v-if="!loading && filteredRequests.length > 0"
+        class="mt-6 flex items-center justify-between"
+      >
+        <div class="flex items-center space-x-2">
+          <span class="text-sm text-theme-text-content">Show</span>
+          <select v-model="pageSize" class="input text-sm" style="width: auto">
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
           </select>
+          <span class="text-sm text-theme-text-content">per page</span>
         </div>
         <div class="flex items-center space-x-2">
-          <Button variant="outline" size="sm" @click="clearFilters">Clear</Button>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Results Count -->
-    <div class="flex items-center justify-end mb-4">
-      <div class="text-sm text-theme-text-content">
-        Showing {{ displayedRequests.length }} of {{ totalRequests }} requests
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="loading" class="space-y-4">
-      <Card v-for="i in 5" :key="i" class="animate-pulse">
-        <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-      </Card>
-    </div>
-
-    <!-- Empty State -->
-    <Card v-else-if="!loading && filteredRequests.length === 0">
-      <div class="text-center py-12">
-        <svg
-          class="mx-auto h-12 w-12 text-theme-text-muted"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-theme-text-content">No requests found</h3>
-        <p class="mt-1 text-sm text-theme-text-muted">
-          {{
-            searchQuery || statusFilter
-              ? 'Try adjusting your filters.'
-              : 'Get started by creating a new request.'
-          }}
-        </p>
-        <div class="mt-6">
-          <Button variant="primary" @click="goNewRequest">
-            Create New Request
+          <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
+            Previous
+          </Button>
+          <span class="text-sm text-theme-text-content">
+            Page {{ currentPage }} of {{ totalPages }}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="currentPage === totalPages"
+            @click="currentPage++"
+          >
+            Next
           </Button>
         </div>
       </div>
-    </Card>
 
-    <!-- Table View -->
-    <div v-else>
-      <RequestTable
-        :requests="displayedRequests"
-        :loading="loading"
-        :sort-key="sortKey"
-        :sort-direction="sortDirection"
-        @sort="handleSort"
-        @view="handleView"
-        @delete="handleDelete"
+      <!-- Delete Confirmation Modal -->
+      <DeleteConfirmModal
+        v-model="showDeleteModal"
+        :request="requestToDelete"
+        :deleting="deleting"
+        @confirm="confirmDelete"
+        @cancel="cancelDelete"
       />
-    </div>
-
-    <!-- Pagination -->
-    <div
-      v-if="!loading && filteredRequests.length > 0"
-      class="mt-6 flex items-center justify-between"
-    >
-      <div class="flex items-center space-x-2">
-        <span class="text-sm text-theme-text-content">Show</span>
-        <select v-model="pageSize" class="input text-sm" style="width: auto">
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-        </select>
-        <span class="text-sm text-theme-text-content">per page</span>
-      </div>
-      <div class="flex items-center space-x-2">
-        <Button variant="outline" size="sm" :disabled="currentPage === 1" @click="currentPage--">
-          Previous
-        </Button>
-        <span class="text-sm text-theme-text-content">
-          Page {{ currentPage }} of {{ totalPages }}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="currentPage === totalPages"
-          @click="currentPage++"
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <DeleteConfirmModal
-      v-model="showDeleteModal"
-      :request="requestToDelete"
-      :deleting="deleting"
-      @confirm="confirmDelete"
-      @cancel="cancelDelete"
-    />
     </PageFrame>
   </div>
 </template>

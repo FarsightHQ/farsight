@@ -1,9 +1,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import { initKeycloak } from './services/keycloak.js'
+import { initKeycloak } from './services/keycloak'
 import { authenticated, user } from './composables/useAuth'
-import { isAuthenticated, getUserInfo } from './services/keycloak.js'
+import { isAuthenticated, getUserInfo } from './services/keycloak'
 import './assets/css/main.css'
 
 // Initialize Keycloak before mounting the app

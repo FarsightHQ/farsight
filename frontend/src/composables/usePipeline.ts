@@ -4,7 +4,7 @@ import { useRequestStatus } from '@/composables/useRequestStatus'
 import { useToast } from '@/composables/useToast'
 
 export function usePipeline(requestId, request = null) {
-  const { success, error } = useToast()
+  const toast = useToast()
   const pipelineSteps = ref([])
   const isProcessingPipeline = ref(false)
   const processing = ref(false)
@@ -161,7 +161,7 @@ export function usePipeline(requestId, request = null) {
 
       return result
     } catch (err) {
-      error(err.message || 'Failed to load request')
+      toast.error(err.message || 'Failed to load request')
       return null
     }
   }
@@ -209,7 +209,7 @@ export function usePipeline(requestId, request = null) {
           }
         }
       } else {
-        success('CSV processing started successfully')
+        toast.success('CSV processing started successfully')
         await fetchRequest()
       }
     } catch (err) {
@@ -221,7 +221,7 @@ export function usePipeline(requestId, request = null) {
         isProcessingPipeline.value = false
         stopPolling()
       } else {
-        error(err.message || 'Failed to process CSV')
+        toast.error(err.message || 'Failed to process CSV')
       }
       throw err
     } finally {
@@ -272,10 +272,10 @@ export function usePipeline(requestId, request = null) {
           // Pipeline complete
           isProcessingPipeline.value = false
           stopPolling()
-          success('Processing pipeline completed successfully!')
+          toast.success('Processing pipeline completed successfully!')
         }
       } else {
-        success('Facts computation completed successfully')
+        toast.success('Facts computation completed successfully')
       }
 
       await fetchRequest()
@@ -288,7 +288,7 @@ export function usePipeline(requestId, request = null) {
         isProcessingPipeline.value = false
         stopPolling()
       } else {
-        error(err.message || 'Failed to compute facts')
+        toast.error(err.message || 'Failed to compute facts')
       }
       throw err
     } finally {
@@ -334,9 +334,9 @@ export function usePipeline(requestId, request = null) {
         // Pipeline complete
         isProcessingPipeline.value = false
         stopPolling()
-        success('Processing pipeline completed successfully!')
+        toast.success('Processing pipeline completed successfully!')
       } else {
-        success('Hybrid facts computation completed successfully')
+        toast.success('Hybrid facts computation completed successfully')
       }
 
       await fetchRequest()
@@ -349,7 +349,7 @@ export function usePipeline(requestId, request = null) {
         isProcessingPipeline.value = false
         stopPolling()
       } else {
-        error(err.message || 'Failed to compute hybrid facts')
+        toast.error(err.message || 'Failed to compute hybrid facts')
       }
       throw err
     } finally {
@@ -430,7 +430,7 @@ export function usePipeline(requestId, request = null) {
     const requestStatus = currentRequest?.status || request?.value?.status
 
     if (requestStatus !== 'submitted') {
-      error('Request must be in submitted status to start pipeline')
+      toast.error('Request must be in submitted status to start pipeline')
       return false
     }
 

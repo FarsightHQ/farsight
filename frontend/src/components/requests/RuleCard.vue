@@ -9,44 +9,44 @@
         <input
           type="checkbox"
           :checked="selected"
-          class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          class="rounded border-theme-border-default text-primary-600 focus:ring-primary-500"
           @click.stop
           @change="$emit('select', $event.target.checked)"
         />
-        <h3 class="text-lg font-semibold text-gray-900">Rule #{{ rule.id }}</h3>
+        <h3 class="text-lg font-semibold text-theme-text-content">Rule #{{ rule.id }}</h3>
       </div>
       <StatusBadge :status="rule.action === 'allow' ? 'success' : 'error'" :label="rule.action" />
     </div>
 
     <div class="space-y-2 text-sm">
       <div class="flex items-center space-x-2">
-        <span class="text-gray-600">Source:</span>
-        <span class="text-gray-900 font-mono text-xs">
+        <span class="text-theme-text-muted">Source:</span>
+        <span class="text-theme-text-content font-mono text-xs">
           {{ formatNetworks(rule.endpoints, 'source') || '—' }}
         </span>
       </div>
       <div class="flex items-center space-x-2">
-        <span class="text-gray-600">Dest:</span>
-        <span class="text-gray-900 font-mono text-xs">
+        <span class="text-theme-text-muted">Dest:</span>
+        <span class="text-theme-text-content font-mono text-xs">
           {{ formatNetworks(rule.endpoints, 'destination') || '—' }}
         </span>
       </div>
       <div class="flex items-center space-x-2">
-        <span class="text-gray-600">Services:</span>
-        <span class="text-gray-900">{{ formatServices(rule.services) || '—' }}</span>
+        <span class="text-theme-text-muted">Services:</span>
+        <span class="text-theme-text-content">{{ formatServices(rule.services) || '—' }}</span>
       </div>
     </div>
 
-    <div class="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+    <div class="mt-3 pt-3 border-t border-theme-border-default flex items-center justify-between">
       <RuleFactsIndicator :facts="rule.facts" />
-      <span class="text-xs text-gray-500">{{ formatDate(rule.created_at) }}</span>
+      <span class="text-xs text-theme-text-muted">{{ formatDate(rule.created_at) }}</span>
     </div>
   </Card>
 </template>
 
 <script setup>
 import Card from '@/components/ui/Card.vue'
-import StatusBadge from './StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import RuleFactsIndicator from './RuleFactsIndicator.vue'
 
 const props = defineProps({

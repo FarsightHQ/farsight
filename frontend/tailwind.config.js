@@ -6,8 +6,9 @@ export default {
     'btn-secondary',
     'btn-outline',
     'btn-ghost',
+    'btn-danger',
     {
-      pattern: /^btn-(primary|secondary|outline|ghost)$/,
+      pattern: /^btn-(primary|secondary|outline|ghost|danger)$/,
     },
   ],
   theme: {
@@ -53,6 +54,8 @@ export default {
           50: '#fef2f2',
           100: '#fee2e2',
           200: '#fecaca',
+          300: '#fca5a5',
+          500: '#ef4444',
           600: '#dc2626',
           700: '#b91c1c',
           800: '#991b1b',

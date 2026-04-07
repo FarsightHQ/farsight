@@ -7,7 +7,7 @@ import {
   getRoles,
   hasRole,
   getKeycloakInstance,
-} from '../services/keycloak.js'
+} from '../services/keycloak'
 
 // Global authentication state
 const authenticated = ref(false)

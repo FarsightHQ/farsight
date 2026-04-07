@@ -1,15 +1,15 @@
 <template>
   <div
-    class="viz-workspace flex flex-1 h-full min-h-0 w-full min-w-0 bg-gray-100 text-gray-900"
+    class="viz-workspace flex flex-1 h-full min-h-0 w-full min-w-0 bg-theme-content text-theme-text-content"
   >
     <!-- ~80% canvas (4:1 flex split): pan/zoom inside slot (e.g. d3.zoom) -->
     <section
-      class="viz-workspace__canvas flex-[4] min-w-0 min-h-0 flex flex-col bg-gray-100"
+      class="viz-workspace__canvas flex-[4] min-w-0 min-h-0 flex flex-col bg-theme-content"
       aria-label="Visualization canvas"
     >
       <div
         v-if="breadcrumbItems.length"
-        class="shrink-0 px-2 py-1.5 sm:px-3 border-b border-gray-200 bg-white/90 backdrop-blur-sm"
+        class="shrink-0 px-2 py-1.5 sm:px-3 border-b border-theme-border-default bg-theme-card/90 backdrop-blur-sm"
       >
         <BreadcrumbTrail :items="breadcrumbItems" compact />
       </div>
@@ -20,26 +20,26 @@
 
     <!-- ~20% tools + metadata -->
     <aside
-      class="viz-workspace__panel flex-1 min-w-[12.5rem] max-w-[22rem] shrink-0 min-h-0 flex flex-col bg-white border-l border-gray-200 shadow-sm"
+      class="viz-workspace__panel flex-1 min-w-[12.5rem] max-w-[22rem] shrink-0 min-h-0 flex flex-col bg-theme-card border-l border-theme-border-default shadow-sm"
       aria-label="Visualization details"
     >
-      <div class="shrink-0 p-3 sm:p-4 border-b border-gray-200 flex items-start gap-2">
+      <div class="shrink-0 p-3 sm:p-4 border-b border-theme-border-default flex items-start gap-2">
         <div class="min-w-0 flex-1">
           <slot name="heading">
             <h1
               v-if="title"
-              class="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words"
+              class="text-base sm:text-lg font-semibold text-theme-text-content leading-snug break-words"
             >
               {{ title }}
             </h1>
-            <p v-if="subtitle" class="text-xs sm:text-sm text-gray-600 mt-1 break-words">
+            <p v-if="subtitle" class="text-xs sm:text-sm text-theme-text-muted mt-1 break-words">
               {{ subtitle }}
             </p>
           </slot>
         </div>
         <button
           type="button"
-          class="shrink-0 p-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="shrink-0 p-2 rounded-lg border border-theme-border-default bg-secondary-100 text-secondary-900 hover:bg-secondary-200 focus:outline-none focus:ring-2 focus:ring-primary-600"
           :title="
             hideAppChrome
               ? 'Exit full screen (show app navigation)'

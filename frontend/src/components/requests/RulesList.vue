@@ -28,7 +28,9 @@
         v-if="selectedRules.length > 0"
         class="p-4 border-b border-theme-border-card bg-theme-content"
       >
-        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div
+          class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+        >
           <span class="text-sm text-theme-text-content">
             {{ selectedRules.length }} rule{{ selectedRules.length !== 1 ? 's' : '' }} selected
           </span>

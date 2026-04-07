@@ -1,14 +1,23 @@
 import { ref } from 'vue'
 
-const toasts = ref([])
+type ToastType = 'success' | 'error' | 'warning' | 'info'
+
+interface ToastItem {
+  id: number
+  message: string
+  type: ToastType
+  duration: number
+}
+
+const toasts = ref<ToastItem[]>([])
 
 export function useToast() {
-  const showToast = (message, type = 'info', duration = 3000) => {
+  const showToast = (message: string, type: ToastType = 'info', duration = 3000) => {
     const id = Date.now()
-    const toast = {
+    const toast: ToastItem = {
       id,
       message,
-      type, // 'success', 'error', 'warning', 'info'
+      type,
       duration,
     }
 
@@ -23,17 +32,17 @@ export function useToast() {
     return id
   }
 
-  const removeToast = id => {
+  const removeToast = (id: number) => {
     const index = toasts.value.findIndex(t => t.id === id)
     if (index > -1) {
       toasts.value.splice(index, 1)
     }
   }
 
-  const success = (message, duration) => showToast(message, 'success', duration)
-  const error = (message, duration) => showToast(message, 'error', duration)
-  const warning = (message, duration) => showToast(message, 'warning', duration)
-  const info = (message, duration) => showToast(message, 'info', duration)
+  const success = (message: string, duration?: number) => showToast(message, 'success', duration)
+  const error = (message: string, duration?: number) => showToast(message, 'error', duration)
+  const warning = (message: string, duration?: number) => showToast(message, 'warning', duration)
+  const info = (message: string, duration?: number) => showToast(message, 'info', duration)
 
   return {
     toasts,

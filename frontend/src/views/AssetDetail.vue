@@ -20,19 +20,11 @@
         <Button variant="outline" @click="goAssetsList">Back to assets</Button>
       </template>
 
-      <div v-if="loading" class="space-y-6">
-        <Card class="p-6 animate-pulse">
-          <div class="h-8 bg-theme-active/30 rounded w-1/3 mb-4"></div>
-          <div class="h-4 bg-theme-active/30 rounded w-1/2"></div>
-        </Card>
-      </div>
+      <CardSkeleton v-if="loading" />
 
-      <Card v-else-if="error" class="p-6">
-        <div class="text-center py-12">
-          <p class="text-error-600 mb-4">{{ error }}</p>
-          <Button variant="outline" @click="goAssetsList">Back to assets</Button>
-        </div>
-      </Card>
+      <ErrorCallout v-else-if="error" variant="card" centered :message="error">
+        <Button variant="outline" @click="goAssetsList">Back to assets</Button>
+      </ErrorCallout>
 
       <div v-else-if="asset" class="space-y-4">
         <AssetDetailPanel :asset="asset" />
@@ -55,8 +47,9 @@ import { projectPath } from '@/utils/projectRoutes'
 import { assetsService } from '@/services/assets'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Button from '@/components/ui/Button.vue'
-import Card from '@/components/ui/Card.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
+import ErrorCallout from '@/components/ui/ErrorCallout.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import AssetDetailPanel from '@/components/assets/AssetDetailPanel.vue'
 import AssetCoverage from '@/components/assets/AssetCoverage.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'

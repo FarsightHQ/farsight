@@ -17,16 +17,16 @@
       :required="required"
       class="input"
       :class="{ 'border-error-300 focus:border-error-500 focus:ring-error-500': error }"
-      @input="$emit('update:modelValue', $event.target.value)"
-      @blur="$emit('blur', $event)"
+      @input="onInput"
+      @blur="onBlur"
     />
     <p v-if="error" class="mt-1 text-sm text-error-600">{{ error }}</p>
     <p v-if="hint && !error" class="mt-1 text-sm text-theme-text-muted">{{ hint }}</p>
   </div>
 </template>
 
-<script setup>
-import { computed } from 'vue'
+<script setup lang="ts">
+import { useId } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -63,7 +63,19 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'blur'])
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number]
+  blur: [event: FocusEvent]
+}>()
 
-const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
+const inputId = useId()
+
+function onInput(e: Event) {
+  const v = (e.target as HTMLInputElement).value
+  emit('update:modelValue', v)
+}
+
+function onBlur(e: FocusEvent) {
+  emit('blur', e)
+}
 </script>

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { isAuthenticated, login, refreshToken } from '../services/keycloak.js'
-import { getActiveProjectId, setActiveProjectId } from '../utils/projectContext.js'
+import { isAuthenticated, login, refreshToken } from '../services/keycloak'
+import { getActiveProjectId, setActiveProjectId } from '../utils/projectContext'
 
 /** Map /segment/... → /projects/:id/segment/... */
 function redirectLegacyProjectSegment(segment, to) {

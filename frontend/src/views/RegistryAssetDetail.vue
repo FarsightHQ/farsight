@@ -22,19 +22,13 @@
         </Button>
       </template>
 
-      <div v-if="loading" class="space-y-6">
-        <Card class="p-6 animate-pulse">
-          <div class="h-8 bg-theme-active/30 rounded w-1/3 mb-4"></div>
-          <div class="h-4 bg-theme-active/30 rounded w-1/2"></div>
-        </Card>
-      </div>
+      <CardSkeleton v-if="loading" />
 
-      <Card v-else-if="err" class="p-6">
-        <p class="text-error-600 mb-4">{{ err }}</p>
+      <ErrorCallout v-else-if="err" variant="card" :message="err">
         <Button variant="outline" @click="$router.push({ name: 'RegistryAssets' })">
           Back to registry
         </Button>
-      </Card>
+      </ErrorCallout>
 
       <div v-else-if="asset" class="space-y-4">
         <AssetDetailPanel :asset="asset" />
@@ -74,7 +68,9 @@ import { registryAssetsService } from '@/services/registryAssets'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
+import ErrorCallout from '@/components/ui/ErrorCallout.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import AssetDetailPanel from '@/components/assets/AssetDetailPanel.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 

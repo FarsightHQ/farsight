@@ -50,7 +50,10 @@ export function filterUnifiedGraph(graph, { filterText = '', segmentFocus = '' }
   return { nodes, links }
 }
 
-export function countCrossSegmentLinks(nodes, links) {
+export function countCrossSegmentLinks(
+  nodes: Array<{ id: string; segment?: string | null }>,
+  links: Array<{ source: string; target: string }>
+) {
   const byId = new Map(nodes.map(n => [n.id, n]))
   let c = 0
   for (const l of links) {

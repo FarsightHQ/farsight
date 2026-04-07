@@ -18,7 +18,10 @@ function projectRulesBase() {
 }
 
 export const rulesService = {
-  getRules(requestId, params = {}) {
+  getRules(
+    requestId: string | number,
+    params: { skip?: number; limit?: number; include_summary?: boolean } = {}
+  ) {
     const { skip = 0, limit = 100, include_summary = true } = params
     return apiClient.get(`${projectFarBase()}/${requestId}/rules`, {
       params: {
@@ -29,9 +32,9 @@ export const rulesService = {
     })
   },
 
-  getRule(ruleId, options = {}) {
+  getRule(ruleId: string | number, options: { format?: string; include?: string } = {}) {
     const { format, include } = options
-    const params = {}
+    const params: Record<string, string> = {}
     if (format) params.format = format
     if (include) params.include = include
     return apiClient.get(`${projectRulesBase()}/${ruleId}`, { params })

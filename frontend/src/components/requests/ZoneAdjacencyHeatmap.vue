@@ -20,9 +20,11 @@
             scope="col"
             class="p-1 sm:p-2 text-left font-medium text-gray-800 border border-gray-200 bg-white max-w-[8rem] align-bottom"
           >
-            <span class="block truncate sm:whitespace-normal break-words leading-tight" :title="c">{{
-              c
-            }}</span>
+            <span
+              class="block truncate sm:whitespace-normal break-words leading-tight"
+              :title="c"
+              >{{ c }}</span
+            >
           </th>
         </tr>
       </thead>
@@ -32,9 +34,11 @@
             scope="row"
             class="sticky left-0 z-10 bg-gray-50 p-1 sm:p-2 text-left font-medium text-gray-800 border border-gray-200 max-w-[10rem]"
           >
-            <span class="block truncate sm:whitespace-normal break-words leading-tight" :title="r">{{
-              r
-            }}</span>
+            <span
+              class="block truncate sm:whitespace-normal break-words leading-tight"
+              :title="r"
+              >{{ r }}</span
+            >
           </th>
           <td
             v-for="(c, j) in colLabels"
@@ -83,10 +87,18 @@ const selectedI = ref(null)
 const selectedJ = ref(null)
 
 const rowAxisLabel = computed(() =>
-  props.groupBy === 'location' ? 'From (location)' : props.groupBy === 'vlan' ? 'From (VLAN)' : 'From (segment)'
+  props.groupBy === 'location'
+    ? 'From (location)'
+    : props.groupBy === 'vlan'
+      ? 'From (VLAN)'
+      : 'From (segment)'
 )
 const colAxisLabel = computed(() =>
-  props.groupBy === 'location' ? 'To (location)' : props.groupBy === 'vlan' ? 'To (VLAN)' : 'To (segment)'
+  props.groupBy === 'location'
+    ? 'To (location)'
+    : props.groupBy === 'vlan'
+      ? 'To (VLAN)'
+      : 'To (segment)'
 )
 
 const ariaLabel = computed(

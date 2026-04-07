@@ -3,53 +3,53 @@
     class="flex-1 min-h-0 flex flex-col"
     :breadcrumb-items="breadcrumbItems"
     title="Create project"
-      subtitle="Add a workspace for FAR requests and project-scoped assets."
-    >
-      <template #actions>
-        <router-link :to="backToList">
-          <Button type="button" variant="outline">Cancel</Button>
-        </router-link>
-      </template>
+    subtitle="Add a workspace for FAR requests and project-scoped assets."
+  >
+    <template #actions>
+      <router-link :to="backToList">
+        <Button type="button" variant="outline">Cancel</Button>
+      </router-link>
+    </template>
 
-      <div class="max-w-xl">
+    <div class="max-w-xl">
       <Card class="p-6">
-      <form class="space-y-4" @submit.prevent="onCreate">
-        <div>
-          <label class="block text-sm font-medium text-theme-text-content mb-1">Name</label>
-          <input
-            v-model="newName"
-            type="text"
-            required
-            class="w-full border border-theme-border rounded-lg px-3 py-2 text-sm"
-            placeholder="My workspace"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-theme-text-content mb-1"
-            >Description (optional)</label
-          >
-          <textarea
-            v-model="newDesc"
-            rows="3"
-            class="w-full border border-theme-border rounded-lg px-3 py-2 text-sm"
-          />
-        </div>
-        <div class="flex flex-wrap items-center gap-3 pt-2">
-          <Button type="submit" variant="primary" :disabled="creating">
-            {{ creating ? 'Creating…' : 'Create project' }}
-          </Button>
-        </div>
-        <p v-if="createError" class="text-sm text-error-600">{{ createError }}</p>
-      </form>
-    </Card>
+        <form class="space-y-4" @submit.prevent="onCreate">
+          <div>
+            <label class="block text-sm font-medium text-theme-text-content mb-1">Name</label>
+            <input
+              v-model="newName"
+              type="text"
+              required
+              class="w-full border border-theme-border rounded-lg px-3 py-2 text-sm"
+              placeholder="My workspace"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-theme-text-content mb-1"
+              >Description (optional)</label
+            >
+            <textarea
+              v-model="newDesc"
+              rows="3"
+              class="w-full border border-theme-border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div class="flex flex-wrap items-center gap-3 pt-2">
+            <Button type="submit" variant="primary" :disabled="creating">
+              {{ creating ? 'Creating…' : 'Create project' }}
+            </Button>
+          </div>
+          <p v-if="createError" class="text-sm text-error-600">{{ createError }}</p>
+        </form>
+      </Card>
 
       <div v-if="redirect" class="text-sm mt-6">
         <router-link :to="redirect" class="text-primary-600 hover:underline">
           Continue to requested page
         </router-link>
       </div>
-      </div>
-    </PageFrame>
+    </div>
+  </PageFrame>
 </template>
 
 <script setup>

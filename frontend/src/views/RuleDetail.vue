@@ -48,7 +48,9 @@
           variant="outline"
           :disabled="!rule || !hasNetworkData"
           :title="
-            !hasNetworkData ? 'No network data' : 'Open classic rule topology workspace in a new tab'
+            !hasNetworkData
+              ? 'No network data'
+              : 'Open classic rule topology workspace in a new tab'
           "
           @click="openClassicTab"
         >
@@ -64,25 +66,13 @@
         </Button>
       </template>
 
-      <RuleDetail
-        v-if="rule"
-        :rule="rule"
-        :request-id="requestId || rule.request?.id"
-      />
+      <RuleDetailPanel v-if="rule" :rule="rule" :request-id="requestId || rule.request?.id" />
 
-      <div v-else-if="loading" class="space-y-6">
-        <div class="h-8 bg-theme-active/30 rounded animate-pulse w-1/3"></div>
-        <div class="grid grid-cols-2 gap-4">
-          <div v-for="i in 4" :key="i" class="h-24 bg-theme-active/30 rounded animate-pulse"></div>
-        </div>
-      </div>
+      <DetailPageSkeleton v-else-if="loading" :columns="2" :card-count="4" />
 
-      <Card v-else class="p-6">
-        <div class="text-center py-12">
-          <p class="text-theme-text-muted">Rule not found</p>
-          <Button variant="outline" class="mt-4" @click="handleBack">Back</Button>
-        </div>
-      </Card>
+      <EmptyState v-else message="Rule not found">
+        <Button variant="outline" @click="handleBack">Back</Button>
+      </EmptyState>
     </PageFrame>
 
     <NetworkGraphModal
@@ -102,9 +92,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import Button from '@/components/ui/Button.vue'
-import Card from '@/components/ui/Card.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
-import RuleDetail from '@/components/requests/RuleDetail.vue'
+import DetailPageSkeleton from '@/components/ui/DetailPageSkeleton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import RuleDetailPanel from '@/components/requests/RuleDetailPanel.vue'
 import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
@@ -123,8 +114,7 @@ const showGraphModal = ref(false)
 const selectedRuleForVisualization = ref(null)
 const mergedGraphData = ref(null)
 
-const { hasNetworkData, openUnifiedTab, openClassicTab, openZoneTab } =
-  useRuleGraphNavigation(rule)
+const { hasNetworkData, openUnifiedTab, openClassicTab, openZoneTab } = useRuleGraphNavigation(rule)
 
 const { breadcrumbItems } = usePageBreadcrumbs({
   requestTitle: computed(() => rule.value?.request?.title ?? ''),

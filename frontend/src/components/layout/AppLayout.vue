@@ -6,11 +6,7 @@
       <AppSidebar v-if="!hideAppChrome" />
 
       <div class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
-        <main
-          :class="[
-            'flex-1 bg-theme-content min-h-0 flex flex-col overflow-hidden',
-          ]"
-        >
+        <main :class="['flex-1 bg-theme-content min-h-0 flex flex-col overflow-hidden']">
           <div
             :class="[
               'flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden',

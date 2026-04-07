@@ -5,19 +5,19 @@
     :breadcrumb-items="breadcrumbItems"
     title="Global assets"
   >
-      <template #subtitle>
-        <span class="text-theme-text-muted">
-          Organization-wide registry. Upload CSVs from
-          <router-link :to="uploadHintLink" class="text-primary-600 hover:underline"
-            >project assets</router-link
-          >.
-        </span>
-      </template>
-      <template #actions>
-        <router-link :to="uploadHintLink" custom v-slot="{ navigate }">
-          <Button variant="outline" @click="navigate">Upload in project</Button>
-        </router-link>
-      </template>
+    <template #subtitle>
+      <span class="text-theme-text-muted">
+        Organization-wide registry. Upload CSVs from
+        <router-link :to="uploadHintLink" class="text-primary-600 hover:underline"
+          >project assets</router-link
+        >.
+      </span>
+    </template>
+    <template #actions>
+      <router-link v-slot="{ navigate }" :to="uploadHintLink" custom>
+        <Button variant="outline" @click="navigate">Upload in project</Button>
+      </router-link>
+    </template>
 
     <div class="flex-1 flex gap-4 overflow-hidden min-h-0 min-w-0">
       <div class="w-64 flex-shrink-0 overflow-y-auto">
@@ -105,8 +105,7 @@ async function fetchAssets() {
     }
     const response = await registryAssetsService.search(filterParams)
     assets.value = response.data ?? []
-    totalAssets.value =
-      response.pagination?.total ?? response.total ?? assets.value.length
+    totalAssets.value = response.pagination?.total ?? response.total ?? assets.value.length
   } catch (e) {
     console.error(e)
     assets.value = []

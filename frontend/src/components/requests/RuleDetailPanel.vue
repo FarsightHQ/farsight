@@ -5,38 +5,38 @@
       <div class="space-y-6">
         <!-- Endpoints Section -->
         <Card class="p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Network Endpoints</h3>
+          <h3 class="text-lg font-semibold text-theme-text-content mb-4">Network Endpoints</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Source Networks -->
             <div>
-              <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                <ArrowRightIcon class="h-5 w-5 mr-2 text-info-600" />
+              <h4 class="text-sm font-medium text-theme-text-content mb-3 flex items-center">
+                <ArrowRightIcon class="h-5 w-5 mr-2 text-primary-600" />
                 Source Networks
               </h4>
               <div class="space-y-2">
                 <div
                   v-for="(endpoint, idx) in sourceEndpoints"
                   :key="idx"
-                  class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+                  class="p-3 bg-theme-content rounded-lg border border-theme-border-default flex items-center justify-between"
                   :title="endpoint.network_cidr || endpoint.cidr"
                 >
                   <div class="flex flex-col">
-                    <code class="text-sm font-mono text-gray-900">
+                    <code class="text-sm font-mono text-theme-text-content">
                       {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
                     </code>
-                    <span v-if="endpoint.hostname" class="text-xs text-gray-500 mt-1">
+                    <span v-if="endpoint.hostname" class="text-xs text-theme-text-muted mt-1">
                       {{ endpoint.hostname }}
                     </span>
                   </div>
                   <button
-                    class="text-gray-400 hover:text-gray-600"
+                    class="text-secondary-500 hover:text-theme-text-muted"
                     title="Copy CIDR to clipboard"
                     @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                   >
                     <DocumentDuplicateIcon class="h-4 w-4" />
                   </button>
                 </div>
-                <p v-if="sourceEndpoints.length === 0" class="text-sm text-gray-500">
+                <p v-if="sourceEndpoints.length === 0" class="text-sm text-theme-text-muted">
                   No source networks
                 </p>
               </div>
@@ -44,7 +44,7 @@
 
             <!-- Destination Networks -->
             <div>
-              <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <h4 class="text-sm font-medium text-theme-text-content mb-3 flex items-center">
                 <ArrowLeftIcon class="h-5 w-5 mr-2 text-warning-600" />
                 Destination Networks
               </h4>
@@ -52,26 +52,26 @@
                 <div
                   v-for="(endpoint, idx) in destinationEndpoints"
                   :key="idx"
-                  class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+                  class="p-3 bg-theme-content rounded-lg border border-theme-border-default flex items-center justify-between"
                   :title="endpoint.network_cidr || endpoint.cidr"
                 >
                   <div class="flex flex-col">
-                    <code class="text-sm font-mono text-gray-900">
+                    <code class="text-sm font-mono text-theme-text-content">
                       {{ formatCidrToRange(endpoint.network_cidr || endpoint.cidr) }}
                     </code>
-                    <span v-if="endpoint.hostname" class="text-xs text-gray-500 mt-1">
+                    <span v-if="endpoint.hostname" class="text-xs text-theme-text-muted mt-1">
                       {{ endpoint.hostname }}
                     </span>
                   </div>
                   <button
-                    class="text-gray-400 hover:text-gray-600"
+                    class="text-secondary-500 hover:text-theme-text-muted"
                     title="Copy CIDR to clipboard"
                     @click="copyToClipboard(endpoint.network_cidr || endpoint.cidr)"
                   >
                     <DocumentDuplicateIcon class="h-4 w-4" />
                   </button>
                 </div>
-                <p v-if="destinationEndpoints.length === 0" class="text-sm text-gray-500">
+                <p v-if="destinationEndpoints.length === 0" class="text-sm text-theme-text-muted">
                   No destination networks
                 </p>
               </div>
@@ -81,24 +81,24 @@
 
         <!-- Services Section -->
         <Card class="p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Services</h3>
+          <h3 class="text-lg font-semibold text-theme-text-content mb-4">Services</h3>
           <div class="space-y-3">
             <div
               v-for="(service, idx) in rule.services"
               :key="idx"
-              class="p-4 bg-gray-50 rounded-lg border border-gray-200"
+              class="p-4 bg-theme-content rounded-lg border border-theme-border-default"
             >
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-medium text-gray-700 uppercase">{{
+                  <span class="text-sm font-medium text-theme-text-content uppercase">{{
                     service.protocol
                   }}</span>
-                  <span class="text-sm text-gray-600 ml-2">{{
+                  <span class="text-sm text-theme-text-muted ml-2">{{
                     formatPortRanges(service.port_ranges || service.ports)
                   }}</span>
                 </div>
                 <button
-                  class="text-gray-400 hover:text-gray-600"
+                  class="text-secondary-500 hover:text-theme-text-muted"
                   title="Copy to clipboard"
                   @click="
                     copyToClipboard(
@@ -110,7 +110,10 @@
                 </button>
               </div>
             </div>
-            <p v-if="!rule.services || rule.services.length === 0" class="text-sm text-gray-500">
+            <p
+              v-if="!rule.services || rule.services.length === 0"
+              class="text-sm text-theme-text-muted"
+            >
               No services defined
             </p>
           </div>
@@ -121,28 +124,28 @@
       <div class="space-y-6">
         <!-- Related Information -->
         <Card class="p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Related Information</h3>
+          <h3 class="text-lg font-semibold text-theme-text-content mb-4">Related Information</h3>
           <div class="space-y-2 text-sm">
             <div class="flex justify-between">
-              <span class="font-medium text-gray-700">Request ID:</span>
-              <span class="text-gray-600">{{ rule.request_id || requestId || 'N/A' }}</span>
+              <span class="font-medium text-theme-text-content">Request ID:</span>
+              <span class="text-theme-text-muted">{{ rule.request_id || requestId || 'N/A' }}</span>
             </div>
             <div v-if="rule.canonical_hash" class="flex justify-between">
-              <span class="font-medium text-gray-700">Canonical Hash:</span>
-              <code class="text-xs font-mono text-gray-600">{{ rule.canonical_hash }}</code>
+              <span class="font-medium text-theme-text-content">Canonical Hash:</span>
+              <code class="text-xs font-mono text-theme-text-muted">{{ rule.canonical_hash }}</code>
             </div>
           </div>
         </Card>
 
         <!-- Major Facts Section -->
         <Card class="p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Major Facts</h3>
+          <h3 class="text-lg font-semibold text-theme-text-content mb-4">Major Facts</h3>
           <RuleFacts :facts="rule.facts" :show-only-major="true" />
         </Card>
 
         <!-- Detailed Facts Section -->
         <Card class="p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Detailed Facts</h3>
+          <h3 class="text-lg font-semibold text-theme-text-content mb-4">Detailed Facts</h3>
           <RuleFacts :facts="rule.facts" :show-only-detailed="true" />
         </Card>
       </div>
@@ -191,8 +194,7 @@ const destinationEndpointsBase = computed(() => {
 
 // Computed properties with asset information that reactively update when cache changes
 const sourceEndpoints = computed(() => {
-  // Access cacheVersion to track changes
-  const _ = cacheVersion.value
+  cacheVersion.value
 
   return sourceEndpointsBase.value.map(ep => {
     const cidr = ep.network_cidr || ep.cidr
@@ -209,8 +211,7 @@ const sourceEndpoints = computed(() => {
 })
 
 const destinationEndpoints = computed(() => {
-  // Access cacheVersion to track changes
-  const _ = cacheVersion.value
+  cacheVersion.value
 
   return destinationEndpointsBase.value.map(ep => {
     const cidr = ep.network_cidr || ep.cidr

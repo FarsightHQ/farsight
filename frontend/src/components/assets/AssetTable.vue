@@ -230,7 +230,7 @@ import { computed } from 'vue'
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'
-import StatusBadge from '@/components/requests/StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const props = defineProps({
   assets: {

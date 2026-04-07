@@ -1,9 +1,9 @@
 <template>
   <Card class="p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">Rule Coverage</h3>
+    <h3 class="text-lg font-semibold text-theme-text-content mb-4">Rule Coverage</h3>
 
     <div v-if="loading" class="space-y-4">
-      <div class="h-20 bg-gray-200 rounded animate-pulse"></div>
+      <div class="h-20 bg-theme-active/30 rounded animate-pulse"></div>
     </div>
 
     <div v-else-if="error" class="text-center py-8">
@@ -13,30 +13,32 @@
     <div v-else class="space-y-4">
       <!-- Coverage Statistics -->
       <div class="grid grid-cols-2 gap-4">
-        <div class="bg-gray-50 rounded-lg p-4">
-          <div class="text-sm text-gray-600">Rules as Source</div>
-          <div class="text-2xl font-bold text-gray-900 mt-1">{{ sourceRulesCount }}</div>
+        <div class="bg-theme-content rounded-lg p-4">
+          <div class="text-sm text-theme-text-muted">Rules as Source</div>
+          <div class="text-2xl font-bold text-theme-text-content mt-1">{{ sourceRulesCount }}</div>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-          <div class="text-sm text-gray-600">Rules as Destination</div>
-          <div class="text-2xl font-bold text-gray-900 mt-1">{{ destinationRulesCount }}</div>
+        <div class="bg-theme-content rounded-lg p-4">
+          <div class="text-sm text-theme-text-muted">Rules as Destination</div>
+          <div class="text-2xl font-bold text-theme-text-content mt-1">
+            {{ destinationRulesCount }}
+          </div>
         </div>
       </div>
 
       <!-- Source Rules -->
       <div v-if="sourceRules.length > 0">
-        <h4 class="text-sm font-medium text-gray-700 mb-2">Source Rules</h4>
+        <h4 class="text-sm font-medium text-theme-text-content mb-2">Source Rules</h4>
         <div class="space-y-2">
           <div
             v-for="rule in sourceRules"
             :key="rule.id"
-            class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 cursor-pointer"
+            class="p-3 bg-theme-content rounded-lg border border-theme-border-default hover:bg-secondary-100 cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div class="flex items-center justify-between">
               <div>
-                <span class="text-sm font-medium text-gray-900">Rule #{{ rule.id }}</span>
-                <span class="ml-2 text-xs text-gray-500">{{ rule.action }}</span>
+                <span class="text-sm font-medium text-theme-text-content">Rule #{{ rule.id }}</span>
+                <span class="ml-2 text-xs text-theme-text-muted">{{ rule.action }}</span>
               </div>
               <Button variant="ghost" size="sm">View</Button>
             </div>
@@ -46,18 +48,18 @@
 
       <!-- Destination Rules -->
       <div v-if="destinationRules.length > 0">
-        <h4 class="text-sm font-medium text-gray-700 mb-2 mt-4">Destination Rules</h4>
+        <h4 class="text-sm font-medium text-theme-text-content mb-2 mt-4">Destination Rules</h4>
         <div class="space-y-2">
           <div
             v-for="rule in destinationRules"
             :key="rule.id"
-            class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 cursor-pointer"
+            class="p-3 bg-theme-content rounded-lg border border-theme-border-default hover:bg-secondary-100 cursor-pointer"
             @click="$emit('view-rule', rule)"
           >
             <div class="flex items-center justify-between">
               <div>
-                <span class="text-sm font-medium text-gray-900">Rule #{{ rule.id }}</span>
-                <span class="ml-2 text-xs text-gray-500">{{ rule.action }}</span>
+                <span class="text-sm font-medium text-theme-text-content">Rule #{{ rule.id }}</span>
+                <span class="ml-2 text-xs text-theme-text-muted">{{ rule.action }}</span>
               </div>
               <Button variant="ghost" size="sm">View</Button>
             </div>
@@ -70,7 +72,9 @@
         v-if="sourceRules.length === 0 && destinationRules.length === 0"
         class="text-center py-8"
       >
-        <p class="text-sm text-gray-500">This asset is not referenced in any firewall rules</p>
+        <p class="text-sm text-theme-text-muted">
+          This asset is not referenced in any firewall rules
+        </p>
       </div>
     </div>
   </Card>

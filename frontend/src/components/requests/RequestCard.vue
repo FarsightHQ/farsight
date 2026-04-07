@@ -35,7 +35,7 @@
 import { computed } from 'vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
-import StatusBadge from './StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const props = defineProps({
   request: {

@@ -32,7 +32,12 @@ const DEFAULT_SUB_SPACING = 58
  * VLAN coarse grid + per-VLAN mini-grid for each segment.
  * @returns {Record<string, { x: number, y: number }>} keyed by nodeLayoutKey string
  */
-export function hierarchicalClusterTargets(rawNodes, width, height, options = {}) {
+export function hierarchicalClusterTargets(
+  rawNodes,
+  width,
+  height,
+  options: { vlanTighten?: number; subSpacing?: number } = {}
+) {
   const vlanTighten = options.vlanTighten ?? DEFAULT_VLAN_TIGHTEN
   const subSpacing = options.subSpacing ?? DEFAULT_SUB_SPACING
 

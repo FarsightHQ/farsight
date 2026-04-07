@@ -15,10 +15,7 @@
       @click="open = !open"
     >
       <FolderIcon class="h-5 w-5 shrink-0 text-theme-text-sidebar" />
-      <span
-        v-if="!collapsed"
-        class="truncate flex-1 min-w-0 font-medium"
-      >
+      <span v-if="!collapsed" class="truncate flex-1 min-w-0 font-medium">
         {{ currentLabel }}
       </span>
       <ChevronRightIcon

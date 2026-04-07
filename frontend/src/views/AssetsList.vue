@@ -8,140 +8,132 @@
     <template #subtitle>
       <div class="text-sm text-theme-text-muted space-y-1">
         <p>Manage and explore network assets linked to this project.</p>
-        <p>
-          Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
-        </p>
+        <p>Showing {{ displayedAssets.length }} of {{ totalAssets }} assets</p>
       </div>
     </template>
 
     <template #actions>
       <Button variant="primary" @click="goUpload">Upload CSV</Button>
-      <Button
-        v-if="selectedAssets.length > 0"
-        variant="outline"
-        @click="handleExport"
-      >
+      <Button v-if="selectedAssets.length > 0" variant="outline" @click="handleExport">
         Export selected ({{ selectedAssets.length }})
       </Button>
       <Button variant="outline" @click="handleExportAll">Export all</Button>
     </template>
 
     <div class="flex flex-col flex-1 min-h-0 min-w-0">
-    <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
-      <!-- Left: Filters (Fixed Width) -->
-      <div class="w-64 flex-shrink-0 overflow-y-auto">
-        <AssetFilter :filters="filters" @update:filters="handleFilterUpdate" />
-      </div>
-
-      <!-- Middle: Table (Flexible) -->
-      <div class="flex-1 overflow-hidden flex flex-col">
-        <!-- Loading State -->
-        <div v-if="loading" class="flex-1 overflow-y-auto">
-          <div class="space-y-2">
-            <div
-              v-for="i in 10"
-              :key="i"
-              class="h-12 bg-theme-active/30 rounded animate-pulse"
-            ></div>
-          </div>
+      <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
+        <!-- Left: Filters (Fixed Width) -->
+        <div class="w-64 flex-shrink-0 overflow-y-auto">
+          <AssetFilter :filters="filters" @update:filters="handleFilterUpdate" />
         </div>
 
-        <!-- Empty State -->
-        <Card
-          v-else-if="!loading && assets.length === 0"
-          class="flex-1 flex items-center justify-center"
-        >
-          <div class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-theme-text-muted"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-theme-text-content">No assets found</h3>
-            <p class="mt-1 text-sm text-theme-text-muted">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your filters.'
-                  : 'Get started by uploading a CSV file.'
-              }}
-            </p>
-            <div class="mt-6">
-              <Button variant="primary" @click="goUpload">
-                Upload CSV
+        <!-- Middle: Table (Flexible) -->
+        <div class="flex-1 overflow-hidden flex flex-col">
+          <!-- Loading State -->
+          <div v-if="loading" class="flex-1 overflow-y-auto">
+            <div class="space-y-2">
+              <div
+                v-for="i in 10"
+                :key="i"
+                class="h-12 bg-theme-active/30 rounded animate-pulse"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <Card
+            v-else-if="!loading && assets.length === 0"
+            class="flex-1 flex items-center justify-center"
+          >
+            <div class="text-center py-12">
+              <svg
+                class="mx-auto h-12 w-12 text-theme-text-muted"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-theme-text-content">No assets found</h3>
+              <p class="mt-1 text-sm text-theme-text-muted">
+                {{
+                  hasActiveFilters
+                    ? 'Try adjusting your filters.'
+                    : 'Get started by uploading a CSV file.'
+                }}
+              </p>
+              <div class="mt-6">
+                <Button variant="primary" @click="goUpload"> Upload CSV </Button>
+              </div>
+            </div>
+          </Card>
+
+          <!-- Assets Table View -->
+          <div v-else class="flex-1 overflow-y-auto">
+            <AssetTable
+              :assets="displayedAssets"
+              :loading="loading"
+              :selected-assets="selectedAssets"
+              :sort-key="sortKey"
+              :sort-direction="sortDirection"
+              @view-asset="handleViewAsset"
+              @select-asset="handleSelectAsset"
+              @select-all="handleSelectAll"
+              @sort="handleSort"
+            />
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="!loading && assets.length > 0" class="mt-6 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-theme-text-content">Show</span>
+              <select
+                v-model="pageSize"
+                class="input text-sm"
+                style="width: auto"
+                @change="handlePageSizeChange"
+              >
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+              <span class="text-sm text-theme-text-content">per page</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="currentPage === 1"
+                @click="goToPage(currentPage - 1)"
+              >
+                Previous
+              </Button>
+              <span class="text-sm text-theme-text-content">
+                Page {{ currentPage }} of {{ totalPages }}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="currentPage === totalPages"
+                @click="goToPage(currentPage + 1)"
+              >
+                Next
               </Button>
             </div>
           </div>
-        </Card>
-
-        <!-- Assets Table View -->
-        <div v-else class="flex-1 overflow-y-auto">
-          <AssetTable
-            :assets="displayedAssets"
-            :loading="loading"
-            :selected-assets="selectedAssets"
-            :sort-key="sortKey"
-            :sort-direction="sortDirection"
-            @view-asset="handleViewAsset"
-            @select-asset="handleSelectAsset"
-            @select-all="handleSelectAll"
-            @sort="handleSort"
-          />
         </div>
 
-        <!-- Pagination -->
-        <div v-if="!loading && assets.length > 0" class="mt-6 flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-theme-text-content">Show</span>
-            <select
-              v-model="pageSize"
-              class="input text-sm"
-              style="width: auto"
-              @change="handlePageSizeChange"
-            >
-              <option :value="10">10</option>
-              <option :value="25">25</option>
-              <option :value="50">50</option>
-              <option :value="100">100</option>
-            </select>
-            <span class="text-sm text-theme-text-content">per page</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="currentPage === 1"
-              @click="goToPage(currentPage - 1)"
-            >
-              Previous
-            </Button>
-            <span class="text-sm text-theme-text-content">
-              Page {{ currentPage }} of {{ totalPages }}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="currentPage === totalPages"
-              @click="goToPage(currentPage + 1)"
-            >
-              Next
-            </Button>
-          </div>
+        <!-- Right: Analytics (Fixed Width) -->
+        <div class="w-80 flex-shrink-0 overflow-y-auto">
+          <AssetAnalytics />
         </div>
       </div>
-
-      <!-- Right: Analytics (Fixed Width) -->
-      <div class="w-80 flex-shrink-0 overflow-y-auto">
-        <AssetAnalytics />
-      </div>
-    </div>
     </div>
   </PageFrame>
 </template>

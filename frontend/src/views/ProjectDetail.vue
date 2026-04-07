@@ -6,28 +6,11 @@
     :subtitle="pageSubtitle"
   >
     <div class="w-full max-w-6xl mx-auto">
-      <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-pulse">
-        <div class="space-y-4">
-          <div class="h-7 bg-theme-active/30 rounded w-1/2"></div>
-          <div class="h-32 bg-theme-active/30 rounded"></div>
-        </div>
-        <div class="space-y-4">
-          <div class="h-24 bg-theme-active/30 rounded"></div>
-          <div class="h-40 bg-theme-active/30 rounded"></div>
-        </div>
-      </div>
+      <ProjectOverviewSkeleton v-if="loading" />
 
-      <div
-        v-else-if="loadError"
-        class="rounded-lg border border-error-200 bg-error-50 p-4 text-error-800 text-sm"
-      >
-        {{ loadError }}
-      </div>
+      <ErrorCallout v-else-if="loadError" variant="inline" :message="loadError" />
 
-      <div
-        v-else-if="project"
-        class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"
-      >
+      <div v-else-if="project" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <!-- Left: project details -->
         <Card class="p-6 space-y-5">
           <div>
@@ -40,12 +23,7 @@
           </div>
 
           <form class="space-y-4" @submit.prevent="saveProject">
-            <Input
-              v-model="editName"
-              label="Name"
-              placeholder="Project name"
-              required
-            />
+            <Input v-model="editName" label="Name" placeholder="Project name" required />
             <div>
               <label
                 for="project-description"
@@ -97,11 +75,7 @@
                   >
                     Role
                   </label>
-                  <select
-                    id="invite-role"
-                    v-model="inviteRole"
-                    class="input w-full"
-                  >
+                  <select id="invite-role" v-model="inviteRole" class="input w-full">
                     <option value="viewer">Viewer</option>
                     <option value="member">Member</option>
                     <option value="admin">Admin</option>
@@ -134,13 +108,13 @@
             <h2 class="text-lg font-semibold text-theme-text-content">Members</h2>
             <p v-if="membersLoading" class="text-sm text-theme-text-muted">Loading members…</p>
             <p v-else-if="membersError" class="text-sm text-error-600">{{ membersError }}</p>
-            <p
-              v-else-if="members.length === 0"
-              class="text-sm text-theme-text-muted"
-            >
+            <p v-else-if="members.length === 0" class="text-sm text-theme-text-muted">
               No members yet. Use invite by email to add people to this project.
             </p>
-            <ul v-else class="divide-y divide-theme-border-default rounded-lg border border-theme-border-default overflow-hidden">
+            <ul
+              v-else
+              class="divide-y divide-theme-border-default rounded-lg border border-theme-border-default overflow-hidden"
+            >
               <li
                 v-for="m in members"
                 :key="m.user_sub"
@@ -163,6 +137,8 @@ import { useRoute } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { useToast } from '@/composables/useToast'
 import PageFrame from '@/components/layout/PageFrame.vue'
+import ProjectOverviewSkeleton from '@/components/ui/ProjectOverviewSkeleton.vue'
+import ErrorCallout from '@/components/ui/ErrorCallout.vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
@@ -174,12 +150,8 @@ const { success, error: toastError } = useToast()
 
 const projectId = computed(() => route.params.projectId)
 
-const pageTitle = computed(
-  () => project.value?.name || breadcrumbProjectName.value || 'Project'
-)
-const pageSubtitle = computed(() =>
-  project.value?.slug ? `slug: ${project.value.slug}` : ''
-)
+const pageTitle = computed(() => project.value?.name || breadcrumbProjectName.value || 'Project')
+const pageSubtitle = computed(() => (project.value?.slug ? `slug: ${project.value.slug}` : ''))
 
 const project = ref(null)
 const loading = ref(true)

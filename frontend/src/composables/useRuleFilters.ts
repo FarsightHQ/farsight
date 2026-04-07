@@ -30,7 +30,7 @@ export function useRuleFilters(rules) {
         label: protocol.toUpperCase(),
         count,
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => Number(b.count) - Number(a.count))
   }
 
   /**
@@ -53,7 +53,7 @@ export function useRuleFilters(rules) {
         label: direction.charAt(0).toUpperCase() + direction.slice(1),
         count,
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => Number(b.count) - Number(a.count))
   }
 
   /**

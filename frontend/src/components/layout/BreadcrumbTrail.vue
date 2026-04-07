@@ -9,10 +9,7 @@
     <template v-for="(item, i) in items" :key="i">
       <ChevronRightIcon
         v-if="i > 0"
-        :class="[
-          'shrink-0 text-theme-text-muted/50 mx-0.5',
-          compact ? 'h-3 w-3' : 'h-4 w-4',
-        ]"
+        :class="['shrink-0 text-theme-text-muted/50 mx-0.5', compact ? 'h-3 w-3' : 'h-4 w-4']"
         aria-hidden="true"
       />
       <router-link
@@ -29,10 +26,7 @@
       >
         {{ item.label }}
       </span>
-      <span
-        v-else
-        class="text-theme-text-muted truncate max-w-[10rem] sm:max-w-[14rem]"
-      >
+      <span v-else class="text-theme-text-muted truncate max-w-[10rem] sm:max-w-[14rem]">
         {{ item.label }}
       </span>
     </template>

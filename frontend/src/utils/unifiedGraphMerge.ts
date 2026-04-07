@@ -47,7 +47,7 @@ export function mergeUnifiedGraphData(responses) {
         const ex = linkMap.get(k)
         const rid = new Set(ex.rule_ids)
         for (const r of l.rule_ids || []) rid.add(r)
-        ex.rule_ids = [...rid].sort((a, b) => a - b)
+        ex.rule_ids = [...rid].sort((a, b) => Number(a) - Number(b))
 
         const seenRules = new Set((ex.rules || []).map(r => r.id))
         for (const r of l.rules || []) {

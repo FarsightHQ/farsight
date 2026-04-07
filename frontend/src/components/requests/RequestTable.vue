@@ -60,10 +60,10 @@
       <tbody v-if="loading" class="bg-theme-card divide-y divide-theme-border-default">
         <tr v-for="i in 5" :key="i">
           <td v-for="column in columns" :key="column.key" class="px-4 py-2 whitespace-nowrap">
-            <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse"></div>
           </td>
           <td class="px-4 py-2 whitespace-nowrap text-right">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-16 ml-auto"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-16 ml-auto"></div>
           </td>
         </tr>
       </tbody>
@@ -113,7 +113,7 @@
 <script setup>
 import { ref } from 'vue'
 import Button from '@/components/ui/Button.vue'
-import StatusBadge from './StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const props = defineProps({
   requests: {

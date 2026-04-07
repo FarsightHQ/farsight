@@ -68,28 +68,28 @@
         <!-- Loading Skeleton -->
         <tr v-for="i in 5" v-if="loading" :key="i">
           <td class="px-4 py-2 whitespace-nowrap">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-4"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-4"></div>
           </td>
           <td class="px-4 py-2 whitespace-nowrap">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-16"></div>
           </td>
           <td v-if="showRequestColumn" class="px-4 py-2">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-32"></div>
           </td>
           <td class="px-4 py-2">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-32"></div>
           </td>
           <td class="px-4 py-2">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-32"></div>
           </td>
           <td class="px-4 py-2">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-24"></div>
           </td>
           <td class="px-4 py-2">
-            <div class="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+            <div class="h-4 bg-theme-active/30 rounded animate-pulse w-20"></div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right">
-            <div class="h-8 bg-gray-200 rounded animate-pulse w-16"></div>
+            <div class="h-8 bg-theme-active/30 rounded animate-pulse w-16"></div>
           </td>
         </tr>
 

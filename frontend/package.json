@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts --fix --ignore-path .gitignore",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@heroicons/vue": "^2.1.1",
@@ -19,16 +20,22 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
     "@vitejs/plugin-vue": "^5.0.3",
     "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.17",
     "baseline-browser-mapping": "^2.10.14",
     "eslint": "^8.56.0",
     "eslint-plugin-vue": "^9.20.0",
+    "happy-dom": "^20.8.9",
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",
     "tailwindcss": "^3.4.1",
+    "typescript": "^6.0.2",
     "vite": "^5.0.11",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "vue-tsc": "^3.2.6"
   }
 }

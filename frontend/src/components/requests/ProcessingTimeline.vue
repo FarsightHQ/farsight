@@ -154,7 +154,7 @@ import {
   ChevronDownIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/vue/24/outline'
-import StatusBadge from './StatusBadge.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import ResultsSummary from './ResultsSummary.vue'
 import { useToast } from '@/composables/useToast'

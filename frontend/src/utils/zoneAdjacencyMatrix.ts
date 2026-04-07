@@ -34,7 +34,10 @@ function serviceDedupeKey(s) {
  * @param {{ nodes?: Array<{ id?: string, segment?: string|null, location?: string|null, vlan?: string|null }>, links?: Array<{ source: string, target: string, rule_ids?: number[], services?: Array<{ protocol?: string, port_ranges?: string, formatted_ports?: string }> }> }|null|undefined} unifiedGraph
  * @param {{ groupBy?: 'segment'|'location'|'vlan', metric?: 'rules'|'services'|'binary' }} options
  */
-export function buildZoneAdjacencyMatrix(unifiedGraph, options = {}) {
+export function buildZoneAdjacencyMatrix(
+  unifiedGraph,
+  options: { groupBy?: 'segment' | 'location' | 'vlan'; metric?: 'rules' | 'services' | 'binary' } = {}
+) {
   const groupBy = options.groupBy ?? 'segment'
   const metric = options.metric ?? 'rules'
 
@@ -94,7 +97,9 @@ export function buildZoneAdjacencyMatrix(unifiedGraph, options = {}) {
     zoneSet.add(r)
     zoneSet.add(c)
   }
-  const labels = [...zoneSet].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  const labels = [...zoneSet].sort((a, b) =>
+    String(a).localeCompare(String(b), undefined, { sensitivity: 'base' })
+  )
   const n = labels.length
   const labelIndex = Object.fromEntries(labels.map((l, i) => [l, i]))
 

@@ -72,11 +72,7 @@
             </tr>
           </tbody>
           <tbody v-else class="bg-theme-card divide-y divide-theme-border-default">
-            <tr
-              v-for="p in projects"
-              :key="p.id"
-              class="hover:bg-theme-hover transition-colors"
-            >
+            <tr v-for="p in projects" :key="p.id" class="hover:bg-theme-hover transition-colors">
               <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-theme-text-content">
                 {{ p.name }}
               </td>

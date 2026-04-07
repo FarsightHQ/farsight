@@ -75,7 +75,7 @@ VITE_APP_TITLE=Farsight
 
 ### API Configuration
 
-The API base URL is configured in `src/services/api.js` and can be overridden with the `VITE_API_BASE_URL` environment variable.
+The API base URL is configured in `src/services/api.ts` and can be overridden with the `VITE_API_BASE_URL` environment variable.
 
 ## 📦 Available Scripts
 

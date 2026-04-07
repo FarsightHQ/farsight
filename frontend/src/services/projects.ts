@@ -26,8 +26,9 @@ export const projectsService = {
   },
 
   removeMember(projectId, userSub) {
-    const enc = encodeURIComponent(userSub).replace(/[!'()*]/g, c =>
-      `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+    const enc = encodeURIComponent(userSub).replace(
+      /[!'()*]/g,
+      c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
     )
     return apiClient.delete(`/api/v1/projects/${projectId}/members/${enc}`)
   },

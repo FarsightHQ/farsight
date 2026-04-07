@@ -50,6 +50,10 @@
     @apply btn bg-transparent text-theme-text-content hover:bg-theme-active/50 focus:ring-theme-active;
   }
 
+  .btn-danger {
+    @apply btn border-2 border-error-300 bg-theme-card text-error-600 hover:bg-error-50 focus:ring-error-500;
+  }
+
   .input {
     @apply block w-full rounded-lg border border-theme-border-default px-3 py-2 text-sm placeholder-theme-text-muted focus:border-theme-active focus:outline-none focus:ring-1 focus:ring-theme-active;
   }
