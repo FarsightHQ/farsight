@@ -5,132 +5,154 @@
     :title="pageTitle"
     :subtitle="pageSubtitle"
   >
-    <div class="max-w-3xl space-y-8">
-    <div v-if="loading" class="animate-pulse space-y-4">
-      <div class="h-8 bg-theme-active/30 rounded w-1/3"></div>
-      <div class="h-24 bg-theme-active/30 rounded"></div>
-    </div>
-
-    <div v-else-if="loadError" class="rounded-lg border border-error-200 bg-error-50 p-4 text-error-800 text-sm">
-      {{ loadError }}
-    </div>
-
-    <template v-else-if="project">
-      <section class="border border-theme-border rounded-lg p-4 space-y-4">
-        <h2 class="font-medium text-theme-text-content">Details</h2>
-        <form class="space-y-3" @submit.prevent="saveProject">
-          <div>
-            <label class="block text-sm mb-1">Name</label>
-            <input
-              v-model="editName"
-              type="text"
-              class="w-full border border-theme-border rounded px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Description</label>
-            <textarea
-              v-model="editDescription"
-              rows="3"
-              class="w-full border border-theme-border rounded px-3 py-2 text-sm"
-            />
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              type="submit"
-              class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-nav-selected text-white disabled:opacity-50"
-              :disabled="saving"
-            >
-              {{ saving ? 'Saving…' : 'Save changes' }}
-            </button>
-            <p v-if="saveError" class="text-sm text-error-600">{{ saveError }}</p>
-            <p v-if="saveOk" class="text-sm text-green-600">Saved.</p>
-          </div>
-          <p class="text-xs text-theme-text-muted">
-            Editing requires admin access on this project. If save fails, you may be a viewer only.
-          </p>
-        </form>
-      </section>
-
-      <section class="border border-theme-border rounded-lg p-4 space-y-3">
-        <h2 class="font-medium text-theme-text-content">Members</h2>
-        <p v-if="membersLoading" class="text-sm text-theme-text-muted">Loading members…</p>
-        <p v-else-if="membersError" class="text-sm text-error-600">{{ membersError }}</p>
-        <ul v-else class="divide-y divide-theme-border">
-          <li
-            v-for="m in members"
-            :key="m.user_sub"
-            class="py-2 flex justify-between text-sm"
-          >
-            <code class="text-xs break-all">{{ m.user_sub }}</code>
-            <span class="text-theme-text-muted shrink-0 ml-2">{{ m.role }}</span>
-          </li>
-        </ul>
-      </section>
-
-      <section class="border border-theme-border rounded-lg p-4 space-y-3">
-        <h2 class="font-medium text-theme-text-content">Invite by email</h2>
-        <p class="text-xs text-theme-text-muted">
-          Creates an invitation token (admin only). Share the token securely with the invitee.
-        </p>
-        <form class="flex flex-wrap gap-2 items-end" @submit.prevent="createInvite">
-          <div>
-            <label class="block text-xs mb-1">Email</label>
-            <input
-              v-model="inviteEmail"
-              type="email"
-              required
-              class="border border-theme-border rounded px-3 py-2 text-sm w-56"
-            />
-          </div>
-          <div>
-            <label class="block text-xs mb-1">Role</label>
-            <select v-model="inviteRole" class="border border-theme-border rounded px-3 py-2 text-sm">
-              <option value="viewer">viewer</option>
-              <option value="member">member</option>
-              <option value="admin">admin</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            class="px-4 py-2 text-sm font-medium rounded-lg bg-theme-sidebar-hover"
-            :disabled="inviting"
-          >
-            {{ inviting ? 'Creating…' : 'Create invitation' }}
-          </button>
-        </form>
-        <p v-if="inviteError" class="text-sm text-error-600">{{ inviteError }}</p>
-        <div v-if="lastInviteToken" class="rounded bg-theme-active/20 p-3 text-sm space-y-2">
-          <p class="font-medium">Invitation token (copy once)</p>
-          <code class="block text-xs break-all select-all">{{ lastInviteToken }}</code>
-          <p class="text-xs text-theme-text-muted">
-            Expires: {{ lastInviteExpires }}. Accept via API: {{ lastInvitePath }}
-          </p>
-          <button
-            type="button"
-            class="text-xs text-primary-600 underline"
-            @click="copyToken(lastInviteToken)"
-          >
-            Copy token
-          </button>
+    <div class="w-full max-w-6xl mx-auto">
+      <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-pulse">
+        <div class="space-y-4">
+          <div class="h-7 bg-theme-active/30 rounded w-1/2"></div>
+          <div class="h-32 bg-theme-active/30 rounded"></div>
         </div>
-      </section>
-
-      <div class="flex gap-3">
-        <router-link
-          :to="{ name: 'Requests', params: { projectId } }"
-          class="text-sm text-primary-600 hover:underline"
-        >
-          Open requests
-        </router-link>
-        <router-link
-          :to="{ name: 'ProjectAssets', params: { projectId } }"
-          class="text-sm text-primary-600 hover:underline"
-        >
-          Project assets
-        </router-link>
+        <div class="space-y-4">
+          <div class="h-24 bg-theme-active/30 rounded"></div>
+          <div class="h-40 bg-theme-active/30 rounded"></div>
+        </div>
       </div>
-    </template>
+
+      <div
+        v-else-if="loadError"
+        class="rounded-lg border border-error-200 bg-error-50 p-4 text-error-800 text-sm"
+      >
+        {{ loadError }}
+      </div>
+
+      <div
+        v-else-if="project"
+        class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"
+      >
+        <!-- Left: project details -->
+        <Card class="p-6 space-y-5">
+          <div>
+            <h2 class="text-lg font-semibold text-theme-text-content">Project information</h2>
+            <p class="text-sm text-theme-text-muted mt-1">
+              Name and description for this workspace. Saving changes requires
+              <span class="font-medium text-theme-text-content">admin</span> access; if save fails,
+              your account may be viewer or member only.
+            </p>
+          </div>
+
+          <form class="space-y-4" @submit.prevent="saveProject">
+            <Input
+              v-model="editName"
+              label="Name"
+              placeholder="Project name"
+              required
+            />
+            <div>
+              <label
+                for="project-description"
+                class="block text-sm font-medium text-theme-text-content mb-1"
+              >
+                Description
+              </label>
+              <textarea
+                id="project-description"
+                v-model="editDescription"
+                rows="4"
+                class="input"
+                placeholder="Optional description"
+              />
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <Button type="submit" variant="primary" :disabled="saving">
+                {{ saving ? 'Saving…' : 'Save changes' }}
+              </Button>
+              <p v-if="saveError" class="text-sm text-error-600">{{ saveError }}</p>
+            </div>
+          </form>
+        </Card>
+
+        <!-- Right: invite first, then members -->
+        <div class="space-y-6">
+          <Card class="p-6 space-y-4">
+            <div>
+              <h2 class="text-lg font-semibold text-theme-text-content">Invite by email</h2>
+              <p class="text-sm text-theme-text-muted mt-1">
+                Creates an invitation token (admins only). Share the token securely with the
+                invitee.
+              </p>
+            </div>
+            <form class="space-y-4" @submit.prevent="createInvite">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  v-model="inviteEmail"
+                  type="email"
+                  label="Email"
+                  placeholder="colleague@company.com"
+                  required
+                />
+                <div>
+                  <label
+                    for="invite-role"
+                    class="block text-sm font-medium text-theme-text-content mb-1"
+                  >
+                    Role
+                  </label>
+                  <select
+                    id="invite-role"
+                    v-model="inviteRole"
+                    class="input w-full"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <Button type="submit" variant="primary" :disabled="inviting">
+                {{ inviting ? 'Creating…' : 'Create invitation' }}
+              </Button>
+            </form>
+            <p v-if="inviteError" class="text-sm text-error-600">{{ inviteError }}</p>
+            <div
+              v-if="lastInviteToken"
+              class="rounded-lg border border-theme-border-default bg-theme-content p-4 text-sm space-y-2"
+            >
+              <p class="font-medium text-theme-text-content">Invitation token (copy once)</p>
+              <code class="block text-xs break-all select-all text-theme-text-content">{{
+                lastInviteToken
+              }}</code>
+              <p class="text-xs text-theme-text-muted">
+                Expires: {{ lastInviteExpires }}. Accept via API: {{ lastInvitePath }}
+              </p>
+              <Button type="button" variant="outline" size="sm" @click="copyToken(lastInviteToken)">
+                Copy token
+              </Button>
+            </div>
+          </Card>
+
+          <Card class="p-6 space-y-4">
+            <h2 class="text-lg font-semibold text-theme-text-content">Members</h2>
+            <p v-if="membersLoading" class="text-sm text-theme-text-muted">Loading members…</p>
+            <p v-else-if="membersError" class="text-sm text-error-600">{{ membersError }}</p>
+            <p
+              v-else-if="members.length === 0"
+              class="text-sm text-theme-text-muted"
+            >
+              No members yet. Use invite by email to add people to this project.
+            </p>
+            <ul v-else class="divide-y divide-theme-border-default rounded-lg border border-theme-border-default overflow-hidden">
+              <li
+                v-for="m in members"
+                :key="m.user_sub"
+                class="px-4 py-3 flex justify-between gap-4 text-sm bg-theme-card"
+              >
+                <code class="text-xs break-all text-theme-text-content">{{ m.user_sub }}</code>
+                <span class="text-theme-text-muted shrink-0 capitalize">{{ m.role }}</span>
+              </li>
+            </ul>
+          </Card>
+        </div>
+      </div>
     </div>
   </PageFrame>
 </template>
@@ -141,6 +163,9 @@ import { useRoute } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { useToast } from '@/composables/useToast'
 import PageFrame from '@/components/layout/PageFrame.vue'
+import Card from '@/components/ui/Card.vue'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const route = useRoute()
@@ -164,7 +189,6 @@ const editName = ref('')
 const editDescription = ref('')
 const saving = ref(false)
 const saveError = ref('')
-const saveOk = ref(false)
 
 const members = ref([])
 const membersLoading = ref(false)
@@ -217,7 +241,6 @@ async function loadMembers() {
 
 async function saveProject() {
   saveError.value = ''
-  saveOk.value = false
   saving.value = true
   try {
     const res = await projectsService.update(projectId.value, {
@@ -227,7 +250,6 @@ async function saveProject() {
     const p = unwrap(res)
     project.value = p
     success('Project updated')
-    saveOk.value = true
   } catch (e) {
     saveError.value = e.message || 'Update failed'
   } finally {
