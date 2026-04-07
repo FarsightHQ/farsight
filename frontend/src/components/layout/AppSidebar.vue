@@ -18,32 +18,14 @@
       <ChevronRightIcon v-else class="h-4 w-4 text-theme-text-sidebar" />
     </button>
 
-    <div :class="['border-b border-theme-border-sidebar shrink-0', isCollapsed ? 'px-2 py-2' : 'px-3 py-3']">
+    <!-- Light rule: groups switcher with project links below (not a hard section break) -->
+    <div :class="['border-b border-white/10 shrink-0', isCollapsed ? 'px-2 py-2' : 'px-3 py-3']">
       <ProjectSwitcher :collapsed="isCollapsed" />
     </div>
 
     <nav class="flex-1 overflow-y-auto py-3">
       <div v-if="hasProjectContext" :class="[isCollapsed ? 'px-2' : 'px-3']">
-        <button
-          type="button"
-          :class="[
-            'flex w-full items-center text-xs font-semibold uppercase tracking-wide text-theme-text-sidebar/70 mb-1',
-            isCollapsed ? 'justify-center' : 'justify-between',
-          ]"
-          :title="isCollapsed ? 'In this project' : ''"
-          @click="inProjectOpen = !inProjectOpen"
-        >
-          <span v-if="!isCollapsed">In this project</span>
-          <Squares2X2Icon v-if="isCollapsed" class="h-5 w-5 text-theme-text-sidebar/80" />
-          <ChevronDownIcon
-            v-else
-            :class="['h-4 w-4 transition-transform', inProjectOpen ? 'rotate-180' : '']"
-          />
-        </button>
-        <ul
-          v-show="inProjectOpen || isCollapsed"
-          :class="['space-y-1', isCollapsed ? '' : 'pl-3']"
-        >
+        <ul :class="['space-y-1', isCollapsed ? '' : 'pl-3']">
           <li>
             <router-link
               :to="{ name: 'ProjectOverview', params: { projectId } }"
@@ -91,9 +73,13 @@
         </ul>
       </div>
 
+      <!-- Stronger rule: separates project-scoped nav from global Assets / Settings -->
       <hr
-        v-if="hasProjectContext && !isCollapsed"
-        class="border-theme-border-sidebar mx-3 my-3"
+        v-if="hasProjectContext"
+        :class="[
+          'border-0 border-t-2 border-white/40',
+          isCollapsed ? 'mx-2 my-2' : 'mx-3 my-3',
+        ]"
       />
 
       <ul :class="['space-y-1', isCollapsed ? 'px-2' : 'px-3']">
@@ -125,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   DocumentTextIcon,
@@ -133,11 +119,9 @@ import {
   ServerIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronDownIcon,
   Cog6ToothIcon,
   CircleStackIcon,
   DocumentIcon,
-  Squares2X2Icon,
 } from '@heroicons/vue/24/outline'
 import { useSidebar } from '@/composables/useSidebar'
 import { getActiveProjectId } from '@/utils/projectContext'
@@ -145,7 +129,6 @@ import ProjectSwitcher from './ProjectSwitcher.vue'
 
 const route = useRoute()
 const { isCollapsed, toggleSidebar } = useSidebar()
-const inProjectOpen = ref(true)
 
 const projectId = computed(() => {
   const p = route.params.projectId
@@ -164,11 +147,4 @@ function navClass(sub) {
     'hover:bg-theme-sidebar-hover',
   ]
 }
-
-watch(
-  () => route.params.projectId,
-  () => {
-    inProjectOpen.value = true
-  }
-)
 </script>

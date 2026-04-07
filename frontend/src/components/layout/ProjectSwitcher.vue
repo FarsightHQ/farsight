@@ -4,7 +4,7 @@
       ref="triggerRef"
       type="button"
       :class="[
-        'w-full flex items-center gap-2 rounded-lg border border-theme-border-sidebar px-2 py-2 text-left text-sm',
+        'w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm',
         'bg-theme-sidebar hover:bg-theme-sidebar-hover text-theme-text-sidebar',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-sidebar',
         collapsed ? 'justify-center px-1' : '',
@@ -21,9 +21,10 @@
       >
         {{ currentLabel }}
       </span>
-      <ChevronDownIcon
+      <ChevronRightIcon
         v-if="!collapsed"
         class="h-4 w-4 shrink-0 text-theme-text-sidebar/80"
+        aria-hidden="true"
       />
     </button>
 
@@ -78,7 +79,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FolderIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { FolderIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { projectsService } from '@/services/projects'
 import { getActiveProjectId, setActiveProjectId } from '@/utils/projectContext'
 
