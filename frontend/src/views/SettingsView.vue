@@ -1,5 +1,9 @@
 <template>
-  <PageFrame :breadcrumb-items="breadcrumbItems" title="Settings">
+  <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
+    :breadcrumb-items="breadcrumbItems"
+    title="Settings"
+  >
     <div class="max-w-2xl space-y-8">
     <section class="border border-theme-border rounded-lg p-4 space-y-2">
       <h2 class="font-medium">Appearance</h2>

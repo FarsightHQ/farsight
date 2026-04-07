@@ -1,6 +1,8 @@
 <template>
-  <div>
+  <div class="flex flex-col flex-1 min-h-0 min-w-0">
     <PageFrame
+      class="flex-1 min-h-0 flex flex-col"
+      :scroll-body="false"
       :breadcrumb-items="breadcrumbItems"
       :title="pageTitle"
     >
@@ -45,8 +47,8 @@
         </div>
       </div>
 
-      <div v-else-if="request" class="flex flex-col" style="height: calc(100vh - 14rem)">
-        <div class="flex gap-6 flex-1 overflow-hidden min-h-0">
+      <div v-else-if="request" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div class="flex gap-6 flex-1 min-h-0 overflow-hidden">
           <aside class="w-72 flex-shrink-0 overflow-y-auto">
             <RulesFilter :filters="filters" :rules="rulesData" @update:filters="handleFilterUpdate" />
           </aside>

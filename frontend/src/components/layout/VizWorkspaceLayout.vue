@@ -1,5 +1,7 @@
 <template>
-  <div class="viz-workspace flex h-full min-h-0 w-full min-w-0 bg-gray-100 text-gray-900">
+  <div
+    class="viz-workspace flex flex-1 h-full min-h-0 w-full min-w-0 bg-gray-100 text-gray-900"
+  >
     <!-- ~80% canvas (4:1 flex split): pan/zoom inside slot (e.g. d3.zoom) -->
     <section
       class="viz-workspace__canvas flex-[4] min-w-0 min-h-0 flex flex-col bg-gray-100"

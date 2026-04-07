@@ -8,11 +8,15 @@
       <div class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         <main
           :class="[
-            'flex-1 bg-theme-content min-h-0',
-            isVizWorkspaceRoute ? 'overflow-hidden flex flex-col' : 'overflow-y-auto',
+            'flex-1 bg-theme-content min-h-0 flex flex-col overflow-hidden',
           ]"
         >
-          <div :class="[isVizWorkspaceRoute ? 'flex-1 min-h-0 p-0 flex flex-col' : 'p-6']">
+          <div
+            :class="[
+              'flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden',
+              isVizWorkspaceRoute ? 'p-0' : '',
+            ]"
+          >
             <slot />
           </div>
         </main>

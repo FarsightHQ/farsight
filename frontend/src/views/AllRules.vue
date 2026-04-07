@@ -1,11 +1,12 @@
 <template>
-  <div class="flex flex-col min-h-0" style="height: calc(100vh - 12rem)">
-    <PageFrame
-      :breadcrumb-items="breadcrumbItems"
-      title="All rules"
-      subtitle="View and analyze firewall rules across all FAR requests."
-    >
-    <div class="flex gap-6 flex-1 overflow-hidden min-h-0 min-w-0">
+  <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
+    :scroll-body="false"
+    :breadcrumb-items="breadcrumbItems"
+    title="All rules"
+    subtitle="View and analyze firewall rules across all FAR requests."
+  >
+    <div class="flex gap-6 flex-1 min-h-0 min-w-0 overflow-hidden">
       <!-- Left Sidebar: Filters -->
       <aside class="w-72 flex-shrink-0 overflow-y-auto">
         <RulesFilter
@@ -101,8 +102,7 @@
       "
       :prefetched-graph="mergedGraphData"
     />
-    </PageFrame>
-  </div>
+  </PageFrame>
 </template>
 
 <script setup>

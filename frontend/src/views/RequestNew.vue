@@ -1,6 +1,7 @@
 <template>
-  <div>
+  <div class="flex flex-col flex-1 min-h-0 min-w-0">
     <PageFrame
+      class="flex-1 min-h-0 flex flex-col"
       :breadcrumb-items="breadcrumbItems"
       title="New request"
       subtitle="Upload a CSV of firewall rules to start analysis."

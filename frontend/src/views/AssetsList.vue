@@ -1,16 +1,18 @@
 <template>
-  <div class="flex flex-col min-h-0" style="height: 100%">
-    <PageFrame
-      :breadcrumb-items="breadcrumbItems"
-      title="Project assets"
-      subtitle="Manage and explore network assets linked to this project."
-    >
+  <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
+    :scroll-body="false"
+    :breadcrumb-items="breadcrumbItems"
+    title="Project assets"
+    subtitle="Manage and explore network assets linked to this project."
+  >
       <template #actions>
         <Button variant="primary" size="sm" @click="goUpload">Upload CSV</Button>
       </template>
 
+    <div class="flex flex-col flex-1 min-h-0 gap-3">
     <!-- View Controls Bar -->
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex shrink-0 items-center justify-between">
       <div class="flex items-center space-x-2">
         <div class="text-sm text-theme-text-content">
           Showing {{ displayedAssets.length }} of {{ totalAssets }} assets
@@ -140,8 +142,8 @@
         <AssetAnalytics />
       </div>
     </div>
-    </PageFrame>
-  </div>
+    </div>
+  </PageFrame>
 </template>
 
 <script setup>

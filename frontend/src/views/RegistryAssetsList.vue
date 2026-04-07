@@ -1,9 +1,10 @@
 <template>
-  <div class="flex flex-col min-h-0" style="height: 100%">
-    <PageFrame
-      :breadcrumb-items="breadcrumbItems"
-      title="Global assets"
-    >
+  <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
+    :scroll-body="false"
+    :breadcrumb-items="breadcrumbItems"
+    title="Global assets"
+  >
       <template #subtitle>
         <span class="text-theme-text-muted">
           Organization-wide registry. Upload CSVs from
@@ -47,8 +48,7 @@
         </div>
       </div>
     </div>
-    </PageFrame>
-  </div>
+  </PageFrame>
 </template>
 
 <script setup>

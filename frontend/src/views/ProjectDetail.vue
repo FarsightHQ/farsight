@@ -1,11 +1,11 @@
 <template>
-  <div class="max-w-3xl">
   <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
     :breadcrumb-items="breadcrumbItems"
     :title="pageTitle"
     :subtitle="pageSubtitle"
   >
-    <div class="space-y-8">
+    <div class="max-w-3xl space-y-8">
     <div v-if="loading" class="animate-pulse space-y-4">
       <div class="h-8 bg-theme-active/30 rounded w-1/3"></div>
       <div class="h-24 bg-theme-active/30 rounded"></div>
@@ -133,7 +133,6 @@
     </template>
     </div>
   </PageFrame>
-  </div>
 </template>
 
 <script setup>

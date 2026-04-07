@@ -1,8 +1,8 @@
 <template>
-  <div class="max-w-xl">
-    <PageFrame
-      :breadcrumb-items="breadcrumbItems"
-      title="Create project"
+  <PageFrame
+    class="flex-1 min-h-0 flex flex-col"
+    :breadcrumb-items="breadcrumbItems"
+    title="Create project"
       subtitle="Add a workspace for FAR requests and project-scoped assets."
     >
       <template #actions>
@@ -11,6 +11,7 @@
         </router-link>
       </template>
 
+      <div class="max-w-xl">
       <Card class="p-6">
       <form class="space-y-4" @submit.prevent="onCreate">
         <div>
@@ -47,8 +48,8 @@
           Continue to requested page
         </router-link>
       </div>
+      </div>
     </PageFrame>
-  </div>
 </template>
 
 <script setup>

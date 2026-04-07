@@ -1,6 +1,7 @@
 <template>
-  <div class="space-y-6">
+  <div class="flex flex-col flex-1 min-h-0 min-w-0">
     <PageFrame
+      class="flex-1 min-h-0 flex flex-col"
       :breadcrumb-items="breadcrumbItems"
       :title="pageTitle"
       subtitle="Firewall rule details and coverage."
