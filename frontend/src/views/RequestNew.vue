@@ -161,14 +161,21 @@ const errors = reactive({
 // Track FileUpload component error separately
 const fileUploadError = ref('')
 
-// Watch for file changes and clear error if file is removed
+function titleFromCsvFileName(fileName) {
+  const base = fileName.replace(/\.csv$/i, '').trim()
+  if (!base) return ''
+  return base.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Watch for file changes: clear error when removed; suggest title from filename when empty
 watch(
   () => form.file,
   (newFile, oldFile) => {
-    // Only update if file actually changed
     if (newFile !== oldFile) {
       if (!newFile) {
         fileUploadError.value = ''
+      } else if (!form.title.trim() && newFile.name) {
+        form.title = titleFromCsvFileName(newFile.name)
       }
     }
   }
