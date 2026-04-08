@@ -22,6 +22,7 @@ from app.services.csv_validation_service import CSVValidationService
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.services.risky_port_policy_service import apply_risky_port_policy_to_analysis, list_enabled_entries
 from app.utils.csv_errors import (
     CSVFileError, CSVEncodingError, CSVValidationError, CSVColumnError,
     DatabaseConnectionError, FileSystemError, InsufficientStorageError
@@ -679,7 +680,9 @@ def get_far_rule_details(
             response['tuples'] = _get_rule_tuples(sources, destinations, services)
         
         if 'analysis' in includes:
-            response['analysis'] = _get_rule_analysis(rule, facts_dict, sources, destinations, services)
+            response['analysis'] = _get_rule_analysis(
+                rule, facts_dict, sources, destinations, services, db
+            )
         
         # Format response based on format parameter
         if format == 'table':
@@ -754,7 +757,14 @@ def _get_rule_tuples(sources: List[Dict], destinations: List[Dict], services: Li
     return tuple_service.generate_rule_tuples(sources, destinations, services)
 
 
-def _get_rule_analysis(rule: Any, facts: Dict, sources: List[Dict], destinations: List[Dict], services: List[Dict]) -> Dict[str, Any]:
+def _get_rule_analysis(
+    rule: Any,
+    facts: Dict,
+    sources: List[Dict],
+    destinations: List[Dict],
+    services: List[Dict],
+    db: Session,
+) -> Dict[str, Any]:
     """Provide security analysis and recommendations for the rule"""
     analysis = {
         "security_score": 0,  # 0-100, higher is better
@@ -814,19 +824,15 @@ def _get_rule_analysis(rule: Any, facts: Dict, sources: List[Dict], destinations
             analysis["security_score"] -= 5
             analysis["recommendations"].append("Consider breaking down into more specific rules")
     
-    # Service analysis
-    for service in services:
-        protocol = service["protocol"]
-        port_range = service["port_ranges"]
-        
-        # Check for common risky ports
-        if "22" in port_range:  # SSH
-            analysis["recommendations"].append("SSH access detected - ensure key-based authentication")
-        if "3389" in port_range:  # RDP
-            analysis["recommendations"].append("RDP access detected - consider VPN or bastion host")
-        if "443" in port_range or "80" in port_range:  # HTTP/HTTPS
-            analysis["recommendations"].append("Web traffic detected - ensure proper SSL/TLS configuration")
-    
+    # Global risky port policy (overlap-based; configure under Settings)
+    try:
+        policy_entries = list_enabled_entries(db)
+        apply_risky_port_policy_to_analysis(
+            analysis, services, policy_entries, rich_issues=True
+        )
+    except Exception as e:
+        logger.warning("Risky port policy skipped: %s", e, exc_info=True)
+
     # Calculate final security score (baseline 100, subtract for issues)
     analysis["security_score"] = max(0, 100 + analysis["security_score"])
     

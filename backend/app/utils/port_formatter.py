@@ -4,6 +4,7 @@ Handles conversion of PostgreSQL multirange format to human-readable port ranges
 """
 
 import re
+from typing import List, Tuple
 
 
 def format_port_ranges(port_ranges: str) -> str:
@@ -64,4 +65,46 @@ def format_port_ranges(port_ranges: str) -> str:
             continue
     
     return ', '.join(formatted_ranges)
+
+
+_RANGE_PATTERN = re.compile(r"\[(\d+),(\d+)\]")
+
+
+def parse_postgres_port_multirange_to_ranges(port_ranges: str) -> List[Tuple[int, int]]:
+    """
+    Parse PostgreSQL int4multirange text into sorted (start, end) inclusive intervals.
+
+    Examples:
+        "{[80,80],[443,443]}" -> [(80, 80), (443, 443)]
+        "{[8001,8010]}" -> [(8001, 8010)]
+        "{}" / "" / malformed -> []
+    """
+    if not port_ranges or not isinstance(port_ranges, str):
+        return []
+
+    port_ranges = port_ranges.strip()
+    if port_ranges == "{}" or port_ranges == "":
+        return []
+
+    if not port_ranges.startswith("{") or not port_ranges.endswith("}"):
+        return []
+
+    ranges_str = port_ranges[1:-1]
+    if not ranges_str.strip():
+        return []
+
+    out: List[Tuple[int, int]] = []
+    for start_str, end_str in _RANGE_PATTERN.findall(ranges_str):
+        try:
+            start_num = int(start_str)
+            end_num = int(end_str)
+        except ValueError:
+            continue
+        if not (1 <= start_num <= 65535 and 1 <= end_num <= 65535):
+            continue
+        if start_num > end_num:
+            continue
+        out.append((start_num, end_num))
+
+    return sorted(out)
 

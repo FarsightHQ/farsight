@@ -14,6 +14,7 @@ from app.models.far_request import FarRequest
 from app.services.asset_service import AssetService
 from app.services.graph_service import GraphService
 from app.services.tuple_generation_service import TupleGenerationService
+from app.services.risky_port_policy_service import apply_risky_port_policy_to_analysis, list_enabled_entries
 from app.utils.error_handlers import success_response, paginated_response
 from app.utils.csv_errors import DatabaseConnectionError
 
@@ -295,7 +296,9 @@ def get_request_security_analysis(
             facts_dict = rule.facts if rule.facts is not None and isinstance(rule.facts, dict) else {}
             
             # Perform analysis (reuse logic from rules endpoint)
-            analysis = _analyze_rule_security(rule, facts_dict, sources, destinations, services)
+            analysis = _analyze_rule_security(
+                rule, facts_dict, sources, destinations, services, db
+            )
             
             rule_analyses.append({
                 "rule_id": rule.id,
@@ -353,7 +356,14 @@ def get_request_security_analysis(
         raise HTTPException(status_code=500, detail=f"Failed to generate security analysis: {str(e)}")
 
 
-def _analyze_rule_security(rule: Any, facts: Dict, sources: List[Dict], destinations: List[Dict], services: List[Dict]) -> Dict[str, Any]:
+def _analyze_rule_security(
+    rule: Any,
+    facts: Dict,
+    sources: List[Dict],
+    destinations: List[Dict],
+    services: List[Dict],
+    db: Session,
+) -> Dict[str, Any]:
     """Analyze security for a single rule (shared logic)"""
     analysis = {
         "security_score": 100,
@@ -401,6 +411,14 @@ def _analyze_rule_security(rule: Any, facts: Dict, sources: List[Dict], destinat
         })
         analysis["security_score"] -= 5
     
+    try:
+        policy_entries = list_enabled_entries(db)
+        apply_risky_port_policy_to_analysis(
+            analysis, services, policy_entries, rich_issues=False
+        )
+    except Exception as e:
+        logger.warning("Risky port policy skipped: %s", e, exc_info=True)
+
     # Set risk level based on score
     analysis["security_score"] = max(0, analysis["security_score"])
     if analysis["security_score"] >= 80:
@@ -432,6 +450,11 @@ def _generate_request_recommendations(issue_types: Dict, rule_analyses: List[Dic
     if "high_complexity" in issue_types:
         recommendations.append(
             "Some rules generate many network tuples - consider rule optimization for performance"
+        )
+
+    if "risky_port" in issue_types:
+        recommendations.append(
+            "One or more rules match the global risky port policy - review services and tighten ports where possible"
         )
     
     # General recommendations
