@@ -20,8 +20,8 @@ class FarTupleFacts(Base):
     destination_cidr = Column(Text, nullable=False, index=True)
     facts = Column(JSONB, nullable=False)  # Tuple-specific facts
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
+    # Note: no updated_at — DB table (7bd0bc1fde0e) only defines created_at
+
     # Relationship
     rule = relationship("FarRule", back_populates="tuple_facts")
     
