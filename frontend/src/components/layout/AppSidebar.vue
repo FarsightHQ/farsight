@@ -91,14 +91,33 @@
             <span v-if="!isCollapsed" class="truncate">Assets</span>
           </router-link>
         </li>
-        <li>
-          <router-link
-            :to="{ name: 'SettingsOverview' }"
-            :class="settingsLinkClass"
-            :title="isCollapsed ? 'Settings' : ''"
+        <li v-if="!isCollapsed" class="pt-2 pb-1">
+          <span
+            class="block px-3 text-xs font-semibold uppercase tracking-wide text-theme-text-sidebar/60"
           >
-            <Cog6ToothIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
-            <span v-if="!isCollapsed" class="truncate">Settings</span>
+            Settings
+          </span>
+        </li>
+        <li :class="[!isCollapsed ? 'pl-3' : '']">
+          <router-link
+            :to="{ name: 'SettingsAppearance' }"
+            :class="navClass(true)"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :title="isCollapsed ? 'Appearance' : ''"
+          >
+            <SwatchIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Appearance</span>
+          </router-link>
+        </li>
+        <li :class="[!isCollapsed ? 'pl-3' : '']">
+          <router-link
+            :to="{ name: 'SettingsRiskyPortPolicy' }"
+            :class="navClass(true)"
+            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :title="isCollapsed ? 'Risky port policy' : ''"
+          >
+            <ShieldExclamationIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
+            <span v-if="!isCollapsed" class="truncate">Risky port policy</span>
           </router-link>
         </li>
       </ul>
@@ -115,8 +134,9 @@ import {
   ServerIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Cog6ToothIcon,
   CircleStackIcon,
+  SwatchIcon,
+  ShieldExclamationIcon,
   DocumentIcon,
 } from '@heroicons/vue/24/outline'
 import { useSidebar } from '@/composables/useSidebar'
@@ -134,13 +154,6 @@ const projectId = computed(() => {
 })
 
 const hasProjectContext = computed(() => Boolean(projectId.value))
-
-const settingsSectionActive = computed(() => route.path.startsWith('/settings'))
-
-const settingsLinkClass = computed(() => [
-  ...navClass(false),
-  ...(settingsSectionActive.value ? ['bg-theme-nav-selected text-theme-text-sidebar'] : []),
-])
 
 function navClass(sub) {
   return [

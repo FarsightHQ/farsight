@@ -131,13 +131,7 @@ const routes = [
   },
   {
     path: '/settings',
-    redirect: '/settings/overview',
-  },
-  {
-    path: '/settings/overview',
-    name: 'SettingsOverview',
-    component: () => import('../views/settings/SettingsOverviewView.vue'),
-    meta: { requiresAuth: true },
+    redirect: '/settings/appearance',
   },
   {
     path: '/settings/appearance',
