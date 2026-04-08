@@ -83,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import { requestsService } from '@/services/requests'
@@ -96,7 +96,9 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
-import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
+const NetworkGraphModal = defineAsyncComponent(() =>
+  import('@/components/requests/NetworkGraphModal.vue')
+)
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const route = useRoute()

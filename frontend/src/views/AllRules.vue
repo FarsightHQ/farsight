@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import PageFrame from '@/components/layout/PageFrame.vue'
@@ -116,7 +116,9 @@ import Badge from '@/components/ui/Badge.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'
-import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
+const NetworkGraphModal = defineAsyncComponent(() =>
+  import('@/components/requests/NetworkGraphModal.vue')
+)
 
 const { breadcrumbItems } = usePageBreadcrumbs()
 

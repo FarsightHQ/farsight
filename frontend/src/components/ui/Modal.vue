@@ -5,14 +5,20 @@
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
         :class="{ 'p-4': size !== 'full', 'p-2': size === 'full' }"
+        role="presentation"
         @click.self="$emit('update:modelValue', false)"
       >
         <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          :aria-labelledby="title ? titleId : undefined"
           :class="[
             sizeClasses,
-            'bg-theme-card rounded-lg shadow-xl',
+            'bg-theme-card rounded-lg shadow-xl outline-none',
             size === 'full' ? 'flex flex-col h-[calc(100vh-2rem)]' : 'max-h-[90vh] overflow-y-auto',
           ]"
+          tabindex="-1"
           @click.stop
         >
           <div
@@ -20,13 +26,17 @@
             :class="{ 'flex-shrink-0': size === 'full' }"
             class="flex items-center justify-between p-6 border-b border-theme-border-card"
           >
-            <h3 v-if="title" class="text-lg font-semibold text-theme-text-content">{{ title }}</h3>
+            <h3 v-if="title" :id="titleId" class="text-lg font-semibold text-theme-text-content">
+              {{ title }}
+            </h3>
             <slot name="header" />
             <button
+              type="button"
               class="text-theme-text-muted hover:text-theme-text-content"
+              aria-label="Close dialog"
               @click="$emit('update:modelValue', false)"
             >
-              <XMarkIcon class="h-6 w-6" />
+              <XMarkIcon class="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
           <div :class="{ 'flex-1 overflow-auto': size === 'full', 'p-6': size !== 'full' }">
@@ -46,7 +56,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, onBeforeUnmount, useId, ref, nextTick } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -67,6 +77,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+const titleId = useId()
+const dialogRef = ref(null)
+
 const sizeClasses = computed(() => {
   const sizes = {
     sm: 'w-full max-w-md',
@@ -77,6 +90,34 @@ const sizeClasses = computed(() => {
   }
   return sizes[props.size]
 })
+
+let escapeHandler = null
+
+function removeEscapeListener() {
+  if (escapeHandler) {
+    document.removeEventListener('keydown', escapeHandler)
+    escapeHandler = null
+  }
+}
+
+watch(
+  () => props.modelValue,
+  async open => {
+    removeEscapeListener()
+    if (open) {
+      escapeHandler = e => {
+        if (e.key === 'Escape') {
+          emit('update:modelValue', false)
+        }
+      }
+      document.addEventListener('keydown', escapeHandler)
+      await nextTick()
+      dialogRef.value?.focus?.()
+    }
+  }
+)
+
+onBeforeUnmount(removeEscapeListener)
 </script>
 
 <style scoped>

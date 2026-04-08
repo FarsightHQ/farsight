@@ -87,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { projectPath } from '@/utils/projectRoutes'
 import PageFrame from '@/components/layout/PageFrame.vue'
@@ -96,7 +96,9 @@ import DetailPageSkeleton from '@/components/ui/DetailPageSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import RuleDetailPanel from '@/components/requests/RuleDetailPanel.vue'
-import NetworkGraphModal from '@/components/requests/NetworkGraphModal.vue'
+const NetworkGraphModal = defineAsyncComponent(() =>
+  import('@/components/requests/NetworkGraphModal.vue')
+)
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'

@@ -3,28 +3,34 @@
     v-if="toasts && toasts.length > 0"
     name="toast"
     tag="div"
+    role="region"
+    aria-label="Notifications"
+    aria-live="polite"
+    aria-relevant="additions text"
     class="fixed top-4 right-4 z-50 space-y-2"
   >
     <div
       v-for="toast in toasts"
       :key="toast.id"
       :class="toastClasses(toast.type)"
+      :role="toast.type === 'error' ? 'alert' : 'status'"
       class="flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg min-w-[300px] max-w-md"
     >
-      <component :is="iconComponent(toast.type)" class="h-5 w-5 flex-shrink-0" />
+      <component :is="iconComponent(toast.type)" class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
       <p class="flex-1 text-sm font-medium">{{ toast.message }}</p>
       <button
-        class="flex-shrink-0 text-gray-400 hover:text-gray-600"
+        type="button"
+        class="flex-shrink-0 text-secondary-500 hover:text-theme-text-muted"
+        aria-label="Dismiss notification"
         @click="removeToast(toast.id)"
       >
-        <XMarkIcon class="h-5 w-5" />
+        <XMarkIcon class="h-5 w-5" aria-hidden="true" />
       </button>
     </div>
   </TransitionGroup>
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import {
   CheckCircleIcon,
   XCircleIcon,
