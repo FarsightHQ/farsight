@@ -128,8 +128,16 @@ export function resolveBreadcrumbs(route, ctx = {}) {
       current(ip)
       break
     }
-    case 'Settings':
+    case 'SettingsOverview':
       current('Settings')
+      break
+    case 'SettingsAppearance':
+      link('Settings', { name: 'SettingsOverview' })
+      current('Appearance')
+      break
+    case 'SettingsRiskyPortPolicy':
+      link('Settings', { name: 'SettingsOverview' })
+      current('Risky port policy')
       break
     default:
       current(String(name || 'Page'))

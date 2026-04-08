@@ -14,7 +14,7 @@
     "port_start": 69,
     "port_end": 69,
     "label": "TFTP",
-    "recommendation": null,
+    "recommendation": "Do not expose TFTP to untrusted networks; prefer SCP/SFTP or signed distribution channels.",
     "severity": "high",
     "enabled": true,
     "sort_order": 1
@@ -24,7 +24,7 @@
     "port_start": 87,
     "port_end": 87,
     "label": "Link (legacy)",
-    "recommendation": null,
+    "recommendation": "Retire or isolate legacy Link protocol; restrict to tightly controlled admin segments if unavoidable.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 2
@@ -34,7 +34,7 @@
     "port_start": 111,
     "port_end": 111,
     "label": "SUN RPC portmapper",
-    "recommendation": null,
+    "recommendation": "Restrict RPC portmapper to internal segments; block from internet-facing perimeters.",
     "severity": "high",
     "enabled": true,
     "sort_order": 3
@@ -44,7 +44,7 @@
     "port_start": 512,
     "port_end": 514,
     "label": "BSD r-commands (rexec/rlogin/rshell)",
-    "recommendation": null,
+    "recommendation": "Disable r-commands; use SSH with strong authentication instead.",
     "severity": "high",
     "enabled": true,
     "sort_order": 4
@@ -54,7 +54,7 @@
     "port_start": 515,
     "port_end": 515,
     "label": "LPD (line printer)",
-    "recommendation": null,
+    "recommendation": "Limit LPD to print servers inside trusted zones; avoid exposure beyond internal VLANs.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 5
@@ -64,7 +64,7 @@
     "port_start": 540,
     "port_end": 540,
     "label": "UUCP",
-    "recommendation": null,
+    "recommendation": "Treat UUCP as legacy; remove from perimeter or restrict to known batch partners.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 6
@@ -74,7 +74,7 @@
     "port_start": 2000,
     "port_end": 2000,
     "label": "OpenWindows",
-    "recommendation": null,
+    "recommendation": "Block legacy OpenWindows; use modern remote display controls with encryption.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 7
@@ -84,7 +84,7 @@
     "port_start": 2049,
     "port_end": 2049,
     "label": "NFS",
-    "recommendation": null,
+    "recommendation": "Keep NFS on private networks; use Kerberos exports and firewall rules; never expose raw NFS to the internet.",
     "severity": "high",
     "enabled": true,
     "sort_order": 8
@@ -94,7 +94,7 @@
     "port_start": 6000,
     "port_end": 6255,
     "label": "X11 display",
-    "recommendation": null,
+    "recommendation": "Do not forward X11 across untrusted paths; use VPN or SSH -X with caution and disable when unused.",
     "severity": "high",
     "enabled": true,
     "sort_order": 9
@@ -114,7 +114,7 @@
     "port_start": 21,
     "port_end": 21,
     "label": "FTP",
-    "recommendation": null,
+    "recommendation": "Prefer SFTP/HTTPS; if FTP is required, use explicit FTPS and restrict source IPs.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 11
@@ -134,7 +134,7 @@
     "port_start": 23,
     "port_end": 23,
     "label": "Telnet",
-    "recommendation": null,
+    "recommendation": "Replace Telnet with SSH; cleartext remote login should not cross untrusted boundaries.",
     "severity": "high",
     "enabled": true,
     "sort_order": 13
@@ -144,7 +144,7 @@
     "port_start": 25,
     "port_end": 25,
     "label": "SMTP",
-    "recommendation": null,
+    "recommendation": "Limit inbound SMTP to dedicated mail relays; monitor for open relay misconfiguration.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 14
@@ -154,7 +154,7 @@
     "port_start": 79,
     "port_end": 79,
     "label": "Finger",
-    "recommendation": null,
+    "recommendation": "Disable Finger; it discloses user information useful to attackers.",
     "severity": "high",
     "enabled": true,
     "sort_order": 15
@@ -164,7 +164,7 @@
     "port_start": 109,
     "port_end": 110,
     "label": "POP2/POP3",
-    "recommendation": null,
+    "recommendation": "Prefer IMAPS/POP3S on edge; enforce TLS and authentication for mail retrieval.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 16
@@ -174,7 +174,7 @@
     "port_start": 119,
     "port_end": 119,
     "label": "NNTP",
-    "recommendation": null,
+    "recommendation": "Restrict NNTP to internal news servers if still needed; uncommon on modern perimeters.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 17
@@ -184,7 +184,7 @@
     "port_start": 123,
     "port_end": 123,
     "label": "NTP",
-    "recommendation": null,
+    "recommendation": "Point clients to internal NTP servers; rate-limit and monitor UDP/123 for amplification abuse.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 18
@@ -194,7 +194,7 @@
     "port_start": 135,
     "port_end": 135,
     "label": "NetBIOS (RPC)",
-    "recommendation": null,
+    "recommendation": "Block NetBIOS from the internet; contain within Windows management segments.",
     "severity": "high",
     "enabled": true,
     "sort_order": 19
@@ -204,7 +204,7 @@
     "port_start": 137,
     "port_end": 138,
     "label": "NetBIOS name/datagram",
-    "recommendation": null,
+    "recommendation": "Same as other NetBIOS: internal-only; never from untrusted WAN.",
     "severity": "high",
     "enabled": true,
     "sort_order": 20
@@ -214,7 +214,7 @@
     "port_start": 139,
     "port_end": 139,
     "label": "NetBIOS session",
-    "recommendation": null,
+    "recommendation": "Use SMB over QUIC or VPN for remote access instead of exposing 139 directly.",
     "severity": "high",
     "enabled": true,
     "sort_order": 21
@@ -224,7 +224,7 @@
     "port_start": 143,
     "port_end": 143,
     "label": "IMAP",
-    "recommendation": null,
+    "recommendation": "Publish IMAPS (993) at the edge when needed; restrict plain IMAP to internal networks.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 22
@@ -234,7 +234,7 @@
     "port_start": 161,
     "port_end": 162,
     "label": "SNMP",
-    "recommendation": null,
+    "recommendation": "Use SNMPv3, strong community strings or auth, and limit agents to monitoring subnets only.",
     "severity": "high",
     "enabled": true,
     "sort_order": 23
@@ -244,7 +244,7 @@
     "port_start": 179,
     "port_end": 179,
     "label": "BGP",
-    "recommendation": null,
+    "recommendation": "BGP belongs on routers and peering links only; never expose to general internet hosts.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 24
@@ -254,7 +254,7 @@
     "port_start": 389,
     "port_end": 389,
     "label": "LDAP",
-    "recommendation": null,
+    "recommendation": "Prefer LDAPS (636) at boundaries; bind LDAP 389 to internal directory replicas only.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 25
@@ -274,7 +274,7 @@
     "port_start": 445,
     "port_end": 445,
     "label": "SMB (Windows file sharing)",
-    "recommendation": null,
+    "recommendation": "Block SMB from the internet; require VPN or Zero Trust broker for remote file access.",
     "severity": "high",
     "enabled": true,
     "sort_order": 27
@@ -284,7 +284,7 @@
     "port_start": 514,
     "port_end": 514,
     "label": "Syslog",
-    "recommendation": null,
+    "recommendation": "Send syslog to collectors over dedicated management networks; validate sender ACLs.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 28
@@ -294,7 +294,7 @@
     "port_start": 1080,
     "port_end": 1080,
     "label": "SOCKS proxy",
-    "recommendation": null,
+    "recommendation": "Authenticate SOCKS; restrict who may use it to avoid becoming an open relay.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 29
@@ -304,7 +304,7 @@
     "port_start": 8000,
     "port_end": 8000,
     "label": "Alternate HTTP",
-    "recommendation": null,
+    "recommendation": "Non-standard HTTP on 8000; allow only for known apps, document owners, and monitor for abuse.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 30
@@ -314,7 +314,7 @@
     "port_start": 8080,
     "port_end": 8080,
     "label": "Alternate HTTP",
-    "recommendation": null,
+    "recommendation": "Non-standard HTTP on 8080; allow only for known apps, document owners, and monitor for abuse.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 31
@@ -324,7 +324,7 @@
     "port_start": 8888,
     "port_end": 8888,
     "label": "Alternate HTTP",
-    "recommendation": null,
+    "recommendation": "Non-standard HTTP on 8888; allow only for known apps, document owners, and monitor for abuse.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 32
@@ -334,7 +334,7 @@
     "port_start": 2001,
     "port_end": 2001,
     "label": "Cisco AUX-style",
-    "recommendation": null,
+    "recommendation": "Restrict device management ports to jump hosts and out-of-band management VLANs.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 33
@@ -344,7 +344,7 @@
     "port_start": 4001,
     "port_end": 4001,
     "label": "Cisco AUX stream-style",
-    "recommendation": null,
+    "recommendation": "Same as other Cisco aux-style ports: management plane only, not internet-facing.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 34
@@ -354,7 +354,7 @@
     "port_start": 6001,
     "port_end": 6001,
     "label": "Cisco AUX binary-style",
-    "recommendation": null,
+    "recommendation": "Same as other Cisco aux-style ports: management plane only, not internet-facing.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 35
@@ -364,7 +364,7 @@
     "port_start": 4045,
     "port_end": 4045,
     "label": "NFS lockd / nlockmgr",
-    "recommendation": null,
+    "recommendation": "Keep lockd with NFS on internal networks; pair with same controls as NFS 2049.",
     "severity": "high",
     "enabled": true,
     "sort_order": 36
@@ -374,7 +374,7 @@
     "port_start": 3389,
     "port_end": 3389,
     "label": "RDP",
-    "recommendation": null,
+    "recommendation": "Prefer VPN or gateway broker for RDP; enforce NLA, MFA, and IP allow lists if exposed.",
     "severity": "high",
     "enabled": true,
     "sort_order": 37
@@ -384,7 +384,7 @@
     "port_start": 5900,
     "port_end": 5900,
     "label": "VNC",
-    "recommendation": null,
+    "recommendation": "Tunnel VNC through SSH or VPN; do not expose cleartext VNC to untrusted networks.",
     "severity": "high",
     "enabled": true,
     "sort_order": 38
@@ -394,7 +394,7 @@
     "port_start": 1433,
     "port_end": 1433,
     "label": "Microsoft SQL Server",
-    "recommendation": null,
+    "recommendation": "Never publish SQL Server directly to the internet; use app tier and private connectivity.",
     "severity": "high",
     "enabled": true,
     "sort_order": 39
@@ -404,7 +404,7 @@
     "port_start": 3306,
     "port_end": 3306,
     "label": "MySQL / MariaDB",
-    "recommendation": null,
+    "recommendation": "Bind to private interfaces; require TLS and least-privilege DB accounts from app tier only.",
     "severity": "high",
     "enabled": true,
     "sort_order": 40
@@ -414,7 +414,7 @@
     "port_start": 5432,
     "port_end": 5432,
     "label": "PostgreSQL",
-    "recommendation": null,
+    "recommendation": "Same as other databases: internal networks, connection pooling, no public listeners.",
     "severity": "high",
     "enabled": true,
     "sort_order": 41
@@ -424,7 +424,7 @@
     "port_start": 6379,
     "port_end": 6379,
     "label": "Redis",
-    "recommendation": null,
+    "recommendation": "Redis must not be internet-facing; require AUTH/TLS and bind to loopback or private VLANs.",
     "severity": "high",
     "enabled": true,
     "sort_order": 42
@@ -434,7 +434,7 @@
     "port_start": 27017,
     "port_end": 27017,
     "label": "MongoDB",
-    "recommendation": null,
+    "recommendation": "Enable authentication and encryption; restrict to application subnets behind API gateways.",
     "severity": "high",
     "enabled": true,
     "sort_order": 43
@@ -444,7 +444,7 @@
     "port_start": 9200,
     "port_end": 9200,
     "label": "Elasticsearch HTTP",
-    "recommendation": null,
+    "recommendation": "Protect with auth, TLS, and network ACLs; Elasticsearch has a history of exposure incidents.",
     "severity": "high",
     "enabled": true,
     "sort_order": 44
@@ -454,7 +454,7 @@
     "port_start": 5985,
     "port_end": 5986,
     "label": "WinRM HTTP/HTTPS",
-    "recommendation": null,
+    "recommendation": "Limit WinRM to management VLANs; prefer HTTPS (5986) and harden with JEA where possible.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 45

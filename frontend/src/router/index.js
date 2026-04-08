@@ -131,8 +131,24 @@ const routes = [
   },
   {
     path: '/settings',
-    name: 'Settings',
-    component: () => import('../views/SettingsView.vue'),
+    redirect: '/settings/overview',
+  },
+  {
+    path: '/settings/overview',
+    name: 'SettingsOverview',
+    component: () => import('../views/settings/SettingsOverviewView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/settings/appearance',
+    name: 'SettingsAppearance',
+    component: () => import('../views/settings/SettingsAppearanceView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/settings/risky-port-policy',
+    name: 'SettingsRiskyPortPolicy',
+    component: () => import('../views/settings/SettingsRiskyPortPolicyView.vue'),
     meta: { requiresAuth: true },
   },
   // Legacy flat URLs → nested project routes

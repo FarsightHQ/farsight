@@ -93,9 +93,8 @@
         </li>
         <li>
           <router-link
-            :to="{ name: 'Settings' }"
-            :class="navClass(false)"
-            active-class="bg-theme-nav-selected text-theme-text-sidebar"
+            :to="{ name: 'SettingsOverview' }"
+            :class="settingsLinkClass"
             :title="isCollapsed ? 'Settings' : ''"
           >
             <Cog6ToothIcon :class="['h-5 w-5', isCollapsed ? '' : 'mr-3']" />
@@ -135,6 +134,13 @@ const projectId = computed(() => {
 })
 
 const hasProjectContext = computed(() => Boolean(projectId.value))
+
+const settingsSectionActive = computed(() => route.path.startsWith('/settings'))
+
+const settingsLinkClass = computed(() => [
+  ...navClass(false),
+  ...(settingsSectionActive.value ? ['bg-theme-nav-selected text-theme-text-sidebar'] : []),
+])
 
 function navClass(sub) {
   return [
