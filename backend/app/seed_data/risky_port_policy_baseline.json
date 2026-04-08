@@ -1,0 +1,462 @@
+[
+  {
+    "protocol": "tcp",
+    "port_start": 53,
+    "port_end": 53,
+    "label": "DNS zone transfer",
+    "recommendation": "Restrict TCP/53; zone transfers often should not cross untrusted boundaries.",
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 0
+  },
+  {
+    "protocol": "udp",
+    "port_start": 69,
+    "port_end": 69,
+    "label": "TFTP",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 1
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 87,
+    "port_end": 87,
+    "label": "Link (legacy)",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 2
+  },
+  {
+    "protocol": "both",
+    "port_start": 111,
+    "port_end": 111,
+    "label": "SUN RPC portmapper",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 3
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 512,
+    "port_end": 514,
+    "label": "BSD r-commands (rexec/rlogin/rshell)",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 4
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 515,
+    "port_end": 515,
+    "label": "LPD (line printer)",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 5
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 540,
+    "port_end": 540,
+    "label": "UUCP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 6
+  },
+  {
+    "protocol": "both",
+    "port_start": 2000,
+    "port_end": 2000,
+    "label": "OpenWindows",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 7
+  },
+  {
+    "protocol": "both",
+    "port_start": 2049,
+    "port_end": 2049,
+    "label": "NFS",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 8
+  },
+  {
+    "protocol": "both",
+    "port_start": 6000,
+    "port_end": 6255,
+    "label": "X11 display",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 9
+  },
+  {
+    "protocol": "both",
+    "port_start": 1,
+    "port_end": 20,
+    "label": "Small services (ports 1-20)",
+    "recommendation": "Broad low ports; tune list for your environment.",
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 10
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 21,
+    "port_end": 21,
+    "label": "FTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 11
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 22,
+    "port_end": 22,
+    "label": "SSH",
+    "recommendation": "Common admin port; ensure posture matches policy when exposed.",
+    "severity": "info",
+    "enabled": true,
+    "sort_order": 12
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 23,
+    "port_end": 23,
+    "label": "Telnet",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 13
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 25,
+    "port_end": 25,
+    "label": "SMTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 14
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 79,
+    "port_end": 79,
+    "label": "Finger",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 15
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 109,
+    "port_end": 110,
+    "label": "POP2/POP3",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 16
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 119,
+    "port_end": 119,
+    "label": "NNTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 17
+  },
+  {
+    "protocol": "udp",
+    "port_start": 123,
+    "port_end": 123,
+    "label": "NTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 18
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 135,
+    "port_end": 135,
+    "label": "NetBIOS (RPC)",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 19
+  },
+  {
+    "protocol": "udp",
+    "port_start": 137,
+    "port_end": 138,
+    "label": "NetBIOS name/datagram",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 20
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 139,
+    "port_end": 139,
+    "label": "NetBIOS session",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 21
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 143,
+    "port_end": 143,
+    "label": "IMAP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 22
+  },
+  {
+    "protocol": "both",
+    "port_start": 161,
+    "port_end": 162,
+    "label": "SNMP",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 23
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 179,
+    "port_end": 179,
+    "label": "BGP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 24
+  },
+  {
+    "protocol": "both",
+    "port_start": 389,
+    "port_end": 389,
+    "label": "LDAP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 25
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 443,
+    "port_end": 443,
+    "label": "HTTPS",
+    "recommendation": "Often legitimate; flagged as informational only.",
+    "severity": "info",
+    "enabled": true,
+    "sort_order": 26
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 445,
+    "port_end": 445,
+    "label": "SMB (Windows file sharing)",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 27
+  },
+  {
+    "protocol": "udp",
+    "port_start": 514,
+    "port_end": 514,
+    "label": "Syslog",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 28
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 1080,
+    "port_end": 1080,
+    "label": "SOCKS proxy",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 29
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 8000,
+    "port_end": 8000,
+    "label": "Alternate HTTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 30
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 8080,
+    "port_end": 8080,
+    "label": "Alternate HTTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 31
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 8888,
+    "port_end": 8888,
+    "label": "Alternate HTTP",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 32
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 2001,
+    "port_end": 2001,
+    "label": "Cisco AUX-style",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 33
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 4001,
+    "port_end": 4001,
+    "label": "Cisco AUX stream-style",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 34
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 6001,
+    "port_end": 6001,
+    "label": "Cisco AUX binary-style",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 35
+  },
+  {
+    "protocol": "both",
+    "port_start": 4045,
+    "port_end": 4045,
+    "label": "NFS lockd / nlockmgr",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 36
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 3389,
+    "port_end": 3389,
+    "label": "RDP",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 37
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 5900,
+    "port_end": 5900,
+    "label": "VNC",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 38
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 1433,
+    "port_end": 1433,
+    "label": "Microsoft SQL Server",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 39
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 3306,
+    "port_end": 3306,
+    "label": "MySQL / MariaDB",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 40
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 5432,
+    "port_end": 5432,
+    "label": "PostgreSQL",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 41
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 6379,
+    "port_end": 6379,
+    "label": "Redis",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 42
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 27017,
+    "port_end": 27017,
+    "label": "MongoDB",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 43
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 9200,
+    "port_end": 9200,
+    "label": "Elasticsearch HTTP",
+    "recommendation": null,
+    "severity": "high",
+    "enabled": true,
+    "sort_order": 44
+  },
+  {
+    "protocol": "tcp",
+    "port_start": 5985,
+    "port_end": 5986,
+    "label": "WinRM HTTP/HTTPS",
+    "recommendation": null,
+    "severity": "warning",
+    "enabled": true,
+    "sort_order": 45
+  }
+]
