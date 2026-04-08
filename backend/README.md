@@ -16,4 +16,4 @@ python scripts/seed_risky_port_policy.py --dry-run    # validate JSON only
 python scripts/seed_risky_port_policy.py --json /path/to/custom.json
 ```
 
-Saving the policy from the Settings UI still requires the Keycloak **`admin`** role for API `PUT`; the script bypasses HTTP and writes directly to the database.
+Saving the policy from the Settings UI requires a **platform admin** JWT role: **`admin`** or **`farsight-admin`** (realm or `farsight-backend` client roles, same as project admin bypass). The seed script bypasses HTTP and writes directly to the database.

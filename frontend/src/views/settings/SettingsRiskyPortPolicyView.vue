@@ -21,8 +21,8 @@
 
       <p v-if="!loading && rows.length === 0" class="text-sm text-theme-text-muted">
         No entries yet. Add rows for ports that should trigger recommendations or issues during
-        analysis. Admins need the <code class="text-xs">admin</code> role in Keycloak to save
-        changes.
+        analysis. Saving requires a platform admin role (<code class="text-xs">admin</code> or
+        <code class="text-xs">farsight-admin</code>) in Keycloak.
       </p>
     </div>
   </PageFrame>
@@ -153,7 +153,11 @@ async function savePolicy() {
     const status = e?.response?.status
     const detail = e?.response?.data?.detail
     if (status === 403) {
-      showToast('You need the admin role in Keycloak to update global policy.', 'error', 5000)
+      showToast(
+        'You need a platform admin role in Keycloak (admin or farsight-admin) to update global policy.',
+        'error',
+        6000
+      )
     } else if (typeof detail === 'string') {
       showToast(detail, 'error', 5000)
     } else {

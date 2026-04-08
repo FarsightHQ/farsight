@@ -4,13 +4,14 @@ Global risky port policy (application-wide). Authenticated read; admin replace.
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user, require_role
+from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.project_auth import user_has_platform_admin_bypass
 from app.models.risky_port_policy import RiskyPortPolicyEntry
 from app.schemas.risky_port_policy import (
     RiskyPortPolicyEntryCreate,
@@ -21,6 +22,17 @@ from app.schemas.risky_port_policy import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/policy/risky-ports", tags=["Policy"])
+
+
+async def require_platform_admin_for_policy(
+    user: Dict[str, Any] = Depends(get_current_user),
+) -> None:
+    """Same elevated roles as project platform admin: realm/client admin or farsight-admin."""
+    if not user_has_platform_admin_bypass(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions: platform admin role required (admin or farsight-admin)",
+        )
 
 
 @router.get("", response_model=List[RiskyPortPolicyEntryResponse])
@@ -39,7 +51,7 @@ def get_risky_port_policy(
 def replace_risky_port_policy(
     body: RiskyPortPolicyReplaceRequest,
     db: Session = Depends(get_db),
-    _: None = Depends(require_role("admin")),
+    _: None = Depends(require_platform_admin_for_policy),
 ) -> List[RiskyPortPolicyEntryResponse]:
     try:
         db.query(RiskyPortPolicyEntry).delete()
