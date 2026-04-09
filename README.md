@@ -2,6 +2,32 @@
 
 Farsight is a **firewall access rule (FAR) analysis** application. You work inside **projects**: upload firewall rule CSVs, optionally load an **asset registry** for enrichment, and explore rules, facts, and analysis through a **Vue** frontend. The **FastAPI** backend is protected with **Keycloak** (JWT).
 
+## Product details
+
+### What it is for
+
+Farsight helps teams **ingest firewall or access-rule exports** (CSV), **normalize** them into a consistent rule model, and **review** them with structured **facts**, **risk-oriented analysis**, and UI workflows. It suits security engineering, network operations, and compliance-style reviews where you need repeatable processing beyond ad hoc spreadsheets.
+
+### Main capabilities
+
+- **Projects** — Each **project** is an isolated workspace for FAR requests, rules, and project-scoped assets. Users authenticate via **OpenID Connect (Keycloak)**; API access is JWT-based with project membership and roles enforced on scoped routes.
+- **FAR requests** — Upload a firewall-rules CSV to create a **FAR request**. The backend validates structure, parses rows, and stores **normalized rules** (sources, destinations, services, actions).
+- **Asset registry** — Upload a separate **asset registry CSV** (IPs and metadata such as segment, OS, hostname, environment). Assets can be linked to a project so rule endpoints can be **enriched** with registry context during analysis.
+- **Facts and analysis** — The system computes **per-rule facts** and supports **hybrid** / deeper analysis paths for security insights. You can summarize activity at the **request** level, list involved **IPs**, and browse **rules** across requests (project-scoped under `/api/v1/projects/{project_id}/...`).
+- **Graphs** — Data is exposed for **network-style visualization** (topology views compatible with graph consumers in the UI).
+- **Risky port policy** — An application-wide **risky port list** (configurable by privileged users) feeds into security scoring and analysis. Baseline data can be seeded with Alembic or scripts; see [backend/README.md](backend/README.md).
+
+### Typical workflow
+
+1. Create or join a **project**.
+2. Optionally upload **asset registry** CSV for the project.
+3. Create a **FAR request** by uploading a **firewall rules** CSV.
+4. Run **ingestion / processing** as needed, then use **analysis**, **facts**, and **rule browsers** in the UI or via the API.
+
+### API shape
+
+Versioned JSON API under **`/api/v1`**, with standardized success/error envelopes, pagination where applicable, and OpenAPI documentation at **`/docs`** when running in development. Project-scoped resources live under **`/api/v1/projects/{project_id}/`** (for example FAR routes under `.../far`, assets under `.../assets`, rules under `.../rules`).
+
 ## Architecture
 
 - The browser talks to the SPA and to Keycloak on **localhost** (typical dev).
