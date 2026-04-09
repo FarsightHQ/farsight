@@ -58,6 +58,8 @@ logs/
 
 # CSV files
 *.csv
+# Curated onboarding samples (see samples/README.md)
+!samples/*.csv
 
 # Temporary files
 *.tmp

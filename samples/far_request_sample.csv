@@ -1,0 +1,6 @@
+source,destination,service,action,direction
+10.0.0.1,10.0.0.2,tcp/80,allow,inbound
+10.0.0.3,10.0.0.4,tcp/443,allow,outbound
+192.168.1.1,192.168.1.2,udp/53,allow,inbound
+10.1.0.0/24,10.2.0.0/24,tcp/22-25,deny,bidirectional
+172.16.0.1,172.16.0.2,icmp,allow,inbound

@@ -1,0 +1,9 @@
+IP Address,Segment,VLAN,OS,Hostname,Env
+10.0.0.1,DMZ,100,Linux,web-01,prod
+10.0.0.2,Internal,200,Linux,app-01,prod
+10.0.0.3,Internal,200,Linux,db-01,prod
+10.0.0.4,Internal,200,Linux,api-01,prod
+192.168.1.1,Office,300,Windows,workstation-01,corp
+192.168.1.2,Office,300,Windows,workstation-02,corp
+172.16.0.1,Core,10,Linux,rtr-core-01,infra
+172.16.0.2,Core,10,Linux,rtr-core-02,infra
