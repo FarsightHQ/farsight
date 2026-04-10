@@ -43,7 +43,7 @@ const { showToast } = useToast()
 const loading = ref(true)
 const saving = ref(false)
 const loadError = ref('')
-/** @type {import('vue').Ref<Array<Record<string, unknown> & { _key: string }>>} */
+/** @type {import('vue').Ref<Array<Record<string, unknown> & { _key: string; id?: number }>>} */
 const rows = ref([])
 
 let keySeq = 0
@@ -80,6 +80,7 @@ async function loadPolicy() {
     const list = await riskyPortPolicyService.list()
     rows.value = list.map(e => ({
       _key: nextKey(),
+      id: e.id,
       protocol: e.protocol,
       port_start: e.port_start,
       port_end: e.port_end,
@@ -140,6 +141,7 @@ async function savePolicy() {
     const saved = await riskyPortPolicyService.replace(entries)
     rows.value = saved.map(e => ({
       _key: nextKey(),
+      id: e.id,
       protocol: e.protocol,
       port_start: e.port_start,
       port_end: e.port_end,

@@ -96,8 +96,8 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import DeleteConfirmModal from '@/components/requests/DeleteConfirmModal.vue'
 import RulesList from '@/components/requests/RulesList.vue'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
-const NetworkGraphModal = defineAsyncComponent(() =>
-  import('@/components/requests/NetworkGraphModal.vue')
+const NetworkGraphModal = defineAsyncComponent(
+  () => import('@/components/requests/NetworkGraphModal.vue')
 )
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 

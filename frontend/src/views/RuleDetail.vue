@@ -96,8 +96,8 @@ import DetailPageSkeleton from '@/components/ui/DetailPageSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import RuleDetailPanel from '@/components/requests/RuleDetailPanel.vue'
-const NetworkGraphModal = defineAsyncComponent(() =>
-  import('@/components/requests/NetworkGraphModal.vue')
+const NetworkGraphModal = defineAsyncComponent(
+  () => import('@/components/requests/NetworkGraphModal.vue')
 )
 import { rulesService } from '@/services/rules'
 import { useToast } from '@/composables/useToast'

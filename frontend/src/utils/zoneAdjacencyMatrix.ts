@@ -3,9 +3,9 @@
  * Zones come from asset-enriched node fields: segment, location, or vlan.
  */
 
-export const ZONE_GROUP_BY = /** @type {const} */ (['segment', 'location', 'vlan'])
+export const ZONE_GROUP_BY = /** @type {const} */ ['segment', 'location', 'vlan']
 
-export const ZONE_METRIC = /** @type {const} */ (['rules', 'services', 'binary'])
+export const ZONE_METRIC = /** @type {const} */ ['rules', 'services', 'binary']
 
 /** @param {Record<string, unknown>|null|undefined} node */
 /** @param {'segment'|'location'|'vlan'} groupBy */
@@ -36,7 +36,10 @@ function serviceDedupeKey(s) {
  */
 export function buildZoneAdjacencyMatrix(
   unifiedGraph,
-  options: { groupBy?: 'segment' | 'location' | 'vlan'; metric?: 'rules' | 'services' | 'binary' } = {}
+  options: {
+    groupBy?: 'segment' | 'location' | 'vlan'
+    metric?: 'rules' | 'services' | 'binary'
+  } = {}
 ) {
   const groupBy = options.groupBy ?? 'segment'
   const metric = options.metric ?? 'rules'

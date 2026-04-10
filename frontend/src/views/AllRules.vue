@@ -116,8 +116,8 @@ import Badge from '@/components/ui/Badge.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 import RulesFilter from '@/components/requests/RulesFilter.vue'
 import RulesList from '@/components/requests/RulesList.vue'
-const NetworkGraphModal = defineAsyncComponent(() =>
-  import('@/components/requests/NetworkGraphModal.vue')
+const NetworkGraphModal = defineAsyncComponent(
+  () => import('@/components/requests/NetworkGraphModal.vue')
 )
 
 const { breadcrumbItems } = usePageBreadcrumbs()
