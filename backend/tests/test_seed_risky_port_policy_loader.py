@@ -1,6 +1,7 @@
 """Tests for risky port policy baseline loader."""
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from app.seed_data.risky_port_policy_loader import (
     default_baseline_path,
     load_baseline_json,
     load_validated_entries_from_path,
+    sync_baseline_recommendations_to_existing_rows,
     validate_entries,
 )
 
@@ -22,6 +24,7 @@ def test_default_baseline_exists_and_validates():
     ssh = [e for e in entries if e.port_start == 22 and e.port_end == 22 and e.protocol == "tcp"]
     assert len(ssh) == 1
     assert ssh[0].severity == "info"
+    assert ssh[0].recommendation and "CIS" in ssh[0].recommendation
 
 
 def test_validate_entries_rejects_bad_port_range(tmp_path: Path):
@@ -74,3 +77,66 @@ def test_apply_entries_replace_deletes_and_inserts():
     assert n == 1
     session.query.return_value.delete.assert_called_once()
     session.add.assert_called_once()
+
+
+def test_sync_baseline_recommendations_updates_when_changed():
+    session = MagicMock()
+    row = SimpleNamespace(recommendation="old recommendation text")
+    session.query.return_value.filter.return_value.first.return_value = row
+    entries = validate_entries(
+        [
+            {
+                "protocol": "tcp",
+                "port_start": 22,
+                "port_end": 22,
+                "label": "SSH",
+                "recommendation": "new recommendation text",
+                "severity": "info",
+                "enabled": True,
+                "sort_order": 12,
+            }
+        ]
+    )
+    assert sync_baseline_recommendations_to_existing_rows(session, entries) == 1
+    assert row.recommendation == "new recommendation text"
+
+
+def test_sync_baseline_recommendations_noop_when_unchanged():
+    session = MagicMock()
+    row = SimpleNamespace(recommendation="same")
+    session.query.return_value.filter.return_value.first.return_value = row
+    entries = validate_entries(
+        [
+            {
+                "protocol": "tcp",
+                "port_start": 22,
+                "port_end": 22,
+                "label": "SSH",
+                "recommendation": "same",
+                "severity": "info",
+                "enabled": True,
+                "sort_order": 12,
+            }
+        ]
+    )
+    assert sync_baseline_recommendations_to_existing_rows(session, entries) == 0
+
+
+def test_sync_baseline_recommendations_skips_missing_row():
+    session = MagicMock()
+    session.query.return_value.filter.return_value.first.return_value = None
+    entries = validate_entries(
+        [
+            {
+                "protocol": "tcp",
+                "port_start": 22,
+                "port_end": 22,
+                "label": "SSH",
+                "recommendation": "x",
+                "severity": "info",
+                "enabled": True,
+                "sort_order": 12,
+            }
+        ]
+    )
+    assert sync_baseline_recommendations_to_existing_rows(session, entries) == 0

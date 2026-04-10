@@ -103,7 +103,9 @@ def apply_risky_port_policy_to_analysis(
     high_entries = [e for e in ordered if e.severity == "high"]
     warning_entries = [e for e in ordered if e.severity == "warning"]
 
-    impact_text = "May violate organization port restrictions"
+    impact_text = (
+        "May conflict with industry-standard expectations for network exposure and service hardening"
+    )
 
     for entry in high_entries:
         desc = (entry.recommendation or "").strip() or _default_recommendation(entry)

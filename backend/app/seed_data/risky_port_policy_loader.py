@@ -72,3 +72,34 @@ def apply_entries(
         session.add(row)
         inserted += 1
     return inserted
+
+
+def sync_baseline_recommendations_to_existing_rows(
+    session: Session,
+    entries: List[RiskyPortPolicyEntryCreate],
+) -> int:
+    """
+    For each baseline entry, set `recommendation` on matching DB rows
+    (same protocol, port_start, port_end, label). Rows that do not match
+    are left unchanged (e.g. custom policy rows).
+
+    Returns the number of rows whose recommendation value was modified.
+    """
+    updated = 0
+    for item in entries:
+        row = (
+            session.query(RiskyPortPolicyEntry)
+            .filter(
+                RiskyPortPolicyEntry.protocol == item.protocol,
+                RiskyPortPolicyEntry.port_start == item.port_start,
+                RiskyPortPolicyEntry.port_end == item.port_end,
+                RiskyPortPolicyEntry.label == item.label,
+            )
+            .first()
+        )
+        if row is None:
+            continue
+        if row.recommendation != item.recommendation:
+            row.recommendation = item.recommendation
+            updated += 1
+    return updated

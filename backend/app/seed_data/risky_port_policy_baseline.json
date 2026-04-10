@@ -4,7 +4,7 @@
     "port_start": 53,
     "port_end": 53,
     "label": "DNS zone transfer",
-    "recommendation": "Restrict TCP/53; zone transfers often should not cross untrusted boundaries.",
+    "recommendation": "CIS DNS server Benchmarks: allow TCP/53 only where zone transfers (AXFR/IXFR) are required; restrict transfers to known secondaries on trusted paths. NIST SP 800-53 SC-7: do not expose zone transfer services to untrusted or internet-facing segments.",
     "severity": "high",
     "enabled": true,
     "sort_order": 0
@@ -14,7 +14,7 @@
     "port_start": 69,
     "port_end": 69,
     "label": "TFTP",
-    "recommendation": "Do not expose TFTP to untrusted networks; prefer SCP/SFTP or signed distribution channels.",
+    "recommendation": "Industry practice (CIS, vendor guides): TFTP is unauthenticated and cleartext—block UDP/69 from untrusted networks. Use SFTP, HTTPS, or signed software distribution instead.",
     "severity": "high",
     "enabled": true,
     "sort_order": 1
@@ -24,7 +24,7 @@
     "port_start": 87,
     "port_end": 87,
     "label": "Link (legacy)",
-    "recommendation": "Retire or isolate legacy Link protocol; restrict to tightly controlled admin segments if unavoidable.",
+    "recommendation": "Retire legacy Link services per asset-inventory and CIS “unneeded services” guidance; if still required, isolate on dedicated management segments with explicit allow lists (NIST least-functionality principle).",
     "severity": "warning",
     "enabled": true,
     "sort_order": 2
@@ -34,7 +34,7 @@
     "port_start": 111,
     "port_end": 111,
     "label": "SUN RPC portmapper",
-    "recommendation": "Restrict RPC portmapper to internal segments; block from internet-facing perimeters.",
+    "recommendation": "CIS and DISA-style hardening: RPC portmapper must not be reachable from the internet; restrict to internal application tiers and deny at the perimeter (supports NIST SC-7 boundary enforcement).",
     "severity": "high",
     "enabled": true,
     "sort_order": 3
@@ -44,7 +44,7 @@
     "port_start": 512,
     "port_end": 514,
     "label": "BSD r-commands (rexec/rlogin/rshell)",
-    "recommendation": "Disable r-commands; use SSH with strong authentication instead.",
+    "recommendation": "CIS Unix/Linux Benchmarks: disable r-commands; they lack modern authentication and encryption. Use SSH with key-based auth and vendor-supported remote-admin patterns (NIST IA-2, SC-8).",
     "severity": "high",
     "enabled": true,
     "sort_order": 4
@@ -54,7 +54,7 @@
     "port_start": 515,
     "port_end": 515,
     "label": "LPD (line printer)",
-    "recommendation": "Limit LPD to print servers inside trusted zones; avoid exposure beyond internal VLANs.",
+    "recommendation": "Limit LPD to internal print infrastructure only; align with CIS “network service minimization” and segment printers on trusted VLANs, not general-user or DMZ subnets.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 5
@@ -64,7 +64,7 @@
     "port_start": 540,
     "port_end": 540,
     "label": "UUCP",
-    "recommendation": "Treat UUCP as legacy; remove from perimeter or restrict to known batch partners.",
+    "recommendation": "Treat UUCP as legacy batch transfer; remove from perimeter per CIS unused-services guidance or restrict to explicitly authorized partners over private connectivity.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 6
@@ -74,7 +74,7 @@
     "port_start": 2000,
     "port_end": 2000,
     "label": "OpenWindows",
-    "recommendation": "Block legacy OpenWindows; use modern remote display controls with encryption.",
+    "recommendation": "Block legacy OpenWindows; CIS and vendor sunset guidance favor encrypted, supported remote-display and management tools with current patching and MFA where applicable.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 7
@@ -84,7 +84,7 @@
     "port_start": 2049,
     "port_end": 2049,
     "label": "NFS",
-    "recommendation": "Keep NFS on private networks; use Kerberos exports and firewall rules; never expose raw NFS to the internet.",
+    "recommendation": "CIS NFS guidance: keep NFS on private networks with export ACLs and, where available, Kerberos (sec=krb5*). Never expose NFS to the internet; enforce host-level and firewall segmentation (NIST SC-7, SC-28).",
     "severity": "high",
     "enabled": true,
     "sort_order": 8
@@ -94,7 +94,7 @@
     "port_start": 6000,
     "port_end": 6255,
     "label": "X11 display",
-    "recommendation": "Do not forward X11 across untrusted paths; use VPN or SSH -X with caution and disable when unused.",
+    "recommendation": "CIS workstation/server Benchmarks: disable X11 listening on untrusted interfaces; avoid forwarding X11 across hostile networks. Prefer VPN or SSH X11 forwarding only with explicit need and session hardening.",
     "severity": "high",
     "enabled": true,
     "sort_order": 9
@@ -104,7 +104,7 @@
     "port_start": 1,
     "port_end": 20,
     "label": "Small services (ports 1-20)",
-    "recommendation": "Broad low ports; tune list for your environment.",
+    "recommendation": "NIST SP 800-41 and firewall best practice: default-deny inbound to privileged ports; explicitly allow only documented services. Tune this range to your CIS-aligned baseline and change-management records.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 10
@@ -114,7 +114,7 @@
     "port_start": 21,
     "port_end": 21,
     "label": "FTP",
-    "recommendation": "Prefer SFTP/HTTPS; if FTP is required, use explicit FTPS and restrict source IPs.",
+    "recommendation": "CIS guidance: prefer SFTP or HTTPS for file transfer. If FTP is mandatory, use FTPS (explicit TLS), disable anonymous access, and restrict source IPs; log and monitor per NIST AU family controls.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 11
@@ -124,7 +124,7 @@
     "port_start": 22,
     "port_end": 22,
     "label": "SSH",
-    "recommendation": "Common admin port; ensure posture matches policy when exposed.",
+    "recommendation": "CIS SSH Benchmarks: enforce current ciphers/MACs, disable root login and empty passwords, use keys where policy allows, and limit exposure with bastion or jump hosts aligned to Zero Trust access patterns.",
     "severity": "info",
     "enabled": true,
     "sort_order": 12
@@ -134,7 +134,7 @@
     "port_start": 23,
     "port_end": 23,
     "label": "Telnet",
-    "recommendation": "Replace Telnet with SSH; cleartext remote login should not cross untrusted boundaries.",
+    "recommendation": "CIS and DISA STIGs: disable Telnet; credentials and sessions are cleartext. Replace with SSH and mutual authentication where required (NIST SC-8, SC-13 for cryptography in transit).",
     "severity": "high",
     "enabled": true,
     "sort_order": 13
@@ -144,7 +144,7 @@
     "port_start": 25,
     "port_end": 25,
     "label": "SMTP",
-    "recommendation": "Limit inbound SMTP to dedicated mail relays; monitor for open relay misconfiguration.",
+    "recommendation": "CIS mail-server guidance: dedicate inbound SMTP to hardened relays; disable open relay; enable TLS and authentication policies consistent with NIST SP 800-177 (email security) and vendor baselines.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 14
@@ -154,7 +154,7 @@
     "port_start": 79,
     "port_end": 79,
     "label": "Finger",
-    "recommendation": "Disable Finger; it discloses user information useful to attackers.",
+    "recommendation": "CIS: disable Finger; it publishes user/account metadata useful for reconnaissance. Aligns with NIST privacy and information-disclosure minimization for public-facing systems.",
     "severity": "high",
     "enabled": true,
     "sort_order": 15
@@ -164,7 +164,7 @@
     "port_start": 109,
     "port_end": 110,
     "label": "POP2/POP3",
-    "recommendation": "Prefer IMAPS/POP3S on edge; enforce TLS and authentication for mail retrieval.",
+    "recommendation": "Industry standard: publish POP3S/IMAPS at the edge with TLS 1.2+; restrict cleartext POP/IMAP to internal networks per CIS mail benchmarks and NIST SC-8.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 16
@@ -174,7 +174,7 @@
     "port_start": 119,
     "port_end": 119,
     "label": "NNTP",
-    "recommendation": "Restrict NNTP to internal news servers if still needed; uncommon on modern perimeters.",
+    "recommendation": "If NNTP remains in use, contain on internal news servers only; uncommon on modern perimeters—align with CIS service-minimization and deny at internet edge.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 17
@@ -184,7 +184,7 @@
     "port_start": 123,
     "port_end": 123,
     "label": "NTP",
-    "recommendation": "Point clients to internal NTP servers; rate-limit and monitor UDP/123 for amplification abuse.",
+    "recommendation": "CIS NTP guidance: use internal stratum servers; disable or restrict mode 6/7; rate-limit and monitor UDP/123 for reflection/amplification abuse (documented in NTP BCP and security advisories).",
     "severity": "warning",
     "enabled": true,
     "sort_order": 18
@@ -194,7 +194,7 @@
     "port_start": 135,
     "port_end": 135,
     "label": "NetBIOS (RPC)",
-    "recommendation": "Block NetBIOS from the internet; contain within Windows management segments.",
+    "recommendation": "Microsoft/CIS Windows Benchmarks: block NetBIOS (TCP/135) from the internet; confine to domain/management segments with host firewalls and perimeter deny rules (NIST SC-7).",
     "severity": "high",
     "enabled": true,
     "sort_order": 19
@@ -204,7 +204,7 @@
     "port_start": 137,
     "port_end": 138,
     "label": "NetBIOS name/datagram",
-    "recommendation": "Same as other NetBIOS: internal-only; never from untrusted WAN.",
+    "recommendation": "Same as NetBIOS hardening: internal-only; never expose UDP 137–138 from untrusted WANs—consistent with CIS Windows Server Benchmarks and lateral-movement reduction guidance.",
     "severity": "high",
     "enabled": true,
     "sort_order": 20
@@ -214,7 +214,7 @@
     "port_start": 139,
     "port_end": 139,
     "label": "NetBIOS session",
-    "recommendation": "Use SMB over QUIC or VPN for remote access instead of exposing 139 directly.",
+    "recommendation": "CIS/Microsoft guidance: do not expose SMB/NetBIOS session ports directly; use VPN, Private Link, or supported SMB-over-QUIC paths instead of raw internet exposure.",
     "severity": "high",
     "enabled": true,
     "sort_order": 21
@@ -224,7 +224,7 @@
     "port_start": 143,
     "port_end": 143,
     "label": "IMAP",
-    "recommendation": "Publish IMAPS (993) at the edge when needed; restrict plain IMAP to internal networks.",
+    "recommendation": "Publish IMAPS (993) at the boundary; keep cleartext IMAP on internal networks only—per CIS Benchmarks and NIST SP 800-52 (TLS) for protocols in transit.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 22
@@ -234,7 +234,7 @@
     "port_start": 161,
     "port_end": 162,
     "label": "SNMP",
-    "recommendation": "Use SNMPv3, strong community strings or auth, and limit agents to monitoring subnets only.",
+    "recommendation": "CIS SNMP guidance: prefer SNMPv3 (authPriv); disable SNMPv1/v2c on untrusted interfaces; restrict agents to NMS subnets. Maps to NIST SC-8 and monitoring segmentation.",
     "severity": "high",
     "enabled": true,
     "sort_order": 23
@@ -244,7 +244,7 @@
     "port_start": 179,
     "port_end": 179,
     "label": "BGP",
-    "recommendation": "BGP belongs on routers and peering links only; never expose to general internet hosts.",
+    "recommendation": "Industry BCP: BGP belongs only on routers and authorized peering links with TCP MD5 or TCP-AO and RPKI where deployed; never expose BGP sessions to general-purpose internet hosts (NIST SC-7).",
     "severity": "warning",
     "enabled": true,
     "sort_order": 24
@@ -254,7 +254,7 @@
     "port_start": 389,
     "port_end": 389,
     "label": "LDAP",
-    "recommendation": "Prefer LDAPS (636) at boundaries; bind LDAP 389 to internal directory replicas only.",
+    "recommendation": "CIS Active Directory / LDAP guidance: prefer LDAPS (636) or LDAP StartTLS at trust boundaries; bind cleartext LDAP to internal directory replicas and require TLS for queries crossing segments (NIST SC-8).",
     "severity": "warning",
     "enabled": true,
     "sort_order": 25
@@ -264,7 +264,7 @@
     "port_start": 443,
     "port_end": 443,
     "label": "HTTPS",
-    "recommendation": "Often legitimate; flagged as informational only.",
+    "recommendation": "Often legitimate public service; informational only. Still validate TLS configuration against CIS and NIST SP 800-52 (cipher suites, cert lifecycle, HSTS where appropriate).",
     "severity": "info",
     "enabled": true,
     "sort_order": 26
@@ -274,7 +274,7 @@
     "port_start": 445,
     "port_end": 445,
     "label": "SMB (Windows file sharing)",
-    "recommendation": "Block SMB from the internet; require VPN or Zero Trust broker for remote file access.",
+    "recommendation": "Microsoft MSRC and CIS guidance: block SMB (TCP/445) from the internet; require VPN, Zero Trust file access, or SMB over QUIC rather than direct exposure (prevents ransomware-style entry).",
     "severity": "high",
     "enabled": true,
     "sort_order": 27
@@ -284,7 +284,7 @@
     "port_start": 514,
     "port_end": 514,
     "label": "Syslog",
-    "recommendation": "Send syslog to collectors over dedicated management networks; validate sender ACLs.",
+    "recommendation": "NIST SP 800-92 and CIS logging guidance: send syslog over dedicated management networks; use TLS (e.g. RELP/TCP 6514) where possible; validate sender ACLs and integrity protections.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 28
@@ -294,7 +294,7 @@
     "port_start": 1080,
     "port_end": 1080,
     "label": "SOCKS proxy",
-    "recommendation": "Authenticate SOCKS; restrict who may use it to avoid becoming an open relay.",
+    "recommendation": "Authenticate SOCKS users, enforce source restrictions, and monitor for abuse—aligned with proxy hardening in CIS and NIST AC-3 (least privilege) for egress paths.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 29
@@ -304,7 +304,7 @@
     "port_start": 8000,
     "port_end": 8000,
     "label": "Alternate HTTP",
-    "recommendation": "Non-standard HTTP on 8000; allow only for known apps, document owners, and monitor for abuse.",
+    "recommendation": "Non-standard HTTP ports require explicit change approval; document owners, apply WAF/reverse-proxy controls as for 443, and monitor—consistent with CIS web-server and NIST CM-2 baselines.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 30
@@ -314,7 +314,7 @@
     "port_start": 8080,
     "port_end": 8080,
     "label": "Alternate HTTP",
-    "recommendation": "Non-standard HTTP on 8080; allow only for known apps, document owners, and monitor for abuse.",
+    "recommendation": "Non-standard HTTP ports require explicit change approval; document owners, apply WAF/reverse-proxy controls as for 443, and monitor—consistent with CIS web-server and NIST CM-2 baselines.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 31
@@ -324,7 +324,7 @@
     "port_start": 8888,
     "port_end": 8888,
     "label": "Alternate HTTP",
-    "recommendation": "Non-standard HTTP on 8888; allow only for known apps, document owners, and monitor for abuse.",
+    "recommendation": "Non-standard HTTP ports require explicit change approval; document owners, apply WAF/reverse-proxy controls as for 443, and monitor—consistent with CIS web-server and NIST CM-2 baselines.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 32
@@ -334,7 +334,7 @@
     "port_start": 2001,
     "port_end": 2001,
     "label": "Cisco AUX-style",
-    "recommendation": "Restrict device management ports to jump hosts and out-of-band management VLANs.",
+    "recommendation": "CIS Cisco IOS Benchmarks: restrict device management to out-of-band networks, jump hosts, and explicit management VRFs; prohibit internet-facing auxiliary ports.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 33
@@ -344,7 +344,7 @@
     "port_start": 4001,
     "port_end": 4001,
     "label": "Cisco AUX stream-style",
-    "recommendation": "Same as other Cisco aux-style ports: management plane only, not internet-facing.",
+    "recommendation": "Same as Cisco management-plane guidance: internal OOB or jump-host access only; align with CIS network-device Benchmarks and NIST SC-7 for management segmentation.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 34
@@ -354,7 +354,7 @@
     "port_start": 6001,
     "port_end": 6001,
     "label": "Cisco AUX binary-style",
-    "recommendation": "Same as other Cisco aux-style ports: management plane only, not internet-facing.",
+    "recommendation": "Same as Cisco management-plane guidance: internal OOB or jump-host access only; align with CIS network-device Benchmarks and NIST SC-7 for management segmentation.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 35
@@ -364,7 +364,7 @@
     "port_start": 4045,
     "port_end": 4045,
     "label": "NFS lockd / nlockmgr",
-    "recommendation": "Keep lockd with NFS on internal networks; pair with same controls as NFS 2049.",
+    "recommendation": "Co-locate lockd controls with NFS: keep on internal networks with identical segmentation and export policies as port 2049 (CIS/NFS and NIST SC-7).",
     "severity": "high",
     "enabled": true,
     "sort_order": 36
@@ -374,7 +374,7 @@
     "port_start": 3389,
     "port_end": 3389,
     "label": "RDP",
-    "recommendation": "Prefer VPN or gateway broker for RDP; enforce NLA, MFA, and IP allow lists if exposed.",
+    "recommendation": "Microsoft and CIS guidance: avoid internet-exposed RDP; use Remote Desktop Gateway, VPN, or Zero Trust brokers; enforce NLA, MFA, patching, and IP allow lists if exposure is unavoidable.",
     "severity": "high",
     "enabled": true,
     "sort_order": 37
@@ -384,7 +384,7 @@
     "port_start": 5900,
     "port_end": 5900,
     "label": "VNC",
-    "recommendation": "Tunnel VNC through SSH or VPN; do not expose cleartext VNC to untrusted networks.",
+    "recommendation": "CIS guidance: do not expose cleartext VNC; tunnel over SSH or VPN, or use products with built-in TLS and strong authentication (NIST SC-8).",
     "severity": "high",
     "enabled": true,
     "sort_order": 38
@@ -394,7 +394,7 @@
     "port_start": 1433,
     "port_end": 1433,
     "label": "Microsoft SQL Server",
-    "recommendation": "Never publish SQL Server directly to the internet; use app tier and private connectivity.",
+    "recommendation": "Microsoft SQL Server CIS Benchmark: never publish SQL Server to the internet; use private connectivity, application tiers, and TLS; enforce least-privilege DB roles (NIST SC-7, AC-6).",
     "severity": "high",
     "enabled": true,
     "sort_order": 39
@@ -404,7 +404,7 @@
     "port_start": 3306,
     "port_end": 3306,
     "label": "MySQL / MariaDB",
-    "recommendation": "Bind to private interfaces; require TLS and least-privilege DB accounts from app tier only.",
+    "recommendation": "CIS MySQL/MariaDB Benchmarks: bind to private interfaces, require TLS for remote connections, disable remote root, and allow only application subnets—no public listeners.",
     "severity": "high",
     "enabled": true,
     "sort_order": 40
@@ -414,7 +414,7 @@
     "port_start": 5432,
     "port_end": 5432,
     "label": "PostgreSQL",
-    "recommendation": "Same as other databases: internal networks, connection pooling, no public listeners.",
+    "recommendation": "CIS PostgreSQL Benchmark: listen_addresses restricted to localhost or private nets; use connection pooling and TLS; align with NIST SC-7 and database vendor hardening guides.",
     "severity": "high",
     "enabled": true,
     "sort_order": 41
@@ -424,7 +424,7 @@
     "port_start": 6379,
     "port_end": 6379,
     "label": "Redis",
-    "recommendation": "Redis must not be internet-facing; require AUTH/TLS and bind to loopback or private VLANs.",
+    "recommendation": "Redis vendor security guidance and CIS-style exposure rules: never internet-facing; require AUTH, ACLs, and TLS; bind to loopback or private VLANs only.",
     "severity": "high",
     "enabled": true,
     "sort_order": 42
@@ -434,7 +434,7 @@
     "port_start": 27017,
     "port_end": 27017,
     "label": "MongoDB",
-    "recommendation": "Enable authentication and encryption; restrict to application subnets behind API gateways.",
+    "recommendation": "MongoDB CIS Benchmark: enable authentication, authorization, and encryption in transit; restrict to application subnets behind APIs and WAFs—no direct internet exposure.",
     "severity": "high",
     "enabled": true,
     "sort_order": 43
@@ -444,7 +444,7 @@
     "port_start": 9200,
     "port_end": 9200,
     "label": "Elasticsearch HTTP",
-    "recommendation": "Protect with auth, TLS, and network ACLs; Elasticsearch has a history of exposure incidents.",
+    "recommendation": "Elastic and CIS-style guidance: enable Elastic Security/HTTPS, strong auth, and network isolation; historical exposures drove industry recommendations to keep clusters off the public internet.",
     "severity": "high",
     "enabled": true,
     "sort_order": 44
@@ -454,7 +454,7 @@
     "port_start": 5985,
     "port_end": 5986,
     "label": "WinRM HTTP/HTTPS",
-    "recommendation": "Limit WinRM to management VLANs; prefer HTTPS (5986) and harden with JEA where possible.",
+    "recommendation": "Microsoft WinRM hardening: limit to management VLANs; prefer HTTPS (5986) with trusted certs; use JEA and constrained endpoints per CIS Windows Benchmarks and NIST AC-6.",
     "severity": "warning",
     "enabled": true,
     "sort_order": 45

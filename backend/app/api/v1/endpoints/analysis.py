@@ -454,7 +454,9 @@ def _generate_request_recommendations(issue_types: Dict, rule_analyses: List[Dic
 
     if "risky_port" in issue_types:
         recommendations.append(
-            "One or more rules match the global risky port policy - review services and tighten ports where possible"
+            "One or more rules match the global risky port policy. Review exposed services against "
+            "industry-standard practice: disable unnecessary listeners, restrict to trusted networks, "
+            "and apply vendor and framework hardening guidance (for example CIS and NIST baselines)."
         )
     
     # General recommendations

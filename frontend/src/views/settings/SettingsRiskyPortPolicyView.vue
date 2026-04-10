@@ -3,7 +3,7 @@
     class="flex-1 min-h-0 flex flex-col"
     :breadcrumb-items="breadcrumbItems"
     title="Risky port policy"
-    subtitle="Application-wide list used when analyzing FAR rules. Matches use protocol and port range overlap. Saving replaces the entire list."
+    subtitle="Application-wide list used when analyzing FAR rules. The seeded baseline reflects common industry guidance; adjust it for your organization. Matches use protocol and port range overlap. Saving replaces the entire list."
   >
     <template #actions>
       <Button type="button" variant="secondary" :disabled="loading" @click="addRow">
