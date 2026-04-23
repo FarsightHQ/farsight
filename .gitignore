@@ -60,6 +60,8 @@ logs/
 *.csv
 # Curated onboarding samples (see samples/README.md)
 !samples/*.csv
+# Synthetic fixtures for tests (see tests/testdata_generation/README.md)
+!tests/testdata_generation/generated/**/*.csv
 
 # Temporary files
 *.tmp

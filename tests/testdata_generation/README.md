@@ -12,7 +12,7 @@ Synthetic **asset registry** CSVs, **firewall rule** CSVs, and **error-scenario*
 | `generated/firewall_rules/` | `rules_{clean,security_audit,all_facts,cross_zone,scale}.csv` |
 | `generated/error_scenarios/` | Negative-test firewall CSVs and `not_a_csv.txt` |
 
-**Git:** Repository `.gitignore` ignores `*.csv`, so generated CSVs are not committed. Run `run_all_generators.sh` after clone. VLAN IP manifests (`*_manifest.json`) under `generated/assets/` are tracked when they change.
+**Git:** Most `*.csv` files are ignored globally, but `generated/**/*.csv` is whitelisted so tests and onboarding work on a fresh clone without running generators first. After changing `reference/*.yaml`, `scripts/models.py`, or any generator script, run `run_all_generators.sh` and commit any resulting CSV or manifest diffs so the repo stays reproducible (default seed `TESTDATA_GEN_SEED` or `42`).
 
 Firewall rule CSVs are built from VLAN→IP lists in the asset manifest so rule endpoints line up with `AssetService.get_asset_by_ip()` enrichment when you load the **same** asset file (or a superset) that was used to build that manifest.
 
