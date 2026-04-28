@@ -72,6 +72,9 @@ logs/
 # Upload directories
 uploads/
 
+# Local / sensitive test dumps (not for version control)
+tests/sample_data/
+
 # Environment variables
 .env
 .env.local
