@@ -107,4 +107,6 @@ If you change the **`farsight-backend`** client secret in Keycloak, keep it alig
 - [backend/README.md](backend/README.md) — risky port policy and backend-oriented notes  
 - [frontend/README.md](frontend/README.md) — frontend scripts and layout  
 
-No `LICENSE` file is present in this repository; add one if you distribute the project.
+## License
+
+This project is licensed under the **GNU Affero General Public License v3.0** — see [LICENSE](LICENSE).
