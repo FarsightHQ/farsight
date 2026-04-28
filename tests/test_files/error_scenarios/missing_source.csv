@@ -1,0 +1,4 @@
+destination,service
+10.0.0.2,tcp/80
+10.0.0.4,tcp/443
+192.168.1.2,udp/53

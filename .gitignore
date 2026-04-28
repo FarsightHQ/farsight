@@ -62,6 +62,8 @@ logs/
 !samples/*.csv
 # Synthetic fixtures for tests (see tests/testdata_generation/README.md)
 !tests/testdata_generation/generated/**/*.csv
+# Synthetic API error-scenario fixtures (see tests/test_files/error_scenarios/TEST_ERROR_HANDLING.md)
+!tests/test_files/**/*.csv
 
 # Temporary files
 *.tmp

@@ -1,0 +1,4 @@
+service,action
+tcp/80,allow
+tcp/443,allow
+udp/53,allow
