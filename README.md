@@ -1,149 +1,110 @@
 # Farsight
 
-Farsight is a **firewall access rule (FAR) analysis** application. You work inside **projects**: upload firewall rule CSVs, optionally load an **asset registry** for enrichment, and explore rules, facts, and analysis through a **Vue** frontend. The **FastAPI** backend is protected with **Keycloak** (JWT).
+Farsight is an application for **firewall access rule (FAR) analysis**. You organize work in **projects**, bring in rule exports and optional asset data, and review **rules**, **facts**, and **analysis** in one place—so firewall reviews are repeatable and structured instead of scattered across spreadsheets.
 
-## Product details
+---
 
-### What it is for
+## What Farsight does
 
-Farsight helps teams **ingest firewall or access-rule exports** (CSV), **normalize** them into a consistent rule model, and **review** them with structured **facts**, **risk-oriented analysis**, and UI workflows. It suits security engineering, network operations, and compliance-style reviews where you need repeatable processing beyond ad hoc spreadsheets.
+### Who it’s for
 
-### Main capabilities
+Teams that need to **ingest firewall or access-rule exports**, **normalize** them into a consistent picture, and **review** them with structured facts and security-oriented insights—common in security engineering, network operations, and compliance reviews.
 
-- **Projects** — Each **project** is an isolated workspace for FAR requests, rules, and project-scoped assets. Users authenticate via **OpenID Connect (Keycloak)**; API access is JWT-based with project membership and roles enforced on scoped routes.
-- **FAR requests** — Upload a firewall-rules CSV to create a **FAR request**. The backend validates structure, parses rows, and stores **normalized rules** (sources, destinations, services, actions).
-- **Asset registry** — Upload a separate **asset registry CSV** (IPs and metadata such as segment, OS, hostname, environment). Assets can be linked to a project so rule endpoints can be **enriched** with registry context during analysis.
-- **Facts and analysis** — The system computes **per-rule facts** and supports **hybrid** / deeper analysis paths for security insights. You can summarize activity at the **request** level, list involved **IPs**, and browse **rules** across requests (project-scoped under `/api/v1/projects/{project_id}/...`).
-- **Graphs** — Data is exposed for **network-style visualization** (topology views compatible with graph consumers in the UI).
-- **Risky port policy** — An application-wide **risky port list** (configurable by privileged users) feeds into security scoring and analysis. Baseline data can be seeded with Alembic or scripts; see [backend/README.md](backend/README.md).
+### Core ideas
+
+- **Projects** — A project is an isolated workspace for your rule reviews, FAR requests, and project-scoped assets. You sign in once; everything you do is scoped to the projects you belong to (unless your organization uses a platform-wide administrator role).
+
+- **FAR requests** — You upload a firewall-rules file (CSV) to open a FAR request. Farsight validates and normalizes the data so you get a clear view of sources, destinations, services, and actions.
+
+- **Asset registry** — Optionally upload an asset registry (CSV) with IPs and context (for example segment, hostname, environment). When rules reference those addresses, analysis can **enrich** endpoints with registry context.
+
+- **Facts and analysis** — The product computes **per-rule facts** and supports deeper analysis paths for security insights. You can summarize work at the request level, see involved addresses, and browse rules in context.
+
+- **Visualization** — Data is available for **network-style views** (topology-oriented visualizations in the UI) so you can explore how rules relate to each other.
+
+- **Risky port policy** — An application-wide **risky port list** (maintained by platform administrators) feeds into scoring and analysis so “risky” services are evaluated consistently.
 
 ### Typical workflow
 
-1. Create or join a **project**.
-2. Optionally upload **asset registry** CSV for the project.
-3. Create a **FAR request** by uploading a **firewall rules** CSV.
-4. Run **ingestion / processing** as needed, then use **analysis**, **facts**, and **rule browsers** in the UI or via the API.
+1. **Sign in** with the account your administrator created in the identity system.
+2. **Create a project** (you become the project owner) or **join** a project through an invitation from a colleague.
+3. Optionally upload an **asset registry** for your project so rules can be enriched.
+4. Create a **FAR request** by uploading a **firewall rules** CSV.
+5. Run through **processing and analysis**, then use **facts**, summaries, and **rule browsing** (and graphs where available) to complete your review.
 
-### API shape
+### Sample data
 
-Versioned JSON API under **`/api/v1`**, with standardized success/error envelopes, pagination where applicable, and OpenAPI documentation at **`/docs`** when running in development. Project-scoped resources live under **`/api/v1/projects/{project_id}/`** (for example FAR routes under `.../far`, assets under `.../assets`, rules under `.../rules`).
+Example CSVs for trying uploads live under [samples/](samples/). See [samples/README.md](samples/README.md) for which file to use for assets vs. rules.
 
-## Architecture
+---
 
-- The browser talks to the SPA and to Keycloak on **localhost** (typical dev).
-- The SPA calls the API on **localhost:8000** (Vite proxies `/api` to the backend in development).
-- Inside Docker Compose, the backend uses **`http://keycloak:8080`** to validate tokens and **`postgres`** as the database host.
+## Quick start (using the product)
 
-```mermaid
-flowchart LR
-  subgraph host [Developer machine]
-    Browser[Browser]
-    VueSPA["Vue SPA Vite"]
-  end
-  subgraph compose [Docker Compose]
-    API[FastAPI]
-    KC[Keycloak]
-    DB[(Postgres)]
-  end
-  Browser --> VueSPA
-  Browser --> KC
-  VueSPA --> API
-  API --> KC
-  API --> DB
-```
+These steps assume the **environment is already running** (for example after the initial Docker setup on your machine or a shared environment your team provides).
 
-## Repository layout
+1. Open the **Farsight web app** in your browser at the URL your team uses (local development is often **http://localhost:3000**).
+2. You will be redirected to **sign in**. Use the **username and password** an administrator created for you in Keycloak (see below if you are the one setting up users).
+3. After login, **create a new project** or open a project you were **invited to**.
+4. Optionally upload your **asset registry** CSV first, then create a **FAR request** and upload your **firewall rules** CSV.
+5. Use the UI to move through **ingestion**, **facts**, **analysis**, and **visualizations** as needed for your review.
 
-| Path | Purpose |
-|------|---------|
-| [backend/](backend/) | FastAPI app, Alembic migrations, services |
-| [frontend/](frontend/) | Vue 3 + Vite UI |
-| [keycloak/import/](keycloak/import/) | Realm export for local Keycloak (`--import-realm`) |
-| [samples/](samples/) | Small CSV examples for asset registry and FAR uploads |
-| [tests/testdata_generation/](tests/testdata_generation/) | Generators for larger synthetic CSVs |
-| [docker-compose.yml](docker-compose.yml) | Postgres, Keycloak, backend, pgAdmin, Swagger UI |
+**Platform administration (optional):** Some settings (for example editing the global **risky port policy**) require a **platform administrator** role assigned in Keycloak (`farsight-admin` or `admin` realm role). Regular analysts only need a valid login and membership in the right projects.
 
-## Prerequisites
+---
 
-- **Docker** and **Docker Compose** (recommended for Postgres, Keycloak, and API)
-- **Node.js** and **npm** (for the frontend; not containerized in Compose)
-- **Python 3** (only if you run the backend or Alembic on the host instead of in Docker)
+## Initial setup: environment and Docker
 
-## Quick start
+1. Copy the example environment file and fill in the secrets your team requires (database, Keycloak admin password, backend client secret, pgAdmin password).  
+   `cp .env.example .env`
 
-### 1. Environment
+2. From the repository root, start the stack:  
+   `docker compose up --build`
 
-Copy the example env file and set secrets:
+3. Wait until Postgres and Keycloak are healthy and the backend has finished starting.
 
-```bash
-cp .env.example .env
-```
+4. Start the web UI on your machine (not started by Compose by default):  
+   `cd frontend && npm install && npm run dev`
 
-**Required for `docker compose up`:** set at least `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_CLIENT_SECRET`, and `PGADMIN_PASSWORD`. Use the **same** `POSTGRES_PASSWORD` in `DATABASE_URL` when you run tools on the host against the Compose-published Postgres port.
+5. Open the app (**http://localhost:3000** by default).
 
-**Keycloak client secret:** `KEYCLOAK_CLIENT_SECRET` must match the **`farsight-backend`** confidential client secret in [keycloak/import/farsight-realm.json](keycloak/import/farsight-realm.json). If you change the secret in that JSON, update `.env` accordingly. See [.env.example](.env.example) for all related variables.
+Details such as exact variables and ports are documented in [.env.example](.env.example) and [docker-compose.yml](docker-compose.yml).
 
-### 2. Backend stack (Compose)
+---
 
-From the repository root:
+## Configure Keycloak users (after Docker is up)
 
-```bash
-docker compose up --build
-```
+Self-registration is **disabled** in the bundled realm: each person needs a user created in Keycloak (or your organization’s equivalent). Use the **Keycloak Administration Console** with the admin account from your `.env` (`KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD`).
 
-The backend container runs **`alembic upgrade head`** then **`uvicorn`** (see [docker-compose.yml](docker-compose.yml)). Wait for Postgres and Keycloak to become healthy before using the API.
+1. Open **http://localhost:8080** (or your configured Keycloak host/port).
 
-### 3. Frontend (host)
+2. Click **Administration Console** and sign in with the Keycloak **admin** credentials from `.env` (not the application realm users yet).
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+3. In the **master** realm menu (top-left), switch to the **`farsight`** realm.
 
-Open [http://localhost:3000](http://localhost:3000) (port is set in [frontend/vite.config.js](frontend/vite.config.js)).
+4. **Create realm roles for platform admins (only if needed)**  
+   Go to **Realm roles** → **Create role**. Add at least **`farsight-admin`** if it does not already exist. The application also treats a realm role named **`admin`** as a platform administrator. Assign these only to people who should manage global policy (for example risky ports) and see all projects.
 
-Optional [frontend](frontend/) environment variables (defaults work for local dev):
+5. **Create an application user**  
+   Go to **Users** → **Create new user**. Set username, email, and name as appropriate → **Save**.
 
-- `VITE_API_BASE_URL` — API base URL (default `http://localhost:8000`)
-- `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` — see [frontend/src/services/keycloak.ts](frontend/src/services/keycloak.ts)
+6. **Set a password**  
+   Open the user → **Credentials** tab → **Set password**. Turn **Temporary** **off** so the user is not forced to change it on first login (unless your policy requires that).
 
-## Service URLs (default ports)
+7. **Assign platform admin role (optional)**  
+   Open the user → **Role mapping** → **Assign role** → filter **Realm roles** → assign **`farsight-admin`** or **`admin`** for platform-wide administrators. Leave other users without these roles if they only need normal project access.
 
-| Service | URL | Notes |
-|---------|-----|--------|
-| API | [http://localhost:8000](http://localhost:8000) | Interactive docs: `/docs`, OpenAPI: `/openapi.json` |
-| Keycloak | [http://localhost:8080](http://localhost:8080) | Realm: `farsight` |
-| Swagger UI (container) | [http://localhost:8081](http://localhost:8081) | Uses `SWAGGER_PORT` (default **8081** in Compose) |
-| pgAdmin | [http://localhost:5050](http://localhost:5050) | Uses `PGADMIN_PORT` |
+8. **What happens in Farsight**  
+   - Any authenticated user can **create a project** and becomes **owner** of that project.  
+   - Other users get access when an **owner** or **project admin** **invites them by email** or **adds their account** as a member (they must sign in with the email that matches the invitation when applicable).  
+   - Users with **`farsight-admin`** or **`admin`** realm roles bypass project membership for access and can manage settings that apply to the whole deployment.
 
-## Sample CSV uploads
+If you change the **`farsight-backend`** client secret in Keycloak, keep it aligned with **`KEYCLOAK_CLIENT_SECRET`** in `.env` and with [keycloak/import/farsight-realm.json](keycloak/import/farsight-realm.json) as described in [.env.example](.env.example).
 
-Curated files live under [samples/](samples/). Upload the asset registry CSV before the FAR rules CSV if you want IP enrichment to line up. See [samples/README.md](samples/README.md) for API paths and field names.
-
-## Local development (backend on the host)
-
-1. Run Postgres and Keycloak (e.g. via Docker Compose, or your own installs).
-2. Point `DATABASE_URL` (or `POSTGRES_*`) at Postgres on **localhost** with the same database name and credentials as Compose.
-3. For JWT validation, set `KEYCLOAK_URL` to **http://localhost:8080** when the backend runs on the host (not `http://keycloak:8080`).
-4. From `backend/`: create a virtualenv, install dependencies, then:
-
-   ```bash
-   alembic upgrade head
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-Risky-port policy seeding and admin scripts are described in [backend/README.md](backend/README.md).
-
-## Testing and synthetic data
-
-- **Backend:** from `backend/`, run `PYTHONPATH=. pytest` (install dependencies from `backend/requirements.txt` first).
-- **Frontend:** `npm test` in [frontend/](frontend/).
-- **Large generated CSVs:** [tests/testdata_generation/README.md](tests/testdata_generation/README.md) (generators; most `*.csv` files are gitignored except [samples/](samples/)).
+---
 
 ## Further reading
 
-- [backend/README.md](backend/README.md) — risky port policy seeding
-- [frontend/README.md](frontend/README.md) — Vue/Vite scripts and structure
+- [backend/README.md](backend/README.md) — risky port policy and backend-oriented notes  
+- [frontend/README.md](frontend/README.md) — frontend scripts and layout  
 
 No `LICENSE` file is present in this repository; add one if you distribute the project.
