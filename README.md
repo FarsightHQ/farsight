@@ -54,20 +54,32 @@ These steps assume the **environment is already running** (for example after the
 
 ## Initial setup: environment and Docker
 
-1. Copy the example environment file and fill in the secrets your team requires (database, Keycloak admin password, backend client secret, pgAdmin password).  
+1. Copy the example environment file:  
    `cp .env.example .env`
 
-2. From the repository root, start the stack:  
+2. **Edit `.env` and apply the changes below** (replace every `CHANGE_ME_*` placeholder with real secrets). Full variable names and comments live in [.env.example](.env.example).
+
+   | Variable | What to do |
+   |----------|------------|
+   | **`POSTGRES_PASSWORD`** | Set a strong database password. |
+   | **`DATABASE_URL`** | Use the **same** password as `POSTGRES_PASSWORD` in the URL (same user and database name as `POSTGRES_USER` / `POSTGRES_DB`). This value is used when you run the API or migrations **on your host** against the Postgres port published by Compose. |
+   | **`KEYCLOAK_ADMIN_PASSWORD`** | Password for the Keycloak **administration** console (not application users). You will use this when [configuring Keycloak users](#configure-keycloak-users-after-docker-is-up). |
+   | **`KEYCLOAK_CLIENT_SECRET`** | Must match the **`secret`** of the `farsight-backend` client in [keycloak/import/farsight-realm.json](keycloak/import/farsight-realm.json). The example file ships with a concrete secret—either copy that value into `.env`, or generate a new secret **and** update the realm JSON to match before first `docker compose up`. |
+   | **`PGADMIN_PASSWORD`** | Password for the pgAdmin web UI (optional service in Compose; omit changing only if you do not use pgAdmin). |
+
+   **Usually leave as-is for local Docker** (unless you intentionally change ports or hostnames): `POSTGRES_HOST`, `POSTGRES_PORT`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, service ports, and `CORS_ORIGINS` (add your frontend origin if it is not already listed). **`KEYCLOAK_ADMIN`** defaults to `admin`—change only if you changed the Keycloak admin username in your setup.
+
+3. From the repository root, start the stack:  
    `docker compose up --build`
 
-3. Wait until Postgres and Keycloak are healthy and the backend has finished starting.
+4. Wait until Postgres and Keycloak are healthy and the backend has finished starting.
 
-4. Start the web UI on your machine (not started by Compose by default):  
+5. Start the web UI on your machine (not started by Compose by default):  
    `cd frontend && npm install && npm run dev`
 
-5. Open the app (**http://localhost:3000** by default).
+6. Open the app (**http://localhost:3000** by default).
 
-Details such as exact variables and ports are documented in [.env.example](.env.example) and [docker-compose.yml](docker-compose.yml).
+Additional service wiring (ports, which services start) is in [docker-compose.yml](docker-compose.yml).
 
 ---
 
