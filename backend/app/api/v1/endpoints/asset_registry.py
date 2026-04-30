@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List, Optional
+from urllib.parse import unquote
 import io
 import logging
 
@@ -386,6 +387,86 @@ async def health_check(project_id: int, db: Session = Depends(get_db)):
 
 
 # PARAMETERIZED ROUTES AFTER SPECIFIC ROUTES
+
+
+@router.delete(
+    "/{ip_address:path}/link",
+    summary="Unlink asset from project",
+    description="Remove this project's link to the asset. Other projects remain linked; the registry row is unchanged.",
+    dependencies=[Depends(require_project_role_dep("member"))],
+)
+async def unlink_asset_from_project(
+    project_id: int,
+    ip_address: str,
+    db: Session = Depends(get_db),
+):
+    ip = unquote(ip_address).strip()
+    asset = db.query(AssetRegistry).filter(AssetRegistry.ip_address == ip).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail=f"No asset with IP {ip}")
+    link = (
+        db.query(ProjectAsset)
+        .filter(
+            ProjectAsset.project_id == project_id,
+            ProjectAsset.asset_registry_id == asset.id,
+        )
+        .first()
+    )
+    if not link:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Asset {ip} is not linked to this project",
+        )
+    db.delete(link)
+    db.commit()
+    return success_response(
+        data={"ip_address": ip, "unlinked": True},
+        message=f"Removed asset {ip} from this project",
+    )
+
+
+@router.post(
+    "/{ip_address:path}/deactivate",
+    summary="Deactivate asset globally",
+    description="Soft-delete the asset (is_active=false). Hides it from all projects in search.",
+    dependencies=[Depends(require_project_role_dep("member"))],
+)
+async def deactivate_asset_for_project(
+    project_id: int,
+    ip_address: str,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    ip = unquote(ip_address).strip()
+    linked = (
+        db.query(AssetRegistry.id)
+        .join(
+            ProjectAsset,
+            ProjectAsset.asset_registry_id == AssetRegistry.id,
+        )
+        .filter(
+            ProjectAsset.project_id == project_id,
+            AssetRegistry.ip_address == ip,
+            AssetRegistry.is_active == True,
+        )
+        .first()
+    )
+    if not linked:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Active asset with IP {ip} not found for this project",
+        )
+    try:
+        asset = AssetRegistryService.deactivate_asset(
+            db, ip, uploader_from_user(user)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    asset_data = AssetRegistryResponse.from_orm(asset).dict()
+    return success_response(
+        data=asset_data,
+        message=f"Asset {ip} deactivated (applies org-wide)",
+    )
 
 
 @router.get(

@@ -10,7 +10,8 @@
 
       <ErrorCallout v-else-if="loadError" variant="inline" :message="loadError" />
 
-      <div v-else-if="project" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div v-else-if="project" class="space-y-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <!-- Left: project details -->
         <Card class="p-6 space-y-5">
           <div>
@@ -127,24 +128,83 @@
           </Card>
         </div>
       </div>
+
+      <Card
+        v-if="canDeleteProject"
+        class="p-6 border border-error-200 bg-theme-content max-w-6xl mx-auto"
+      >
+        <h2 class="text-lg font-semibold text-theme-text-content">Danger zone</h2>
+        <p class="text-sm text-theme-text-muted mt-2 max-w-2xl">
+          Delete this project permanently. This removes all FAR requests (uploaded files and firewall
+          rules), members, invitations, and this project’s links to assets. Global asset registry
+          rows remain (other projects may still reference the same IP).
+        </p>
+        <div class="mt-4">
+          <Button type="button" variant="danger" @click="openDeleteProjectModal">
+            Delete project
+          </Button>
+        </div>
+      </Card>
+      </div>
+
+    <Modal v-model="showDeleteProjectModal" title="Delete project" size="md">
+      <div class="space-y-4 text-sm text-theme-text-content">
+        <p>This cannot be undone. You must type the project slug to confirm.</p>
+        <ul class="list-disc list-inside text-theme-text-muted space-y-1">
+          <li>All FAR requests and their uploaded files</li>
+          <li>All firewall rules derived from those requests</li>
+          <li>Members and invitations</li>
+          <li>Asset links for this project only</li>
+        </ul>
+        <div>
+          <label class="block text-sm font-medium text-theme-text-content mb-1">
+            Type slug <code class="text-xs bg-theme-card px-1 rounded">{{ project?.slug }}</code>
+          </label>
+          <input
+            v-model="deleteSlugConfirm"
+            type="text"
+            class="input w-full"
+            autocomplete="off"
+            placeholder="project-slug"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" :disabled="deletingProject" @click="showDeleteProjectModal = false">
+          Cancel
+        </Button>
+        <Button
+          variant="danger"
+          :disabled="deletingProject || deleteSlugConfirm !== (project?.slug || '')"
+          @click="confirmDeleteProject"
+        >
+          {{ deletingProject ? 'Deleting…' : 'Delete project' }}
+        </Button>
+      </template>
+    </Modal>
     </div>
   </PageFrame>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { projectsService } from '@/services/projects'
 import { useToast } from '@/composables/useToast'
+import { useAuth } from '@/composables/useAuth'
+import { getActiveProjectId, setActiveProjectId } from '@/utils/projectContext'
 import PageFrame from '@/components/layout/PageFrame.vue'
 import ProjectOverviewSkeleton from '@/components/ui/ProjectOverviewSkeleton.vue'
 import ErrorCallout from '@/components/ui/ErrorCallout.vue'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import Modal from '@/components/ui/Modal.vue'
 import { usePageBreadcrumbs } from '@/composables/usePageBreadcrumbs'
 
 const route = useRoute()
+const router = useRouter()
+const { user } = useAuth()
 const { breadcrumbItems, projectName: breadcrumbProjectName } = usePageBreadcrumbs()
 const { success, error: toastError } = useToast()
 
@@ -173,6 +233,40 @@ const inviteError = ref('')
 const lastInviteToken = ref('')
 const lastInviteExpires = ref('')
 const lastInvitePath = ref('')
+
+const showDeleteProjectModal = ref(false)
+const deleteSlugConfirm = ref('')
+const deletingProject = ref(false)
+
+const canDeleteProject = computed(() => {
+  const u = user.value
+  if (!u?.sub || !project.value) return false
+  if (project.value.slug === 'default') return false
+  return members.value.some(m => m.user_sub === u.sub && m.role === 'owner')
+})
+
+function openDeleteProjectModal() {
+  deleteSlugConfirm.value = ''
+  showDeleteProjectModal.value = true
+}
+
+async function confirmDeleteProject() {
+  if (!project.value || deleteSlugConfirm.value !== project.value.slug) return
+  deletingProject.value = true
+  try {
+    await projectsService.delete(projectId.value)
+    success('Project deleted')
+    showDeleteProjectModal.value = false
+    if (String(getActiveProjectId()) === String(projectId.value)) {
+      setActiveProjectId(null)
+    }
+    router.push({ name: 'Projects' })
+  } catch (e) {
+    toastError(e.message || 'Failed to delete project')
+  } finally {
+    deletingProject.value = false
+  }
+}
 
 function unwrap(res) {
   const d = res?.data ?? res

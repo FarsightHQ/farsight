@@ -40,6 +40,7 @@
             :selected-assets="selectedAssets"
             :sort-key="sortKey"
             :sort-direction="sortDirection"
+            :show-project-actions="false"
             @view-asset="handleViewAsset"
             @select-asset="handleSelectAsset"
             @select-all="handleSelectAll"

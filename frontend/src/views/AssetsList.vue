@@ -82,6 +82,8 @@
               :sort-key="sortKey"
               :sort-direction="sortDirection"
               @view-asset="handleViewAsset"
+              @unlink-asset="openUnlinkModal"
+              @deactivate-asset="openDeactivateModal"
               @select-asset="handleSelectAsset"
               @select-all="handleSelectAll"
               @sort="handleSort"
@@ -135,6 +137,36 @@
         </div>
       </div>
     </div>
+
+    <Modal v-model="showUnlinkModal" title="Remove asset from project" size="md">
+      <p class="text-sm text-theme-text-content">
+        Remove <strong>{{ assetForAction?.ip_address }}</strong> from this project only? Other
+        projects keep their links.
+      </p>
+      <template #footer>
+        <Button variant="outline" :disabled="actionLoading" @click="showUnlinkModal = false">
+          Cancel
+        </Button>
+        <Button variant="danger" :disabled="actionLoading" @click="confirmUnlink">
+          {{ actionLoading ? 'Removing…' : 'Remove from project' }}
+        </Button>
+      </template>
+    </Modal>
+
+    <Modal v-model="showDeactivateModal" title="Deactivate asset globally" size="md">
+      <p class="text-sm text-theme-text-content">
+        Deactivate <strong>{{ assetForAction?.ip_address }}</strong>? This hides the asset from
+        search for <strong>all projects</strong>, not only this one.
+      </p>
+      <template #footer>
+        <Button variant="outline" :disabled="actionLoading" @click="showDeactivateModal = false">
+          Cancel
+        </Button>
+        <Button variant="danger" :disabled="actionLoading" @click="confirmDeactivate">
+          {{ actionLoading ? 'Deactivating…' : 'Deactivate' }}
+        </Button>
+      </template>
+    </Modal>
   </PageFrame>
 </template>
 
@@ -149,6 +181,7 @@ import { useToast } from '@/composables/useToast'
 import { exportRulesToCSV, exportRulesToJSON } from '@/services/export'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
+import Modal from '@/components/ui/Modal.vue'
 import AssetFilter from '@/components/assets/AssetFilter.vue'
 import AssetTable from '@/components/assets/AssetTable.vue'
 import AssetAnalytics from '@/components/assets/AssetAnalytics.vue'
@@ -170,6 +203,55 @@ const sortDirection = ref('asc')
 const currentPage = ref(1)
 const pageSize = ref(100)
 const totalAssets = ref(0)
+
+const showUnlinkModal = ref(false)
+const showDeactivateModal = ref(false)
+const assetForAction = ref(null)
+const actionLoading = ref(false)
+
+function openUnlinkModal(asset) {
+  assetForAction.value = asset
+  showUnlinkModal.value = true
+}
+
+function openDeactivateModal(asset) {
+  assetForAction.value = asset
+  showDeactivateModal.value = true
+}
+
+async function confirmUnlink() {
+  if (!assetForAction.value?.ip_address) return
+  actionLoading.value = true
+  try {
+    await assetsService.unlinkByIp(assetForAction.value.ip_address)
+    success('Asset removed from this project')
+    showUnlinkModal.value = false
+    assetForAction.value = null
+    selectedAssets.value = []
+    await fetchAssets()
+  } catch (err) {
+    error(err.message || 'Failed to unlink asset')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function confirmDeactivate() {
+  if (!assetForAction.value?.ip_address) return
+  actionLoading.value = true
+  try {
+    await assetsService.deactivateByIp(assetForAction.value.ip_address)
+    success('Asset deactivated org-wide')
+    showDeactivateModal.value = false
+    assetForAction.value = null
+    selectedAssets.value = []
+    await fetchAssets()
+  } catch (err) {
+    error(err.message || 'Failed to deactivate asset')
+  } finally {
+    actionLoading.value = false
+  }
+}
 
 const filters = reactive({
   ip_address: '',

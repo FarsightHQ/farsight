@@ -208,9 +208,30 @@
             {{ formatDate(asset.created_at) }}
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <Button variant="ghost" size="sm" @click.stop="$emit('view-asset', asset)">
-              View
-            </Button>
+            <div class="flex flex-wrap items-center justify-end gap-1">
+              <Button variant="ghost" size="sm" @click.stop="$emit('view-asset', asset)">
+                View
+              </Button>
+              <template v-if="showProjectActions">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Remove this IP from the project only"
+                  @click.stop="$emit('unlink-asset', asset)"
+                >
+                  Unlink
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="text-error-600"
+                  title="Deactivate globally — hides this IP for every project"
+                  @click.stop="$emit('deactivate-asset', asset)"
+                >
+                  Deactivate
+                </Button>
+              </template>
+            </div>
           </td>
         </tr>
 
@@ -253,9 +274,21 @@ const props = defineProps({
     type: String,
     default: 'asc',
   },
+  /** When false, hide unlink/deactivate (e.g. global registry list). */
+  showProjectActions: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const emit = defineEmits(['view-asset', 'select-asset', 'select-all', 'sort'])
+const emit = defineEmits([
+  'view-asset',
+  'select-asset',
+  'select-all',
+  'sort',
+  'unlink-asset',
+  'deactivate-asset',
+])
 
 const allSelected = computed(() => {
   return (

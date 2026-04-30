@@ -20,7 +20,6 @@ from app.core.project_auth import (
     require_project_access,
     user_has_platform_admin_bypass,
 )
-from app.models.far_request import FarRequest
 from app.models.project import Project, ProjectInvitation, ProjectMember
 from app.schemas.project import (
     InvitationAccept,
@@ -32,6 +31,7 @@ from app.schemas.project import (
     ProjectOut,
     ProjectUpdate,
 )
+from app.services.far_request_delete_service import delete_all_far_requests_for_project
 from app.utils.error_handlers import success_response
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -163,12 +163,9 @@ def delete_project(
             status_code=400,
             detail="The default migrated project cannot be deleted",
         )
-    far_count = db.query(FarRequest).filter(FarRequest.project_id == project_id).count()
-    if far_count > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Project still has FAR requests; delete or move them first",
-        )
+    # Remove all FAR requests (files + DB); required before DELETE project due to FK RESTRICT.
+    # Upload batches for this project use ON DELETE SET NULL and are left as orphan rows.
+    delete_all_far_requests_for_project(db, project_id)
     db.delete(p)
     db.commit()
     return success_response(data={"deleted": True}, message="Project deleted")

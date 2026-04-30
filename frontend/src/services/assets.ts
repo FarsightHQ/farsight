@@ -41,4 +41,16 @@ export const assetsService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+
+  /** Remove this project's link to the IP; other projects keep the asset. */
+  unlinkByIp(ipAddress) {
+    const enc = encodeURIComponent(ipAddress)
+    return apiClient.delete(`${projectAssetsBase()}/${enc}/link`)
+  },
+
+  /** Soft-delete the asset org-wide (hides from all projects). */
+  deactivateByIp(ipAddress) {
+    const enc = encodeURIComponent(ipAddress)
+    return apiClient.post(`${projectAssetsBase()}/${enc}/deactivate`)
+  },
 }

@@ -17,6 +17,10 @@ export const projectsService = {
     return apiClient.patch(`/api/v1/projects/${id}`, payload)
   },
 
+  delete(projectId) {
+    return apiClient.delete(`/api/v1/projects/${projectId}`)
+  },
+
   listMembers(projectId) {
     return apiClient.get(`/api/v1/projects/${projectId}/members`)
   },
